@@ -138,8 +138,11 @@ export function generateStealthConfig(): StealthConfig {
 /**
  * Apply enhanced stealth measures to a page
  */
-export async function applyEnhancedStealthMeasures(page: Page, config?: StealthConfig): Promise<void> {
-  const stealthConfig = config || generateStealthConfig();
+export async function applyEnhancedStealthMeasures(page: Page, config?: Partial<StealthConfig>): Promise<void> {
+  // If a display number is provided, use it; otherwise generate one
+  const stealthConfig = config ? 
+    { ...generateStealthConfig(), ...config } : 
+    generateStealthConfig();
   
   log(`[StealthEnhancements] Applying enhanced stealth measures with display :${stealthConfig.displayNumber}`, "scraper");
   

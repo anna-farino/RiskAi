@@ -3543,113 +3543,101 @@ export async function bypassIncapsula(page: Page): Promise<boolean> {
     if (hasIncapsula) {
       log(`[ProtectionBypass] Incapsula protection detected, performing enhanced bypass...`, "scraper");
       
-      // Strategy 1: Handle Incapsula cookies and wait for validation
-      const initialCookies = await page.cookies();
-      const initialIncapCookies = initialCookies.filter(c => 
-        c.name.includes('incap_') || c.name.includes('visid_') || c.name === 'reese84'
-      );
-      log(`[ProtectionBypass] Found ${initialIncapCookies.length} initial Incapsula cookies`, "scraper");
-
-      // Improvement #2: Handle Incapsula Challenge Frame
-      const frames = page.frames();
-      const incapFrame = frames.find(frame => 
-        frame.url().includes('_Incapsula_Resource')
-      );
+      // Try up to 5 attempts to bypass Incapsula
+      const maxAttempts = 5;
       
-      if (incapFrame) {
-        log(`[ProtectionBypass] Found Incapsula challenge iframe, waiting for challenge to complete...`, "scraper");
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        log(`[ProtectionBypass] Bypass attempt ${attempt}/${maxAttempts}`, "scraper");
         
-        // Give the JavaScript challenge time to execute
-        await new Promise(resolve => setTimeout(resolve, 5000));
+        // Check for cookies on each attempt
+        const cookies = await page.cookies();
+        const incapCookies = cookies.filter(c => 
+          c.name.includes('incap_') || c.name.includes('visid_') || c.name === 'reese84'
+        );
+        log(`[ProtectionBypass] Found ${incapCookies.length} Incapsula cookies`, "scraper");
+
+        // Check if iframe still exists
+        const iframeDetected = await page.$('iframe#main-iframe');
         
-        // Try to trigger the challenge completion
-        await page.evaluate(() => {
-          // If we're still on the Incapsula resource page, try to reload parent
-          if (window.location.href.includes('_Incapsula_Resource')) {
-            if (window.parent && window.parent.location) {
-              try {
-                window.parent.location.reload();
-              } catch (e) {
-                // Cross-origin restrictions might prevent this
-                console.log('Could not reload parent frame');
-              }
+        if (iframeDetected) {
+          const iframeSrc = await page.evaluate(() => {
+            const iframe = document.querySelector('iframe#main-iframe') as HTMLIFrameElement;
+            return iframe?.src || '';
+          });
+          
+          if (iframeSrc.includes('_Incapsula_Resource')) {
+            log(`[ProtectionBypass] Incapsula iframe challenge detected, handling...`, "scraper");
+            
+            // Use HumanBehavior class for realistic interactions
+            const humanBehavior = new HumanBehavior(page);
+            
+            // Simulate human interactions
+            await humanBehavior.randomMouseMovement();
+            await humanBehavior.randomClick();
+            await humanBehavior.randomScroll();
+            await humanBehavior.randomKeyboardActivity();
+            await humanBehavior.randomDelay(1000, 2000);
+            
+            // Wait for iframe to potentially clear
+            const cleared = await page.waitForFunction(
+              () => !document.querySelector('iframe#main-iframe') || 
+                   !(document.querySelector('iframe#main-iframe') as HTMLIFrameElement)?.src?.includes('_Incapsula_Resource'),
+              { timeout: 10000 }
+            ).catch(() => false);
+            
+            if (cleared) {
+              log(`[ProtectionBypass] Incapsula iframe cleared successfully!`, "scraper");
+              // Give it a moment to load the real content
+              await new Promise(resolve => setTimeout(resolve, 2000));
+              break; // Success!
+            } else {
+              log(`[ProtectionBypass] Iframe not cleared, will retry...`, "scraper");
             }
           }
-        }).catch(() => {});
-        
-        // Wait a bit more for the challenge to resolve
-        await new Promise(resolve => setTimeout(resolve, 3000));
-      }
-
-      // Improvement #5: Use HumanBehavior class for better human simulation
-      const humanBehavior = new HumanBehavior(page);
-      log(`[ProtectionBypass] Performing enhanced human-like actions`, "scraper");
-      
-      // Perform multiple human-like actions
-      await humanBehavior.randomMouseMovement();
-      await humanBehavior.randomScroll();
-      await humanBehavior.randomDelay(1000, 3000);
-      await humanBehavior.randomClick(); // Safe area click
-      await humanBehavior.randomKeyboardActivity();
-      
-      // Strategy 4: Handle Incapsula's JavaScript challenge
-      await page.evaluate(() => {
-        // Trigger any pending Incapsula validations
-        if (window._icdt) {
-          console.log('Triggering Incapsula validation');
+        } else {
+          // No iframe detected, check if we have real content
+          const hasRealContent = await page.evaluate(() => {
+            const html = document.documentElement.innerHTML;
+            const hasLinks = document.querySelectorAll('a[href]').length > 5;
+            const hasContent = document.body?.innerText?.length > 500;
+            const noIncapsula = !html.includes('_Incapsula_Resource') && 
+                               !html.includes('Request unsuccessful');
+            return hasLinks && hasContent && noIncapsula;
+          });
+          
+          if (hasRealContent) {
+            log(`[ProtectionBypass] Real content detected, bypass successful!`, "scraper");
+            break; // Success!
+          }
         }
-      });
-      
-      // Wait for protection to clear with longer timeout
-      await new Promise((resolve) => setTimeout(resolve, 7000));
-      
-      // Improvement #3: Better Cookie Persistence
-      const afterCookies = await page.cookies();
-      const newIncapCookies = afterCookies.filter(c => 
-        (c.name.includes('incap_') || c.name.includes('visid_') || c.name === 'reese84') &&
-        !initialIncapCookies.find(ic => ic.name === c.name && ic.value === c.value)
-      );
-      
-      if (newIncapCookies.length > 0) {
-        log(`[ProtectionBypass] Captured ${newIncapCookies.length} new Incapsula cookies for future use`, "scraper");
-        // Store these cookies in the page context for potential reuse
-        await page.evaluate((cookies) => {
-          (window as any).__incapCookies = cookies;
-        }, newIncapCookies);
-      }
-      
-      // Strategy 5: Check if we need to reload
-      const stillBlocked = await page.evaluate(() => {
-        const html = document.documentElement.innerHTML;
-        return html.includes("Request unsuccessful") || 
-               html.includes("Incapsula incident") ||
-               html.includes("_Incapsula_Resource") ||
-               html.length < 1000; // Very short response usually means blocked
-      });
-      
-      if (stillBlocked) {
-        log(`[ProtectionBypass] Still blocked, attempting reload...`, "scraper");
-        // Reload page to get clean content
-        await page.reload({ waitUntil: 'networkidle2' });
         
-        // More human behavior after reload
-        await humanBehavior.randomMouseMovement();
-        await humanBehavior.randomDelay(2000, 4000);
+        // If not successful and not the last attempt, reload and try again
+        if (attempt < maxAttempts) {
+          log(`[ProtectionBypass] Reloading page for attempt ${attempt + 1}`, "scraper");
+          await page.reload({ waitUntil: 'networkidle2' });
+          
+          // Wait with human-like delay before next attempt
+          await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 2000));
+        }
       }
       
       // Final validation
       const finalCheck = await page.evaluate(() => {
-        return document.body?.innerText?.length > 500 && 
-               !document.documentElement.innerHTML.includes('_Incapsula_Resource');
+        const html = document.documentElement.innerHTML;
+        const hasLinks = document.querySelectorAll('a[href]').length >= 10;
+        const hasContent = document.body?.innerText?.length > 500;
+        const noIncapsula = !html.includes('_Incapsula_Resource');
+        return { hasLinks, hasContent, noIncapsula, linkCount: document.querySelectorAll('a[href]').length };
       });
       
-      if (finalCheck) {
-        log(`[ProtectionBypass] Incapsula bypass successful`, "scraper");
+      if (finalCheck.noIncapsula && (finalCheck.hasLinks || finalCheck.hasContent)) {
+        log(`[ProtectionBypass] Incapsula bypass successful (${finalCheck.linkCount} links found)`, "scraper");
+        return true;
       } else {
-        log(`[ProtectionBypass] Incapsula bypass may have partially failed`, "scraper");
+        log(`[ProtectionBypass] Incapsula bypass failed after ${maxAttempts} attempts`, "scraper");
+        log(`[ProtectionBypass] Final state - Links: ${finalCheck.linkCount}, Has content: ${finalCheck.hasContent}, No Incapsula: ${finalCheck.noIncapsula}`, "scraper");
+        return false;
       }
-      
-      return true;
     } else {
       log(`[ProtectionBypass] No Incapsula protection detected`, "scraper");
       return true;
