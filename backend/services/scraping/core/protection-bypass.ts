@@ -5,6 +5,7 @@ import UserAgent from 'user-agents';
 import { safePageEvaluate } from '../scrapers/puppeteer-scraper/error-handler';
 import { applyEnhancedStealthMeasures } from './stealth-enhancements';
 import { HumanBehavior } from './human-behavior';
+import { BrowserManager } from './browser-manager';
 
 // Global type declarations for bot detection evasion
 declare global {
@@ -4072,7 +4073,15 @@ export async function applyEnhancedFingerprinting(page: Page, profile: BrowserPr
     
     // First apply our comprehensive stealth measures from stealth-enhancements module
     // This includes dynamic display, WebGL spoofing, WebRTC prevention, etc.
-    await applyEnhancedStealthMeasures(page);
+    // Get the actual display number from BrowserManager to ensure consistency
+    const displayNumber = BrowserManager.getCurrentDisplayNumber();
+    if (displayNumber !== null) {
+      log(`[ProtectionBypass] Using actual display :${displayNumber} for fingerprinting`, "scraper");
+      await applyEnhancedStealthMeasures(page, { displayNumber });
+    } else {
+      log(`[ProtectionBypass] No display number from BrowserManager, using random`, "scraper");
+      await applyEnhancedStealthMeasures(page);
+    }
     
     // Set viewport to match profile (will override the one from stealth measures)
     await page.setViewport(profile.viewport);

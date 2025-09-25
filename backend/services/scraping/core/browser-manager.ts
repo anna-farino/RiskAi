@@ -290,6 +290,14 @@ export class BrowserManager {
   private static browser: Browser | null = null;
   private static isShuttingDown: boolean = false;
   private static creationPromise: Promise<Browser> | null = null;
+  private static currentDisplayNumber: number | null = null;
+
+  /**
+   * Get the current display number being used by XVFB
+   */
+  static getCurrentDisplayNumber(): number | null {
+    return this.currentDisplayNumber;
+  }
 
   /**
    * Get or create a browser instance with singleton pattern
@@ -678,12 +686,19 @@ export class BrowserManager {
           "scraper",
         );
 
-        // Apply enhanced stealth measures to the page
+        // Apply enhanced stealth measures to the page with the correct display number
         log(
           `[BrowserManager][createPage] Starting applyEnhancedStealthMeasures at ${new Date().toISOString()}`,
           "scraper",
         );
-        await applyEnhancedStealthMeasures(page);
+        // Pass the actual XVFB display number to stealth measures
+        if (this.currentDisplayNumber !== null) {
+          log(`[BrowserManager][createPage] Using actual display :${this.currentDisplayNumber} for stealth measures`, "scraper");
+          await applyEnhancedStealthMeasures(page, { displayNumber: this.currentDisplayNumber });
+        } else {
+          log(`[BrowserManager][createPage] No display number set, using random for stealth measures`, "scraper");
+          await applyEnhancedStealthMeasures(page);
+        }
         log(
           `[BrowserManager][createPage] applyEnhancedStealthMeasures completed at ${new Date().toISOString()}`,
           "scraper",
