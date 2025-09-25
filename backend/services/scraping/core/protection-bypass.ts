@@ -1652,7 +1652,7 @@ async function detectChallengeType(page: Page): Promise<ChallengeDetectionResult
 async function handleComputationalFlowChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
   try {
     log(`[ProtectionBypass] Detected Computational Flow challenge (Ray ID: ${detectionResult.signals.rayId})`, "scraper");
-    log(`[ProtectionBypass] These challenges are difficult to bypass - attempting brief wait then continuing`, "scraper");
+    log(`[ProtectionBypass] Attempting brief wait then continuing`, "scraper");
     
     // Initialize human behavior simulator for basic actions
     const humanBehavior = new HumanBehavior(page);
