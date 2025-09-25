@@ -153,8 +153,8 @@ export function isValidArticleContent(content: string, minLength: number = 200):
   }
   
   // Check for sufficient meaningful sentences
-  const sentences = content.match(/[.!?]+\s+[A-Z]/g) || [];
-  if (sentences.length < 3) {
+  const sentences = content.match(/[.!?]+/g) || [];
+  if (sentences.length < 2) {
     log(`[ContentValidator] Content lacks proper sentence structure - only ${sentences.length} sentences found`, "scraper");
     return false;
   }
