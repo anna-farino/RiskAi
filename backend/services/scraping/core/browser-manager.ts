@@ -520,6 +520,9 @@ export class BrowserManager {
           // Start XVFB on the generated display
           await this.startXvfb(displayNumber);
 
+          // Store the display number for stealth measures consistency
+          this.currentDisplayNumber = displayNumber;
+
           // Set display environment variable
           process.env.DISPLAY = displayStr;
           log(
@@ -531,11 +534,25 @@ export class BrowserManager {
           if (!process.env.DISPLAY) {
             // Try to start XVFB on default display
             await this.startXvfb(99);
+            
+            // Store the display number for stealth measures consistency
+            this.currentDisplayNumber = 99;
+            
             process.env.DISPLAY = ":99";
             log(
               `[BrowserManager] Set DISPLAY=:99 for non-Azure environment`,
               "scraper",
             );
+          } else {
+            // DISPLAY is already set, extract the display number for stealth consistency
+            const displayMatch = process.env.DISPLAY.match(/:(\d+)/);
+            if (displayMatch) {
+              this.currentDisplayNumber = parseInt(displayMatch[1], 10);
+              log(
+                `[BrowserManager] Using existing DISPLAY=${process.env.DISPLAY}, extracted display number ${this.currentDisplayNumber} for stealth measures`,
+                "scraper",
+              );
+            }
           }
         }
 
