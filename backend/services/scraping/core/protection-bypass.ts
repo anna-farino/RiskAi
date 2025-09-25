@@ -1731,30 +1731,51 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     const detection = await detectChallengeType(page);
     
     // Route to appropriate handler based on type
+    let bypassResult = false;
+    let handlerUsed = '';
+    
     switch (detection.type) {
       case CloudflareChallengeType.TURNSTILE:
         log(`[ProtectionBypass] Routing to Turnstile handler`, "scraper");
-        return await handleTurnstileChallenge(page, detection);
+        handlerUsed = 'Turnstile';
+        bypassResult = await handleTurnstileChallenge(page, detection);
+        break;
         
       case CloudflareChallengeType.COMPUTATIONAL_FLOW:
-        log(`[ProtectionBypass] Routing to Computational Flow handler`, "scraper");
-        return await handleComputationalFlowChallenge(page, detection);
+        log(`[ProtectionBypass] Routing to Simplified Computational Flow handler`, "scraper");
+        handlerUsed = 'Computational Flow';
+        bypassResult = await handleComputationalFlowChallenge(page, detection);
+        break;
         
       case CloudflareChallengeType.MANAGED:
         log(`[ProtectionBypass] Managed challenge detected - attempting basic bypass`, "scraper");
+        handlerUsed = 'Managed/Turnstile';
         // For now, try the existing approach for managed challenges
-        return await handleTurnstileChallenge(page, detection);
+        bypassResult = await handleTurnstileChallenge(page, detection);
+        break;
         
       case CloudflareChallengeType.NONE:
         log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
         return true;
         
       default:
-        log(`[ProtectionBypass] Unknown challenge type, attempting default handling`, "scraper");
+        log(`[ProtectionBypass] Unknown challenge type, proceeding without bypass`, "scraper");
         return false;
     }
+    
+    // Log the result of the bypass attempt
+    if (!bypassResult) {
+      log(`[ProtectionBypass] ${handlerUsed} handler failed to bypass protection`, "scraper");
+      log(`[ProtectionBypass] Continuing with scraping despite failed bypass - content may be limited`, "scraper");
+    } else {
+      log(`[ProtectionBypass] ${handlerUsed} handler successfully bypassed protection`, "scraper");
+    }
+    
+    return bypassResult;
+    
   } catch (error: any) {
     log(`[ProtectionBypass] Error in challenge handler: ${error.message}`, "scraper-error");
+    log(`[ProtectionBypass] Proceeding without bypass due to error`, "scraper");
     return false;
   }
 }
