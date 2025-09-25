@@ -290,7 +290,6 @@ export class BrowserManager {
   private static browser: Browser | null = null;
   private static isShuttingDown: boolean = false;
   private static creationPromise: Promise<Browser> | null = null;
-  private static currentDisplayNumber: number | null = null;
 
   /**
    * Get or create a browser instance with singleton pattern
@@ -513,9 +512,6 @@ export class BrowserManager {
           // Start XVFB on the generated display
           await this.startXvfb(displayNumber);
 
-          // Store the display number for use in stealth measures
-          this.currentDisplayNumber = displayNumber;
-
           // Set display environment variable
           process.env.DISPLAY = displayStr;
           log(
@@ -527,7 +523,6 @@ export class BrowserManager {
           if (!process.env.DISPLAY) {
             // Try to start XVFB on default display
             await this.startXvfb(99);
-            this.currentDisplayNumber = 99;
             process.env.DISPLAY = ":99";
             log(
               `[BrowserManager] Set DISPLAY=:99 for non-Azure environment`,
@@ -683,16 +678,12 @@ export class BrowserManager {
           "scraper",
         );
 
-        // Apply enhanced stealth measures to the page with the correct display number
+        // Apply enhanced stealth measures to the page
         log(
           `[BrowserManager][createPage] Starting applyEnhancedStealthMeasures at ${new Date().toISOString()}`,
           "scraper",
         );
-        // Pass the actual display number to stealth measures
-        const stealthConfig = this.currentDisplayNumber ? 
-          { displayNumber: this.currentDisplayNumber } : 
-          undefined;
-        await applyEnhancedStealthMeasures(page, stealthConfig);
+        await applyEnhancedStealthMeasures(page);
         log(
           `[BrowserManager][createPage] applyEnhancedStealthMeasures completed at ${new Date().toISOString()}`,
           "scraper",
