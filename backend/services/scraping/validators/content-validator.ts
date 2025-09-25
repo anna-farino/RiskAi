@@ -171,7 +171,9 @@ export function isValidArticleContent(
     "Service Unavailable",
     "Too Many Requests",
     "Rate Limited",
-    "Cloudflare",
+    "Cloudflare Ray ID",
+    "Cloudflare Protection",
+    "Checking if the site connection is secure",
     "Security Check",
     "Bot Detection",
     "CAPTCHA",
@@ -197,7 +199,7 @@ export function isValidArticleContent(
   }
 
   // Check for sufficient meaningful sentences
-  const sentences = content.match(/[.!?]+\s+[A-Z]/g) || [];
+  const sentences = content.match(/[.!?]+/g) || [];
   if (sentences.length < 2) {
     log(
       `[ContentValidator] Content lacks proper sentence structure - only ${sentences.length} sentences found`,
