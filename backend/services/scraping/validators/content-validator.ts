@@ -302,9 +302,38 @@ export function isValidArticleContent(
     "Please wait",
     "Just a moment",
     "DDoS protection",
+    // Additional variations for 404 pages
+    "Oops",
+    "can't be found",
+    "cannot be found",
+    "could not be found",
+    "couldn't be found",
+    "page you requested",
+    "page does not exist",
+    "page doesn't exist",
+    "nothing here",
+    "broken link",
+    "page is not available",
+    "page unavailable",
   ];
 
   const lowerContent = content.toLowerCase();
+  
+  // Pattern-based error detection for more flexible matching
+  // These patterns are more specific to actual error pages
+  const errorPatterns = [
+    /\bpage\s+(not\s+found|can'?t\s+be\s+found|cannot\s+be\s+found|doesn'?t\s+exist|does\s+not\s+exist)\b/i,
+    /\b404\s+(error|page|not\s+found)\b/i,  // Must have "error", "page", or "not found" after 404
+    /^oops[!.]?\s+.{0,30}\s+(page|found|exist)/i,  // Oops at beginning with page-related words
+    /\bthe\s+page\s+you\s+(requested|are\s+looking\s+for|were\s+looking\s+for)\b/i,
+    /\bnothing\s+here\b|\bbroken\s+link\b/i,
+    /\bwe\s+can'?t\s+find\s+(the\s+)?page\b/i,
+    /\bpage\s+is\s+not\s+available\b/i,
+    /^sorry.*page.*not\s+(found|available)/i,  // Sorry at beginning with page not found
+  ];
+  
+  // Check if content matches any error patterns
+  const matchesErrorPattern = errorPatterns.some(pattern => pattern.test(content));
   
   // Check for sufficient meaningful sentences (moved up for use in validation)
   const sentences = content.match(/[.!?]+/g) || [];
@@ -335,11 +364,26 @@ export function isValidArticleContent(
   const hasModerateContent = content.length > 1000 && sentences.length > 10;
   
   // Decision logic combining both approaches
-  if (suspiciousMatches.length > 0) {
-    // If error indicators appear early AND content is short, likely an error page
-    if (earlyMatches.length > 0 && contentWords < 500) {
+  if (suspiciousMatches.length > 0 || matchesErrorPattern) {
+    // If content matches error patterns AND is very short, definitely an error page
+    if (matchesErrorPattern && contentWords < 200) {
       log(
-        `[ContentValidator] Content appears to be an error page - contains "${earlyMatches[0]}" at beginning with short content (${contentWords} words)`,
+        `[ContentValidator] Content matches error page pattern with very short content (${contentWords} words)`,
+        "scraper",
+      );
+      return false;
+    }
+    
+    // For error indicators appearing early, be more selective about which ones matter
+    const criticalErrorIndicators = ["404 Not Found", "Page Not Found", "Oops", "Access Denied", "Forbidden"];
+    const hasCriticalEarlyMatch = earlyMatches.some(match => 
+      criticalErrorIndicators.some(critical => critical.toLowerCase() === match.toLowerCase())
+    );
+    
+    // If critical error indicators appear early AND content is short, likely an error page
+    if (hasCriticalEarlyMatch && contentWords < 500) {
+      log(
+        `[ContentValidator] Content appears to be an error page - contains critical indicator "${earlyMatches[0]}" at beginning with short content (${contentWords} words)`,
         "scraper",
       );
       return false;
@@ -362,6 +406,15 @@ export function isValidArticleContent(
     if (suspiciousMatches.length >= 3 && !hasModerateContent) {
       log(
         `[ContentValidator] Content has multiple error indicators (${suspiciousMatches.length}) without enough legitimate content`,
+        "scraper",
+      );
+      return false;
+    }
+    
+    // If pattern matches but content is substantial, be more lenient
+    if (matchesErrorPattern && !hasModerateContent) {
+      log(
+        `[ContentValidator] Content matches error pattern without moderate content`,
         "scraper",
       );
       return false;
@@ -414,28 +467,71 @@ export function isValidTitle(title: string): boolean {
     return false;
   }
 
-  // Check for generic/placeholder titles
+  // Check for generic/placeholder titles (exact match only for short ones)
   const invalidTitles = [
     "untitled",
     "no title",
     "unknown",
     "error",
     "not found",
-    "404",
-    "403",
     "access denied",
     "forbidden",
+    "page not found",
+    "cannot be found",
+    "can't be found",
   ];
 
   const lowerTitle = trimmedTitle.toLowerCase();
   for (const invalid of invalidTitles) {
-    if (lowerTitle === invalid || lowerTitle.startsWith(invalid + " ")) {
+    // Only exact match for these titles, not startsWith
+    if (lowerTitle === invalid) {
       log(
         `[ContentValidator] Invalid title detected: "${trimmedTitle}"`,
         "scraper",
       );
       return false;
     }
+  }
+  
+  // Special handling for error-like titles that start with certain phrases
+  const invalidStartPhrases = [
+    "oops ",
+    "error:",
+    "404:",
+    "403:",
+    "500:",
+  ];
+  
+  for (const phrase of invalidStartPhrases) {
+    if (lowerTitle.startsWith(phrase)) {
+      log(
+        `[ContentValidator] Title starts with error phrase: "${trimmedTitle}"`,
+        "scraper",
+      );
+      return false;
+    }
+  }
+  
+  // Pattern-based error title detection for more flexible matching
+  const errorTitlePatterns = [
+    /\b404\s+(error|page|not\s+found)\b/i,  // 404 followed by error-related words
+    /\b(403|500)\s+(error|forbidden|internal\s+server\s+error)\b/i,  // Other error codes with context
+    /\boops[!.]?\b.*\b(page|found|exist)/i,  // Oops with page-related words
+    /\bpage\s+(not\s+found|can'?t\s+be\s+found|cannot\s+be\s+found|doesn'?t\s+exist)\b/i,
+    /^(not\s+found|access\s+denied|forbidden)/i,  // Error terms at beginning (removed generic "error")
+    /\b(that|this)\s+page\s+(can'?t|cannot|couldn'?t)\s+be\s+found\b/i,
+    /\bwe\s+can'?t\s+find\s+(that|the|this)\s+page\b/i,
+    /\bpage\s+is\s+not\s+available\b/i,
+    /^nothing\s+(here|found)/i,  // "Nothing here/found" at beginning
+  ];
+  
+  // Check if title matches any error patterns
+  if (errorTitlePatterns.some(pattern => pattern.test(trimmedTitle))) {
+    log(
+      `[ContentValidator] Title matches error page pattern: "${trimmedTitle}"`,
+      "scraper",
+    );
+    return false;
   }
 
   // Check if title has at least one meaningful word
