@@ -2,6 +2,7 @@ import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { log } from '../../utils/log';
 import { verifyDevLogPermission } from './permissions';
+import { handleAllSourcesTestWebSocket } from '../../test-scraping/websocket-integration';
 
 // Global Socket.IO server instance
 let io: SocketIOServer | null = null;
@@ -89,6 +90,11 @@ export function initializeSocketIO(httpServer: HttpServer): SocketIOServer {
       socket.emit('logs-stopped', { message: 'Live log streaming stopped', timestamp: new Date() });
     });
 
+    // Handle all sources testing (non-production only)
+    if (process.env.NODE_ENV !== 'production') {
+      handleAllSourcesTestWebSocket(socket);
+    }
+
     // Handle disconnection
     socket.on('disconnect', () => {
       log(`Live logs client disconnected: ${email}`, 'socket-server');
@@ -119,7 +125,13 @@ export function emitLogToClients(message: string, source: string, level: 'info' 
     'protection-bypass',
     'cycle-tls',
     'puppeteer',
-    'azure-anti-detection'
+    'azure-anti-detection',
+    'test-all-sources',
+    'test-all-sources-error',
+    'all-sources-test',
+    'ws-test-progress',
+    'ws-test',
+    'ws-test-error'
   ];
 
   // Check if source is allowed (exact match or starts with allowed source)

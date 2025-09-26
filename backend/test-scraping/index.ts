@@ -209,6 +209,119 @@ async function processScrapingInBackground(
 }
 
 /**
+ * Test all active sources endpoint
+ */
+export async function handleTestAllSources(req: Request, res: Response): Promise<void> {
+  const requestId = req.headers['x-call-id'] || 'unknown';
+  const startTime = Date.now();
+
+  // Production environment check
+  if (process.env.NODE_ENV === 'production') {
+    log(`[TEST-ALL-SOURCES] BLOCKED: Attempt to use test endpoint in production`, "test-all-sources-security");
+    res.status(403).json({
+      error: 'Forbidden'
+    });
+    return;
+  }
+
+  try {
+    // Validate password
+    const { password } = req.body || {};
+    if (password !== TEST_PASSWORD) {
+      log(`[TEST-ALL-SOURCES] Request ${requestId} - Invalid or missing password`, "test-all-sources");
+      res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    log(`[TEST-ALL-SOURCES] Request ${requestId} started`, "test-all-sources");
+
+    // Import the tester module
+    const { testAllActiveSources } = require('./all-sources-tester');
+
+    // Return immediately with request accepted status
+    res.status(202).json({
+      success: true,
+      message: 'All sources test initiated - check logs for progress',
+      requestId,
+      timestamp: new Date().toISOString(),
+      processingStatus: 'started'
+    });
+
+    // Process in background (fire and forget)
+    processAllSourcesTestInBackground(requestId, startTime);
+
+  } catch (error: any) {
+    const errorMsg = `All sources test request failed: ${error.message}`;
+    log(`[TEST-ALL-SOURCES] Request ${requestId} ERROR: ${errorMsg}`, "test-all-sources-error");
+
+    res.status(500).json({
+      success: false,
+      error: errorMsg,
+      requestId,
+      timestamp: new Date().toISOString(),
+      processingTimeMs: Date.now() - startTime
+    });
+  }
+}
+
+/**
+ * Background processing function for all sources test
+ */
+async function processAllSourcesTestInBackground(
+  requestId: string | unknown,
+  startTime: number
+): Promise<void> {
+  try {
+    log(`[TEST-ALL-SOURCES] Background processing started for request ${requestId}`, "test-all-sources");
+
+    const { testAllActiveSources } = require('./all-sources-tester');
+    
+    // Create a simple event emitter for logging progress
+    const progressEmitter = {
+      emit: (event: string, data: any) => {
+        log(`[TEST-ALL-SOURCES] Event '${event}': ${JSON.stringify(data)}`, "test-all-sources");
+      }
+    };
+
+    // Run the test
+    const results = await testAllActiveSources(progressEmitter);
+
+    // Log comprehensive results
+    const status = results.success ? 'SUCCESS' : 'FAILURE';
+    const totalTime = Date.now() - startTime;
+
+    log(`[TEST-ALL-SOURCES] Background processing ${status} for request ${requestId}:`, "test-all-sources");
+    log(`  - Total sources tested: ${results.totalSources}`, "test-all-sources");
+    log(`  - Passed: ${results.passedSources}`, "test-all-sources");
+    log(`  - Failed: ${results.failedSources}`, "test-all-sources");
+    log(`  - Total time: ${totalTime}ms`, "test-all-sources");
+    
+    // Log individual source results
+    results.results.forEach((source, index) => {
+      const statusIcon = source.status === 'passed' ? '✓' : '✗';
+      log(`  ${statusIcon} ${source.sourceName}: ${source.articlesFound} articles, scraping ${source.articleScrapingSuccess ? 'succeeded' : 'failed'}`, "test-all-sources");
+      if (source.errors.length > 0) {
+        source.errors.forEach(error => {
+          log(`    - Error: ${error}`, "test-all-sources-error");
+        });
+      }
+    });
+
+    log(`[TEST-ALL-SOURCES] Background processing completed for request ${requestId}`, "test-all-sources");
+
+  } catch (error: any) {
+    log(`[TEST-ALL-SOURCES] Background processing failed for request ${requestId}: ${error.message}`, "test-all-sources-error");
+    if (error.stack) {
+      log(`[TEST-ALL-SOURCES] Stack trace: ${error.stack}`, "test-all-sources-error");
+    }
+  }
+}
+
+/**
  * Health check for the test scraping system
  */
 export async function handleTestScrapingHealth(req: Request, res: Response): Promise<void> {
