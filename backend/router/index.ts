@@ -20,7 +20,7 @@ import { auth0middleware } from "backend/middleware/auth0middleware";
 import { handleChangePassword } from "backend/handlers/auth0/change-password";
 // import { handleMigrateUserPreferences } from 'backend/handlers/migrate-preferences';
 import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
-import { handleTestScraping, handleTestScrapingHealth, handleTestAllSources } from "backend/test-scraping";
+import { handleTestScraping, handleTestScrapingHealth } from "backend/test-scraping";
 import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
 import liveLogsRouter from "backend/api/live-logs-management";
 
@@ -48,7 +48,6 @@ router.post("/test/crypto/encrypt-decrypt", limiter, handleTestEncryptDecrypt);
 
 // TEST SCRAPING (unprotected but password-secured)
 router.post("/test-scraping", limiter, handleTestScraping);
-router.post("/test-scraping/all-sources", limiter, handleTestAllSources);
 router.get("/test-scraping/health", handleTestScrapingHealth);
 
 // LIVE LOGS MANAGEMENT (staging only)
