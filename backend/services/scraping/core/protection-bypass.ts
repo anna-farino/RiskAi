@@ -1645,264 +1645,82 @@ async function detectChallengeType(page: Page): Promise<ChallengeDetectionResult
  * Routes to appropriate handler based on detected challenge type
  */
 /**
- * Handle JavaScript Computational Flow challenges
+ * Handle JavaScript Computational Flow challenges - SIMPLIFIED VERSION
  * These use /flow/ov1/ requests and require time for computation
+ * We now fail fast instead of getting stuck in loops
  */
 async function handleComputationalFlowChallenge(page: Page, detectionResult: ChallengeDetectionResult): Promise<boolean> {
   try {
-    log(`[ProtectionBypass] Handling Computational Flow challenge (Ray ID: ${detectionResult.signals.rayId})`, "scraper");
+    log(`[ProtectionBypass] Detected Computational Flow challenge (Ray ID: ${detectionResult.signals.rayId})`, "scraper");
+    log(`[ProtectionBypass] Attempting brief wait then continuing`, "scraper");
     
-    // Initialize human behavior simulator
+    // Initialize human behavior simulator for basic actions
     const humanBehavior = new HumanBehavior(page);
     
-    // Apply WebGL noise and window randomization before starting
+    // Apply basic fingerprinting
     await humanBehavior.addWebGLNoise();
     await humanBehavior.randomizeWindow();
     
-    // Session warming now happens BEFORE navigation in main-scraper.ts
-    // This prevents the problematic pattern of warming AFTER being challenged
-    
-    // Add "thinking time" before attempting challenge
+    // Brief human-like pause
     await humanBehavior.thinkingPause();
     
-    const maxWaitTime = 90000; // 90 seconds for computational challenges
+    // Simplified approach: Wait briefly for challenge to resolve naturally
+    const maxWaitTime = 15000; // Only wait 15 seconds max
     const startTime = Date.now();
-    let lastRayId = detectionResult.signals.rayId;
-    let consecutiveNoProgress = 0;
-    let flowRequestCount = 0;
-    let lastFlowRequestTime = Date.now();
-    let flowRequestPattern: number[] = []; // Track time between request groups
-    let possibleLoop = false;
-    let loopDetectedAt = 0;
-    let lastHumanActionTime = Date.now();
+    let checkCount = 0;
     
-    // Intercept and delay flow requests to seem more human
-    await page.setRequestInterception(true);
-    
-    const requestHandler = async (request: any) => {
-      const url = request.url();
-      if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform/')) {
-        // Add human-like delay before allowing flow request
-        const delay = 100 + Math.random() * 300; // 100-400ms delay
-        await new Promise(resolve => setTimeout(resolve, delay));
+    // Simple monitoring without complex interception
+    while (Date.now() - startTime < maxWaitTime) {
+      // Wait 3 seconds between checks
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      checkCount++;
+      
+      // Check current status
+      const status = await safePageEvaluate(page, () => {
+        const title = document.title || '';
+        const bodyText = document.body?.textContent || '';
+        const hasClearance = document.cookie.includes('cf_clearance');
+        const stillOnChallenge = title.toLowerCase().includes('just a moment') ||
+                                bodyText.toLowerCase().includes('verifying you are human');
         
-        log(`[ProtectionBypass] Flow request delayed by ${Math.round(delay)}ms: ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`, "scraper");
-      }
-      request.continue();
-    };
-    
-    page.on('request', requestHandler);
-    
-    // Monitor flow requests - FIXED: Use proper event listener cleanup
-    const flowRequests: string[] = [];
-    const responseHandler = (response: any) => {
-      const url = response.url();
-      if (url.includes('/flow/ov') || url.includes('/cdn-cgi/challenge-platform')) {
-        const currentTime = Date.now();
-        const timeSinceLastRequest = currentTime - lastFlowRequestTime;
-        
-        flowRequestCount++;
-        flowRequests.push(`${response.status()} ${url.substring(url.lastIndexOf('/') + 1, url.lastIndexOf('/') + 20)}...`);
-        
-        // Detect loop pattern: requests come in groups with ~16 second intervals
-        if (timeSinceLastRequest > 10000) { // New group of requests
-          flowRequestPattern.push(timeSinceLastRequest);
-          
-          // Check if we have a repeating pattern (3+ similar intervals)
-          if (flowRequestPattern.length >= 3) {
-            const recentIntervals = flowRequestPattern.slice(-3);
-            const avgInterval = recentIntervals.reduce((a, b) => a + b, 0) / 3;
-            const isRepeating = recentIntervals.every(interval => 
-              Math.abs(interval - avgInterval) < 3000 // Within 3 seconds of average
-            );
-            
-            if (isRepeating && avgInterval > 14000 && avgInterval < 18000) {
-              if (!possibleLoop) {
-                possibleLoop = true;
-                loopDetectedAt = flowRequestCount;
-                log(`[ProtectionBypass] WARNING: Detected challenge loop pattern (${Math.floor(avgInterval/1000)}s intervals)`, "scraper");
-                
-                // Set flag to trigger pattern breaking in main loop
-                // (Can't use await inside non-async response handler)
-              }
-            }
-          }
-        }
-        
-        lastFlowRequestTime = currentTime;
-        consecutiveNoProgress = 0; // Reset on activity
-        
-        if (response.status() === 200) {
-          log(`[ProtectionBypass] Flow request successful: ${response.status()}`, "scraper");
-        } else if (response.status() >= 400) {
-          log(`[ProtectionBypass] Flow request error: ${response.status()}`, "scraper");
-        }
-      }
-    };
-    
-    // Add event listener with proper cleanup
-    page.on('response', responseHandler);
-    
-    try {
-      // Wait for computational challenge to complete
-      while (Date.now() - startTime < maxWaitTime) {
-        // Use random delay instead of fixed 2 seconds to break pattern
-        const waitTime = 1500 + Math.random() * 2500; // 1.5 to 4 seconds
-        await new Promise(resolve => setTimeout(resolve, waitTime));
-        
-        // Perform human-like actions periodically (not every iteration to avoid pattern)
-        const timeSinceLastAction = Date.now() - lastHumanActionTime;
-        if (timeSinceLastAction > 8000 && Math.random() > 0.4) { // ~60% chance after 8 seconds
-          log(`[ProtectionBypass] Performing human-like interactions...`, "scraper");
-          await humanBehavior.performRandomActions(Math.floor(Math.random() * 2) + 1); // 1-2 actions
-          lastHumanActionTime = Date.now();
-        }
-        
-        // Check current status
-        const status = await safePageEvaluate(page, () => {
-          const title = document.title || '';
-          const bodyText = document.body?.textContent || '';
-          const hasClearance = document.cookie.includes('cf_clearance');
-          const stillOnChallenge = title.toLowerCase().includes('just a moment') ||
-                                  bodyText.toLowerCase().includes('verifying you are human');
-          
-          // Extract current Ray ID (handle various formats including <code> tags)
-          const html = document.documentElement?.innerHTML || '';
-          const rayIdMatch = html.match(/ray\s*id\s*:?\s*(?:<code>)?([a-f0-9]+)(?:<\/code>)?/i) || 
-                            html.match(/cf-ray["\s]*[:=]["\s]*([a-f0-9]+)/i) ||
-                            html.match(/"ray":\s*"([a-f0-9]+)"/i);
-          const currentRayId = rayIdMatch ? rayIdMatch[1] : null;
-          
-          return {
-            title,
-            hasClearance,
-            stillOnChallenge,
-            currentRayId,
-            linkCount: document.querySelectorAll('a[href]').length,
-            hasContent: bodyText.length > 500 && !stillOnChallenge
-          };
-        }) || {
-          title: '',
-          hasClearance: false,
-          stillOnChallenge: true,
-          currentRayId: null,
-          linkCount: 0,
-          hasContent: false
+        return {
+          hasClearance,
+          stillOnChallenge,
+          hasContent: bodyText.length > 500 && !stillOnChallenge
         };
-        
-        // Check for completion
-        if (status.hasClearance) {
-          log(`[ProtectionBypass] Computational challenge completed - cf_clearance cookie set`, "scraper");
-          return true;
-        }
-        
-        // Check if we've navigated away from challenge
-        if (!status.stillOnChallenge && status.hasContent) {
-          log(`[ProtectionBypass] Computational challenge completed - navigated to content page`, "scraper");
-          return true;
-        }
-        
-        // Check if Ray ID changed (indicates progress)
-        if (status.currentRayId && status.currentRayId !== lastRayId) {
-          log(`[ProtectionBypass] Ray ID changed: ${lastRayId} -> ${status.currentRayId}`, "scraper");
-          lastRayId = status.currentRayId;
-          consecutiveNoProgress = 0;
-        } else {
-          consecutiveNoProgress++;
-        }
-        
-        // Log progress
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        if (elapsed % 10 === 0 && elapsed > 0) {
-          log(`[ProtectionBypass] Computational flow progress: ${elapsed}s elapsed, ${flowRequestCount} flow requests, Ray: ${status.currentRayId}`, "scraper");
-        }
-        
-        // Check for stuck state or loop detection
-        if (consecutiveNoProgress >= 15 || (possibleLoop && flowRequestCount > loopDetectedAt + 6)) { 
-          // Either 30 seconds of no progress OR we've detected a loop and seen 6+ more requests
-          
-          if (possibleLoop) {
-            log(`[ProtectionBypass] Challenge stuck in loop after ${flowRequestCount} requests, attempting aggressive loop-breaking`, "scraper");
-            
-            // Aggressive human-like behaviors to break the loop
-            await humanBehavior.simulateTabSwitch(); // Simulate leaving and coming back
-            await humanBehavior.performRandomActions(3); // Multiple random actions
-            
-            // Try clicking on various elements
-            await page.evaluate(() => {
-              // Click on body
-              document.body.click();
-              
-              // Try clicking on any challenge-related elements
-              const challengeElements = document.querySelectorAll('[class*="challenge"], [id*="challenge"], form, button');
-              challengeElements.forEach(el => {
-                try { (el as HTMLElement).click(); } catch(e) {}
-              });
-              
-              // Dispatch custom events that might trigger challenge
-              ['click', 'mousedown', 'mouseup'].forEach(eventType => {
-                const event = new MouseEvent(eventType, {
-                  view: window,
-                  bubbles: true,
-                  cancelable: true,
-                  clientX: Math.random() * window.innerWidth,
-                  clientY: Math.random() * window.innerHeight
-                });
-                document.body.dispatchEvent(event);
-              });
-              
-              // Try focusing on the document
-              document.documentElement.focus();
-              window.focus();
-            }).catch(() => {});
-            
-            // Random delay to seem more human
-            await humanBehavior.randomDelay(2000, 5000);
-          }
-          
-          log(`[ProtectionBypass] No progress for 30 seconds, attempting soft reload`, "scraper");
-          
-          // Try a soft reload while preserving cookies
-          await page.reload({ waitUntil: 'domcontentloaded', timeout: 10000 }).catch(() => {});
-          consecutiveNoProgress = 0;
-          possibleLoop = false; // Reset loop detection after reload
-          flowRequestPattern = [];
-          
-          // Give it more time after reload
-          await new Promise(resolve => setTimeout(resolve, 5000));
-          
-          // Check if challenge type changed after reload
-          const newDetection = await detectChallengeType(page);
-          if (newDetection.type !== CloudflareChallengeType.COMPUTATIONAL_FLOW) {
-            log(`[ProtectionBypass] Challenge type changed after reload to: ${newDetection.type}`, "scraper");
-            // Exit this handler and let the main handler route to the correct one
-            return false;
-          }
-        }
-        
-        // Ultimate timeout check
-        if (Date.now() - startTime >= maxWaitTime) {
-          log(`[ProtectionBypass] Computational challenge timed out after ${maxWaitTime}ms`, "scraper");
-          log(`[ProtectionBypass] Flow requests summary: ${flowRequests.slice(-5).join(', ')}`, "scraper");
-          return false;
-        }
+      }) || {
+        hasClearance: false,
+        stillOnChallenge: true,
+        hasContent: false
+      };
+      
+      // Check for completion
+      if (status.hasClearance) {
+        log(`[ProtectionBypass] Computational challenge resolved - cf_clearance cookie set`, "scraper");
+        return true;
       }
       
-      return false;
-    } finally {
-      // FIXED: Always remove the event listeners to prevent memory leak
-      page.off('response', responseHandler);
-      page.off('request', requestHandler);
-      // Disable request interception if it was enabled
-      try {
-        await page.setRequestInterception(false);
-      } catch (e) {
-        // Ignore errors when disabling interception
+      // Check if we've navigated away from challenge
+      if (!status.stillOnChallenge && status.hasContent) {
+        log(`[ProtectionBypass] Computational challenge resolved - navigated to content page`, "scraper");
+        return true;
       }
-      log(`[ProtectionBypass] Cleaned up event listeners for computational flow handler`, "scraper");
+      
+      // Log progress
+      if (checkCount % 2 === 0) {
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        log(`[ProtectionBypass] Waiting for computational challenge: ${elapsed}s elapsed`, "scraper");
+      }
     }
+    
+    // If we get here, the challenge didn't resolve in time
+    log(`[ProtectionBypass] Computational challenge did not resolve within ${maxWaitTime/1000} seconds`, "scraper");
+    log(`[ProtectionBypass] Moving on without bypass - site may have strong anti-bot protection`, "scraper");
+    
+    return false;
+    
   } catch (error: any) {
-    log(`[ProtectionBypass] Error handling computational flow challenge: ${error.message}`, "scraper-error");
+    log(`[ProtectionBypass] Error in simplified computational flow handler: ${error.message}`, "scraper-error");
     return false;
   }
 }
@@ -1913,30 +1731,51 @@ export async function handleCloudflareChallenge(page: Page): Promise<boolean> {
     const detection = await detectChallengeType(page);
     
     // Route to appropriate handler based on type
+    let bypassResult = false;
+    let handlerUsed = '';
+    
     switch (detection.type) {
       case CloudflareChallengeType.TURNSTILE:
         log(`[ProtectionBypass] Routing to Turnstile handler`, "scraper");
-        return await handleTurnstileChallenge(page, detection);
+        handlerUsed = 'Turnstile';
+        bypassResult = await handleTurnstileChallenge(page, detection);
+        break;
         
       case CloudflareChallengeType.COMPUTATIONAL_FLOW:
-        log(`[ProtectionBypass] Routing to Computational Flow handler`, "scraper");
-        return await handleComputationalFlowChallenge(page, detection);
+        log(`[ProtectionBypass] Routing to Simplified Computational Flow handler`, "scraper");
+        handlerUsed = 'Computational Flow';
+        bypassResult = await handleComputationalFlowChallenge(page, detection);
+        break;
         
       case CloudflareChallengeType.MANAGED:
         log(`[ProtectionBypass] Managed challenge detected - attempting basic bypass`, "scraper");
+        handlerUsed = 'Managed/Turnstile';
         // For now, try the existing approach for managed challenges
-        return await handleTurnstileChallenge(page, detection);
+        bypassResult = await handleTurnstileChallenge(page, detection);
+        break;
         
       case CloudflareChallengeType.NONE:
         log(`[ProtectionBypass] No Cloudflare challenge detected`, "scraper");
         return true;
         
       default:
-        log(`[ProtectionBypass] Unknown challenge type, attempting default handling`, "scraper");
+        log(`[ProtectionBypass] Unknown challenge type, proceeding without bypass`, "scraper");
         return false;
     }
+    
+    // Log the result of the bypass attempt
+    if (!bypassResult) {
+      log(`[ProtectionBypass] ${handlerUsed} handler failed to bypass protection`, "scraper");
+      log(`[ProtectionBypass] Continuing with scraping despite failed bypass - content may be limited`, "scraper");
+    } else {
+      log(`[ProtectionBypass] ${handlerUsed} handler successfully bypassed protection`, "scraper");
+    }
+    
+    return bypassResult;
+    
   } catch (error: any) {
     log(`[ProtectionBypass] Error in challenge handler: ${error.message}`, "scraper-error");
+    log(`[ProtectionBypass] Proceeding without bypass due to error`, "scraper");
     return false;
   }
 }

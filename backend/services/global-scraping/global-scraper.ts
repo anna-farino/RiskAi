@@ -180,8 +180,7 @@ async function scrapeGlobalSource(
         }
         
         // Additional validation for known error pages
-        if (articleContent.content.length < 500 || 
-            finalTitle.toLowerCase().includes('detected unusual') ||
+        if (finalTitle.toLowerCase().includes('detected unusual') ||
             articleContent.content.includes('unusual activity') ||
             articleContent.content.includes('not a robot') ||
             articleContent.content.includes('click the box below')) {

@@ -10,6 +10,26 @@ export interface LogEntry {
   id: string; // Unique identifier for each log entry
 }
 
+// All sources test types
+export interface SourceTestResult {
+  sourceId: string;
+  sourceName: string;
+  sourceUrl: string;
+  status: 'pending' | 'testing' | 'passed' | 'failed';
+  articlesFound: number;
+  articleTestedUrl?: string;
+  articleScrapingSuccess: boolean;
+  errors: string[];
+  testDuration: number;
+  timestamp: string;
+}
+
+export interface AllSourcesTestProgress {
+  totalSources: number;
+  testingSources: string[];
+  completedSources: SourceTestResult[];
+}
+
 interface LiveLogsState {
   // Logs data
   logs: LogEntry[];
@@ -25,6 +45,11 @@ interface LiveLogsState {
   fullTest: boolean;
   isTestRunning: boolean;
   testResult: { success: boolean; message: string } | null;
+  
+  // All sources test state
+  isAllSourcesTestRunning: boolean;
+  allSourcesTestProgress: AllSourcesTestProgress | null;
+  allSourcesTestResults: SourceTestResult[];
 
   // Actions
   addLog: (log: Omit<LogEntry, 'id'>) => void;
@@ -36,12 +61,19 @@ interface LiveLogsState {
   setFullTest: (fullTest: boolean) => void;
   setTestRunning: (running: boolean) => void;
   setTestResult: (result: { success: boolean; message: string } | null) => void;
-
+  
+  // All sources test actions
+  setAllSourcesTestRunning: (running: boolean) => void;
+  updateAllSourcesTestProgress: (source: SourceTestResult) => void;
+  setAllSourcesTestResults: (results: SourceTestResult[]) => void;
+  clearAllSourcesTestResults: () => void;
+  
   // Computed
   getLogsByLevel: (level: LogEntry['level']) => LogEntry[];
   getLogsBySource: (source: string) => LogEntry[];
   searchLogs: (query: string) => LogEntry[];
   exportLogs: () => string;
+  exportAllSourcesTestResults: () => string;
 }
 
 // Generate unique ID for log entries
@@ -61,6 +93,11 @@ export const useLiveLogsStore = create<LiveLogsState>()(
     fullTest: true,
     isTestRunning: false,
     testResult: null,
+    
+    // All sources test state
+    isAllSourcesTestRunning: false,
+    allSourcesTestProgress: null,
+    allSourcesTestResults: [],
 
     // Actions
     addLog: (logData) => set((state) => {
@@ -98,6 +135,31 @@ export const useLiveLogsStore = create<LiveLogsState>()(
     setTestRunning: (running) => set({ isTestRunning: running }),
 
     setTestResult: (result) => set({ testResult: result }),
+    
+    // All sources test actions
+    setAllSourcesTestRunning: (running) => set({ isAllSourcesTestRunning: running }),
+    
+    updateAllSourcesTestProgress: (source) => set((state) => {
+      const existingResults = state.allSourcesTestResults || [];
+      const index = existingResults.findIndex(s => s.sourceId === source.sourceId);
+      
+      if (index >= 0) {
+        // Update existing source result
+        const updatedResults = [...existingResults];
+        updatedResults[index] = source;
+        return { allSourcesTestResults: updatedResults };
+      } else {
+        // Add new source result
+        return { allSourcesTestResults: [...existingResults, source] };
+      }
+    }),
+    
+    setAllSourcesTestResults: (results) => set({ allSourcesTestResults: results }),
+    
+    clearAllSourcesTestResults: () => set({ 
+      allSourcesTestResults: [], 
+      allSourcesTestProgress: null 
+    }),
 
     // Computed functions
     getLogsByLevel: (level) => {
@@ -127,6 +189,29 @@ export const useLiveLogsStore = create<LiveLogsState>()(
           level: log.level,
           source: log.source,
           message: log.message
+        }))
+      };
+
+      return JSON.stringify(exportData, null, 2);
+    },
+    
+    exportAllSourcesTestResults: () => {
+      const results = get().allSourcesTestResults;
+      const exportData = {
+        exportDate: new Date().toISOString(),
+        totalSources: results.length,
+        passedSources: results.filter(r => r.status === 'passed').length,
+        failedSources: results.filter(r => r.status === 'failed').length,
+        sources: results.map(source => ({
+          name: source.sourceName,
+          url: source.sourceUrl,
+          status: source.status,
+          articlesFound: source.articlesFound,
+          articleTestedUrl: source.articleTestedUrl,
+          articleScrapingSuccess: source.articleScrapingSuccess,
+          errors: source.errors,
+          testDuration: source.testDuration,
+          timestamp: source.timestamp
         }))
       };
 
