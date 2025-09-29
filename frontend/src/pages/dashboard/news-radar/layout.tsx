@@ -35,17 +35,19 @@ export default function NewsLayout() {
   return (
     <div className="flex flex-col w-full h-full gap-y-2">
       {/* Page Title Tile */}
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6">
-        <div className="flex flex-col gap-4">
-          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
-            <span className="text-white">
-              News Radar
-            </span>
-          </h1>
-          <p className="text-muted-foreground max-w-3xl">
-            Advanced aggregation and AI-driven content analysis for efficient
-            news collection and processing.
-          </p>
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
+              <span className="text-white">
+                News Radar
+              </span>
+            </h1>
+            <p className="text-muted-foreground max-w-3xl">
+              Advanced aggregation and AI-driven content analysis for efficient
+              news collection and processing.
+            </p>
+          </div>
         </div>
       </div>
 

@@ -83,6 +83,11 @@ import {
   ChevronDown,
   ChevronRight,
   Upload,
+  Search,
+  AlertTriangle,
+  Building,
+  Users,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -122,6 +127,14 @@ export default function Keywords() {
     client: true,
     hardware: true,
   });
+
+  // Toolbar state management - matching News Radar design
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive' | 'default'>('all');
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
@@ -229,6 +242,8 @@ export default function Keywords() {
         active: values.active,
         userId: null,
         isDefault: false,
+        wrappedDekTerm: null,
+        keyIdTerm: null,
       }));
       
       // Cancel any outgoing refetches
@@ -322,6 +337,8 @@ export default function Keywords() {
         active: newKeyword.active,
         userId: null,
         isDefault: false,
+        wrappedDekTerm: null,
+        keyIdTerm: null,
       };
       
       // Cancel any outgoing refetches to avoid overwriting optimistic update
@@ -656,9 +673,23 @@ export default function Keywords() {
     toggleKeywordActive.mutate({ id, active: !currentStatus });
   }
 
-  // Filter keywords by category and separate defaults from user keywords
+  // Filter keywords by category, search term, and status, then separate defaults from user keywords
   const allKeywordsByCategory = localKeywords.filter(
-    (keyword) => keyword.category === selectedCategory,
+    (keyword) => {
+      const matchesCategory = keyword.category === selectedCategory;
+      const matchesSearch = keyword.term.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let matchesStatus = true;
+      if (statusFilter === 'active') {
+        matchesStatus = keyword.active === true;
+      } else if (statusFilter === 'inactive') {
+        matchesStatus = keyword.active === false;
+      } else if (statusFilter === 'default') {
+        matchesStatus = keyword.isDefault === true;
+      }
+      
+      return matchesCategory && matchesSearch && matchesStatus;
+    }
   );
 
   const defaultKeywords = allKeywordsByCategory.filter(
@@ -753,7 +784,7 @@ export default function Keywords() {
             {selectedCategory === "hardware" &&
               "Add custom hardware/software to monitor for security issues."}
           </p>
-          <Button onClick={handleNewKeyword} className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0">
+          <Button onClick={handleNewKeyword} className="border border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500">
             <Plus className="mr-2 h-4 w-4" />
             Add{" "}
             {selectedCategory === "threat"
@@ -1003,118 +1034,180 @@ export default function Keywords() {
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
-                Threat Keywords
+              <h1 className="text-xl md:text-2xl lg:text-2xl [letter-spacing:1px] text-white">
+                Threat Keyword Management
               </h1>
-              <p className="text-sm text-slate-300">
-                Manage keywords for threat monitoring across categories
+              <p className="text-base text-slate-400">
+                Manage keywords for threat monitoring across security categories
               </p>
             </div>
           </div>
 
           {/* Toolbar Content */}
-          <div className="grid gap-4 lg:grid-cols-12">
-            {/* Category Navigation Section */}
-            <div className="lg:col-span-5">
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Shield className="h-4 w-4 text-blue-400" />
-                  <span className="text-sm font-medium text-blue-400">Category Navigation</span>
-                </div>
-                <div className="space-y-2">
-                  <Tabs
-                    defaultValue="threat"
-                    value={selectedCategory}
-                    onValueChange={setSelectedCategory}
-                    className="w-full"
-                  >
-                    <TabsList className="w-full h-auto grid grid-cols-2 gap-1 p-1 bg-slate-800/60">
-                      <TabsTrigger
-                        value="threat"
-                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
-                      >
-                        Threats ({categoryCounts.threat})
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="vendor"
-                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
-                      >
-                        Vendors ({categoryCounts.vendor})
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="client"
-                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
-                      >
-                        Clients ({categoryCounts.client})
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="hardware"
-                        className="text-xs px-2 py-1 data-[state=active]:bg-[#BF00FF] data-[state=active]:text-white"
-                      >
-                        H/W S/W ({categoryCounts.hardware})
-                      </TabsTrigger>
-                    </TabsList>
-                  </Tabs>
-                  <div className="text-xs text-slate-400">
-                    {allKeywordsByCategory.length} keywords ({allKeywordsByCategory.filter(k => k.active).length} active)
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Auto-Update Section */}
-            <div className="lg:col-span-4">
-              <div className="bg-green-500/10 border border-green-500/20 rounded-md p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Check className="h-4 w-4 text-green-400" />
-                  <span className="text-sm font-medium text-green-400">Category Stats</span>
-                </div>
-                <div className="space-y-2">
-                  <div className="text-xs text-slate-300">
-                    Current category: {selectedCategory === "threat" ? "Threats" : selectedCategory === "vendor" ? "Vendors" : selectedCategory === "client" ? "Clients" : "Hardware/Software"}
-                  </div>
-                  <div className="flex gap-4 text-xs">
-                    <span className="text-[#BF00FF]">{allKeywordsByCategory.length} total</span>
-                    <span className="text-green-400">{allKeywordsByCategory.filter(k => k.active).length} active</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Actions Section */}
-            <div className="lg:col-span-3">
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Search & Add Section */}
+            <div className="col-span-1">
               <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <Plus className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Actions</span>
+                <div className="flex items-center gap-2 mb-3">
+                  <Search className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Search & Add Keywords</span>
                 </div>
-                <div className="flex flex-col gap-2">
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search threat keywords..."
+                      className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                    />
+                  </div>
                   <Button 
                     onClick={() => {
-                      setEditingKeyword(null);
-                      form.reset({
-                        term: "",
+                      bulkForm.reset({
+                        terms: "",
                         category: selectedCategory,
                         active: true,
                       });
-                      setKeywordDialogOpen(true);
+                      setBulkKeywordDialogOpen(true);
                     }}
-                    className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-2"
+                    className="border border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-slate-700/50 hover:border-slate-500 h-8 text-xs px-2 whitespace-nowrap w-full"
                   >
-                    <Plus className="h-3 w-3" />
-                    Add Keyword
-                  </Button>
-                  <Button
-                    onClick={handleBulkKeywords}
-                    variant="outline" 
-                    className="border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50 h-8 text-xs px-2"
-                  >
-                    <Upload className="h-3 w-3" />
-                    Bulk Import
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add Single or Bulk
                   </Button>
                 </div>
               </div>
             </div>
+
+            {/* Category Filter Section */}
+            <div className="col-span-1">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Shield className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Category Filters</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      selectedCategory === 'threat'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setSelectedCategory('threat')}
+                    title="Cybersecurity Threats"
+                  >
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Threats ({categoryCounts.threat})
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      selectedCategory === 'vendor'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setSelectedCategory('vendor')}
+                    title="Technology Vendors"
+                  >
+                    <Building className="h-3 w-3 mr-1" />
+                    Vendors ({categoryCounts.vendor})
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      selectedCategory === 'client'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setSelectedCategory('client')}
+                    title="Client Organizations"
+                  >
+                    <Users className="h-3 w-3 mr-1" />
+                    Clients ({categoryCounts.client})
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      selectedCategory === 'hardware'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setSelectedCategory('hardware')}
+                    title="Hardware/Software"
+                  >
+                    <Cpu className="h-3 w-3 mr-1" />
+                    H/W S/W ({categoryCounts.hardware})
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Status Filters Section */}
+            <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Status Filters</span>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'all'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('all')}
+                    title="Show All Keywords"
+                  >
+                    <Search className="h-3 w-3 mr-1" />
+                    All
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'active'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('active')}
+                    title="Show Active Keywords"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Active
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'inactive'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('inactive')}
+                    title="Show Inactive Keywords"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Inactive
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'default'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('default')}
+                    title="Show Default Keywords Only"
+                  >
+                    <Shield className="h-3 w-3 mr-1" />
+                    Default
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
