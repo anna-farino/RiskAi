@@ -126,7 +126,7 @@ export function WidgetButton({
     const baseClasses = "flex items-center justify-center rounded-md py-2 px-3 text-sm font-medium transition-all duration-200";
     
     const variantClasses = {
-      primary: "btn-risqai-primary",
+      primary: "bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30 border hover:bg-[#9333EA]/30 hover:text-white",
       secondary: "btn-risqai-secondary",
       ghost: "btn-risqai-ghost"
     };
