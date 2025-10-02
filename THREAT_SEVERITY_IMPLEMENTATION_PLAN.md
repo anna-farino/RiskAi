@@ -2,37 +2,202 @@
 
 ## Required Drizzle Schema Updates
 
-**IMPORTANT: Run this schema update first before proceeding with the implementation**
+**IMPORTANT: Run these schema updates first before proceeding with the implementation**
 
-Add the following columns to your `shared/db/schema/global-tables.ts` file in the `globalArticles` table definition:
+### New Tables Structure
 
 ```typescript
-import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, numeric, unique, primaryKey } from 'drizzle-orm/pg-core';
 
-// Add these new fields to the existing globalArticles table:
+// =====================================================
+// COMPANIES TABLE (replaces vendors and clients)
+// =====================================================
+export const companies = pgTable('companies', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull().unique(),
+  type: text('type'), // 'vendor', 'client', 'both', 'other'
+  industry: text('industry'),
+  description: text('description'),
+  website: text('website'),
+  createdAt: timestamp('created_at').defaultNow(),
+  createdBy: uuid('created_by'), // user_id who added it (null if AI-discovered)
+  discoveredFrom: uuid('discovered_from'), // article_id where first found (if AI-discovered)
+  isVerified: boolean('is_verified').default(false),
+  metadata: jsonb('metadata') // Additional flexible data
+});
+
+// =====================================================
+// SOFTWARE TABLE
+// =====================================================
+export const software = pgTable('software', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  version: text('version'), // Specific version if known
+  companyId: uuid('company_id').references(() => companies.id),
+  category: text('category'), // 'os', 'application', 'library', 'framework', etc.
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow(),
+  createdBy: uuid('created_by'), // user_id who added it (null if AI-discovered)
+  discoveredFrom: uuid('discovered_from'), // article_id where first found
+  isVerified: boolean('is_verified').default(false),
+  metadata: jsonb('metadata') // CPE, additional identifiers, etc.
+}, (table) => {
+  return {
+    unq: unique().on(table.name, table.version, table.companyId)
+  };
+});
+
+// =====================================================
+// HARDWARE TABLE
+// =====================================================
+export const hardware = pgTable('hardware', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: text('name').notNull(),
+  model: text('model'),
+  manufacturer: text('manufacturer'),
+  category: text('category'), // 'router', 'iot', 'server', 'workstation', etc.
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow(),
+  createdBy: uuid('created_by'), // user_id who added it (null if AI-discovered)
+  discoveredFrom: uuid('discovered_from'), // article_id where first found
+  isVerified: boolean('is_verified').default(false),
+  metadata: jsonb('metadata')
+}, (table) => {
+  return {
+    unq: unique().on(table.name, table.model, table.manufacturer)
+  };
+});
+
+// =====================================================
+// USER ASSOCIATION TABLES
+// =====================================================
+export const usersSoftware = pgTable('users_software', {
+  userId: uuid('user_id').notNull(), // references users.id
+  softwareId: uuid('software_id').notNull().references(() => software.id),
+  addedAt: timestamp('added_at').defaultNow(),
+  isActive: boolean('is_active').default(true),
+  priority: integer('priority').default(50), // For relevance scoring
+  metadata: jsonb('metadata') // User-specific notes, deployment info, etc.
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.userId, table.softwareId] })
+  };
+});
+
+export const usersHardware = pgTable('users_hardware', {
+  userId: uuid('user_id').notNull(), // references users.id
+  hardwareId: uuid('hardware_id').notNull().references(() => hardware.id),
+  addedAt: timestamp('added_at').defaultNow(),
+  isActive: boolean('is_active').default(true),
+  priority: integer('priority').default(50),
+  quantity: integer('quantity').default(1),
+  metadata: jsonb('metadata')
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.userId, table.hardwareId] })
+  };
+});
+
+export const usersCompanies = pgTable('users_companies', {
+  userId: uuid('user_id').notNull(), // references users.id
+  companyId: uuid('company_id').notNull().references(() => companies.id),
+  relationshipType: text('relationship_type'), // 'vendor', 'client', 'partner', etc.
+  addedAt: timestamp('added_at').defaultNow(),
+  isActive: boolean('is_active').default(true),
+  priority: integer('priority').default(50),
+  metadata: jsonb('metadata')
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.userId, table.companyId] })
+  };
+});
+
+// =====================================================
+// ARTICLE ASSOCIATION TABLES
+// =====================================================
+export const articleSoftware = pgTable('article_software', {
+  articleId: uuid('article_id').notNull().references(() => globalArticles.id),
+  softwareId: uuid('software_id').notNull().references(() => software.id),
+  confidence: numeric('confidence', { precision: 3, scale: 2 }), // AI confidence 0.00-1.00
+  context: text('context'), // Snippet where software was mentioned
+  extractedAt: timestamp('extracted_at').defaultNow(),
+  metadata: jsonb('metadata') // Version info, vulnerability details, etc.
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.articleId, table.softwareId] })
+  };
+});
+
+export const articleHardware = pgTable('article_hardware', {
+  articleId: uuid('article_id').notNull().references(() => globalArticles.id),
+  hardwareId: uuid('hardware_id').notNull().references(() => hardware.id),
+  confidence: numeric('confidence', { precision: 3, scale: 2 }),
+  context: text('context'),
+  extractedAt: timestamp('extracted_at').defaultNow(),
+  metadata: jsonb('metadata')
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.articleId, table.hardwareId] })
+  };
+});
+
+export const articleCompanies = pgTable('article_companies', {
+  articleId: uuid('article_id').notNull().references(() => globalArticles.id),
+  companyId: uuid('company_id').notNull().references(() => companies.id),
+  mentionType: text('mention_type'), // 'affected', 'vendor', 'client', 'mentioned'
+  confidence: numeric('confidence', { precision: 3, scale: 2 }),
+  context: text('context'),
+  extractedAt: timestamp('extracted_at').defaultNow(),
+  metadata: jsonb('metadata')
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.articleId, table.companyId] })
+  };
+});
+
+export const articleCves = pgTable('article_cves', {
+  articleId: uuid('article_id').notNull().references(() => globalArticles.id),
+  cveId: text('cve_id').notNull(), // references cve_data.cve_id
+  confidence: numeric('confidence', { precision: 3, scale: 2 }),
+  context: text('context'),
+  extractedAt: timestamp('extracted_at').defaultNow(),
+  metadata: jsonb('metadata') // CVSS scores mentioned, exploit details, etc.
+}, (table) => {
+  return {
+    pk: primaryKey({ columns: [table.articleId, table.cveId] })
+  };
+});
+
+// =====================================================
+// UPDATED GLOBAL ARTICLES TABLE
+// =====================================================
 export const globalArticles = pgTable('global_articles', {
-  // ... existing columns ...
+  // ... existing columns (id, sourceId, title, content, url, etc.) ...
   
-  // Enhanced threat scoring fields
+  // Enhanced threat scoring fields (no longer has software/vendor/client arrays)
   threatMetadata: jsonb('threat_metadata'),
   threatSeverityScore: numeric('threat_severity_score', { precision: 4, scale: 2 }),
   threatRelevanceScore: numeric('threat_relevance_score', { precision: 4, scale: 2 }),
   threatLevel: text('threat_level'), // 'low', 'medium', 'high', 'critical'
-  cveList: text('cve_list').array(),
-  affectedSoftware: text('affected_software').array(),
-  affectedVendors: text('affected_vendors').array(),
-  affectedClients: text('affected_clients').array(),
-  affectedHardware: text('affected_hardware').array(),
+  
+  // Attack and threat actor arrays remain in the main table
   threatActors: text('threat_actors').array(),
   attackVectors: text('attack_vectors').array(),
+  
+  // Analysis tracking
   lastThreatAnalysis: timestamp('last_threat_analysis'),
   threatAnalysisVersion: text('threat_analysis_version'),
+  entitiesExtracted: boolean('entities_extracted').default(false), // Track if entity extraction completed
+  
+  // Keep existing fields
+  isCybersecurity: boolean('is_cybersecurity').default(false),
+  securityScore: integer('security_score'), // Backward compatibility
   
   // ... rest of existing columns ...
 });
 ```
 
-After adding these fields, run the migration:
+After adding these tables, run the migration:
 ```bash
 npm run db:push
 # If you get a data-loss warning and are okay with it:
@@ -42,464 +207,1023 @@ npm run db:push --force
 ## Implementation Overview
 
 This enhanced threat severity scoring system will:
-1. Extract detailed metadata from cybersecurity articles
-2. Score threats based on the provided rubric (10 severity components, 5 relevance components)
-3. Calculate weighted scores using the specified formulas
-4. Display threat levels as Low/Medium/High/Critical to users
-5. Store comprehensive threat intelligence data for analysis
+1. Extract entities (software, hardware, companies, CVEs) into normalized tables
+2. Create associations between articles, users, and entities
+3. Score threats based on the provided rubric using these normalized relationships
+4. Calculate user-specific relevance based on their entity associations
+5. Display threat levels as Low/Medium/High/Critical to users
 
 ## Detailed Implementation Steps
 
-### Step 1: Create Enhanced Threat Analysis Service
+### Step 1: Create Entity Management Services
 
-**File:** `backend/services/threat-analysis.ts` (new file)
+**File:** `backend/services/entity-manager.ts` (new file)
 
-This service will handle all threat scoring logic:
+This service handles all entity extraction and management:
 
 ```typescript
-// Core functionality to implement:
-1. analyzeThreatsComprehensive() - Main analysis function
-2. extractCVEs() - Extract CVE identifiers using regex
-3. extractAffectedEntities() - Extract software, vendors, clients, hardware
-4. scoreSeverityComponents() - Score each severity component (0-10)
-5. scoreRelevanceComponents() - Score each relevance component (0-10)
-6. calculateWeightedScores() - Apply rubric formulas
-7. determineThreatLevel() - Map score to Low/Medium/High/Critical
+export class EntityManager {
+  // Core methods to implement:
+  
+  async extractEntitiesFromArticle(article: GlobalArticle): Promise<ExtractedEntities> {
+    // Use AI to extract software, hardware, companies, CVEs
+    // Return structured data with confidence scores
+  }
+  
+  async findOrCreateSoftware(data: SoftwareData): Promise<string> {
+    // Check if software exists, create if not
+    // Handle version matching logic
+    // Return software ID
+  }
+  
+  async findOrCreateCompany(data: CompanyData): Promise<string> {
+    // Check if company exists by name
+    // Create if not found
+    // Return company ID
+  }
+  
+  async findOrCreateHardware(data: HardwareData): Promise<string> {
+    // Check if hardware exists
+    // Create if not found
+    // Return hardware ID
+  }
+  
+  async linkArticleToEntities(articleId: string, entities: ExtractedEntities): Promise<void> {
+    // Create entries in article_software, article_hardware, etc.
+    // Store confidence scores and context
+  }
+  
+  async getUserEntities(userId: string): Promise<UserEntities> {
+    // Get all software, hardware, companies associated with user
+    // Used for relevance scoring
+  }
+}
 ```
 
-#### 1.1 Severity Components Scoring Logic
-
-Each component needs specific extraction and scoring logic:
-
-**CVSS Severity (Weight: 0.25)**
-- Extract CVSS scores from article (format: "CVSS 9.8" or "CVSS3.1/AV:N/AC:L/...")
-- Map CVSS score directly to 0-10 scale
-- If no CVSS found, use AI to estimate based on description
-
-**Exploitability (Weight: 0.20)**
-- Look for keywords: "exploit", "PoC", "proof of concept", "actively exploited"
-- Check for complexity indicators: "requires local access", "needs authentication"
-- Score based on ease of exploitation
-
-**Impact (Weight: 0.20)**
-- Analyze for CIA triad mentions (Confidentiality, Integrity, Availability)
-- Look for impact keywords: "data breach", "system compromise", "denial of service"
-- Assess scope of potential damage
-
-**Hardware Impact (Weight: 0.10)**
-- Identify hardware mentions: routers, IoT devices, industrial systems
-- Look for physical damage indicators: "bricking", "permanent damage"
-- Score based on hardware criticality
-
-**Attack Vector (Weight: 0.10)**
-- Extract attack vector from CVSS or description
-- Categories: Physical < Local < Adjacent Network < Network < Internet
-- Higher accessibility = higher score
-
-**Threat Actor Use (Weight: 0.10)**
-- Search for APT groups, ransomware gangs, nation-state actors
-- Check for "in the wild" exploitation mentions
-- Higher sophistication/activity = higher score
-
-**Patch Status (Weight: 0.05)**
-- Look for: "patch available", "fixed in version", "no patch available"
-- Check for workaround mentions
-- No patch = higher score
-
-**Detection Difficulty (Weight: 0.05)**
-- Look for detection method mentions: IDS, SIEM, antivirus
-- Check for "stealthy", "hard to detect", "evades detection"
-- Harder to detect = higher score
-
-**Recency (Weight: 0.05)**
-- Calculate days since article publication
-- < 7 days = 10, < 30 days = 8, < 90 days = 6, < 365 days = 3, > 365 days = 1
-
-**System Criticality (Weight: 0.10)**
-- Identify affected systems: critical infrastructure, healthcare, finance
-- Look for business impact: "mission-critical", "essential services"
-- More critical = higher score
-
-#### 1.2 Relevance Components Scoring Logic
-
-**Software (Weight: 0.25)**
-- Match against user's monitored software list
-- Exact match = 10, related = 7, same category = 4, unrelated = 0
-
-**Client (Weight: 0.25)**
-- Match against user's client list
-- Direct client = 10, industry peer = 7, supply chain = 4, unrelated = 0
-
-**Vendor (Weight: 0.20)**
-- Match against user's vendor list
-- Critical vendor = 10, important vendor = 7, minor vendor = 3, not used = 0
-
-**Hardware (Weight: 0.15)**
-- Match against user's hardware inventory
-- Critical hardware = 10, important = 7, minor = 3, not used = 0
-
-**Keyword Background Activity (Weight: 0.15)**
-- Analyze correlation with other threat indicators
-- High correlation = 10, moderate = 6, low = 3, none = 0
-
-### Step 2: Update OpenAI Integration
+### Step 2: Update OpenAI Integration for Entity Extraction
 
 **File:** `backend/services/openai.ts`
 
-Replace the existing `calculateSecurityRisk()` function with a new comprehensive analysis:
+Add new comprehensive entity extraction function:
 
 ```typescript
-export async function analyzeThreatsComprehensive(article: {
+export async function extractArticleEntities(article: {
   title: string;
   content: string;
   url?: string;
-  publishDate?: Date;
-}): Promise<ThreatAnalysisResult>
+}): Promise<{
+  software: Array<{
+    name: string;
+    version?: string;
+    vendor?: string;
+    confidence: number;
+    context: string;
+  }>;
+  hardware: Array<{
+    name: string;
+    model?: string;
+    manufacturer?: string;
+    confidence: number;
+    context: string;
+  }>;
+  companies: Array<{
+    name: string;
+    type: 'vendor' | 'client' | 'affected' | 'mentioned';
+    confidence: number;
+    context: string;
+  }>;
+  cves: Array<{
+    id: string;
+    cvss?: string;
+    confidence: number;
+    context: string;
+  }>;
+  threatActors: string[];
+  attackVectors: string[];
+}> {
+  const prompt = `
+    Analyze this article and extract ALL mentioned entities with high precision.
+    
+    For SOFTWARE, extract:
+    - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
+    - Versions if specified
+    - Vendor/company that makes it
+    - The sentence/context where mentioned
+    
+    For HARDWARE, extract:
+    - Device names/models (e.g., "Cisco ASA 5500", "Netgear R7000")
+    - Manufacturer
+    - The context where mentioned
+    
+    For COMPANIES, extract:
+    - Company names and classify as:
+      - vendor (makes products/services)
+      - client (affected organization)
+      - affected (impacted by issue)
+      - mentioned (referenced but not directly affected)
+    
+    For CVEs, extract:
+    - CVE identifiers (format: CVE-YYYY-NNNNN)
+    - CVSS scores if mentioned
+    - Context of the vulnerability
+    
+    Also identify:
+    - Threat actors or groups
+    - Attack vectors used
+    
+    Be very precise - only extract entities explicitly mentioned, not implied.
+    Include confidence score (0-1) for each extraction.
+    
+    Article Title: ${article.title}
+    Article Content: ${article.content}
+    
+    Return as structured JSON.
+  `;
+  
+  // Call GPT-4 for better entity recognition
+  // Parse and validate response
+  // Return structured entities
+}
 ```
 
-The new function should:
-1. Use GPT-4 for better accuracy (if available)
-2. Extract all required metadata in a single API call
-3. Return structured data matching our schema
-4. Include confidence scores for each extraction
+### Step 3: Enhanced Threat Analysis Service
 
-**Prompt Structure:**
+**File:** `backend/services/threat-analysis.ts` (new file)
+
+```typescript
+export class ThreatAnalyzer {
+  constructor(
+    private entityManager: EntityManager,
+    private openaiService: OpenAIService
+  ) {}
+  
+  async analyzeArticle(article: GlobalArticle): Promise<ThreatAnalysisResult> {
+    // Step 1: Extract entities if not already done
+    if (!article.entitiesExtracted) {
+      const entities = await this.entityManager.extractEntitiesFromArticle(article);
+      await this.entityManager.linkArticleToEntities(article.id, entities);
+    }
+    
+    // Step 2: Get linked entities for scoring
+    const linkedEntities = await this.getLinkedEntities(article.id);
+    
+    // Step 3: Score severity components
+    const severityScores = await this.scoreSeverityComponents(article, linkedEntities);
+    
+    // Step 4: Calculate weighted severity score
+    const severityScore = this.calculateWeightedSeverity(severityScores);
+    
+    // Step 5: Determine threat level
+    const threatLevel = this.determineThreatLevel(severityScore);
+    
+    return {
+      severityScore,
+      threatLevel,
+      metadata: {
+        severity_components: severityScores,
+        linked_entities: linkedEntities
+      }
+    };
+  }
+  
+  async calculateUserRelevance(article: GlobalArticle, userId: string): Promise<number> {
+    // Get user's entities
+    const userEntities = await this.entityManager.getUserEntities(userId);
+    
+    // Get article's entities
+    const articleEntities = await this.getLinkedEntities(article.id);
+    
+    // Calculate relevance scores
+    const relevanceScores = {
+      software_score: this.calculateSoftwareRelevance(
+        articleEntities.software,
+        userEntities.software
+      ),
+      client_score: this.calculateCompanyRelevance(
+        articleEntities.companies.filter(c => c.type === 'client'),
+        userEntities.companies.filter(c => c.relationshipType === 'client')
+      ),
+      vendor_score: this.calculateCompanyRelevance(
+        articleEntities.companies.filter(c => c.type === 'vendor'),
+        userEntities.companies.filter(c => c.relationshipType === 'vendor')
+      ),
+      hardware_score: this.calculateHardwareRelevance(
+        articleEntities.hardware,
+        userEntities.hardware
+      ),
+      keyword_activity: await this.calculateKeywordActivity(article, userId)
+    };
+    
+    // Apply weights from rubric
+    return this.calculateWeightedRelevance(relevanceScores);
+  }
+  
+  private scoreSeverityComponents(article: GlobalArticle, entities: LinkedEntities) {
+    return {
+      cvss_severity: this.scoreCVSS(entities.cves),
+      exploitability: this.scoreExploitability(article, entities),
+      impact: this.scoreImpact(article, entities),
+      hardware_impact: this.scoreHardwareImpact(entities.hardware),
+      attack_vector: this.scoreAttackVector(article.attackVectors),
+      threat_actor_use: this.scoreThreatActors(article.threatActors),
+      patch_status: this.scorePatchStatus(article),
+      detection_difficulty: this.scoreDetectionDifficulty(article),
+      recency: this.scoreRecency(article.publishDate),
+      system_criticality: this.scoreSystemCriticality(entities)
+    };
+  }
+}
 ```
-Analyze this cybersecurity article and extract:
-1. All CVE identifiers mentioned
-2. CVSS scores and vectors
-3. Affected software/products (be specific about versions)
-4. Affected vendors/companies
-5. Affected clients/organizations
-6. Affected hardware/devices
-7. Threat actors or groups mentioned
-8. Attack vectors used
-9. Patch availability status
-10. Detection methods mentioned
-11. Exploitation status (PoC, active exploitation, etc.)
-12. Business/operational impact
 
-For each severity component, provide a score (0-10) based on:
-[Include rubric descriptions for each component]
-
-Return as structured JSON with all fields.
-```
-
-### Step 3: Update Article Processing Pipeline
+### Step 4: Update Article Processing Pipeline
 
 **File:** `backend/apps/threat-tracker/services/background-jobs.ts`
 
-Modify the `processArticle()` function:
+Modify the `processArticle()` function to use the new entity-based system:
 
 ```typescript
-// Around line 166-184, replace the current cybersecurity analysis with:
-
-if (cyberAnalysis.isCybersecurity) {
-  // Perform comprehensive threat analysis
-  const threatAnalysis = await analyzeThreatsComprehensive({
-    title: articleData.title,
-    content: articleData.content,
-    url: articleUrl,
-    publishDate: publishDate
-  });
+async function processArticle(
+  articleUrl: string,
+  source: any,
+  htmlStructure: any,
+) {
+  // ... existing article extraction code ...
   
-  // Store all the new fields
-  const articleToStore = {
-    // ... existing fields ...
+  if (cyberAnalysis.isCybersecurity) {
+    // Step 1: Extract entities from the article
+    const entities = await extractArticleEntities({
+      title: articleData.title,
+      content: articleData.content,
+      url: articleUrl
+    });
     
-    // New threat scoring fields
-    threatMetadata: threatAnalysis.metadata,
-    threatSeverityScore: threatAnalysis.severityScore,
-    threatRelevanceScore: threatAnalysis.relevanceScore,
-    threatLevel: threatAnalysis.threatLevel,
-    cveList: threatAnalysis.cves,
-    affectedSoftware: threatAnalysis.software,
-    affectedVendors: threatAnalysis.vendors,
-    affectedClients: threatAnalysis.clients,
-    affectedHardware: threatAnalysis.hardware,
-    threatActors: threatAnalysis.threatActors,
-    attackVectors: threatAnalysis.attackVectors,
-    lastThreatAnalysis: new Date(),
-    threatAnalysisVersion: '2.0',
+    // Step 2: Store the article first
+    const newArticle = await storage.createArticle({
+      sourceId,
+      title: articleData.title,
+      content: articleData.content,
+      url: articleUrl,
+      author: articleData.author,
+      publishDate: publishDate,
+      summary: analysis.summary,
+      isCybersecurity: true,
+      // Store threat actors and attack vectors directly
+      threatActors: entities.threatActors,
+      attackVectors: entities.attackVectors,
+      entitiesExtracted: false, // Will be set to true after entity linking
+      userId: undefined, // Global article
+    });
     
-    // Keep backward compatibility
-    securityScore: (threatAnalysis.severityScore * 10).toString()
-  };
-}
-```
-
-### Step 4: Create Threat Metadata Types
-
-**File:** `shared/types/threat-analysis.ts` (new file)
-
-```typescript
-export interface ThreatMetadata {
-  severity_components: {
-    cvss_severity: number;
-    exploitability: number;
-    impact: number;
-    hardware_impact: number;
-    attack_vector: number;
-    threat_actor_use: number;
-    patch_status: number;
-    detection_difficulty: number;
-    recency: number;
-    system_criticality: number;
-  };
-  relevance_components: {
-    software_score: number;
-    client_score: number;
-    vendor_score: number;
-    hardware_score: number;
-    keyword_activity: number;
-  };
-  raw_data: {
-    cvss_base?: string;
-    cvss_vector?: string;
-    patch_available: boolean;
-    exploit_in_wild: boolean;
-    publish_date: string;
-    detection_methods: string[];
-    mitigation_steps: string[];
-    confidence_scores: Record<string, number>;
-  };
-}
-
-export interface ThreatAnalysisResult {
-  metadata: ThreatMetadata;
-  severityScore: number;
-  relevanceScore: number;
-  threatLevel: 'low' | 'medium' | 'high' | 'critical';
-  cves: string[];
-  software: string[];
-  vendors: string[];
-  clients: string[];
-  hardware: string[];
-  threatActors: string[];
-  attackVectors: string[];
-}
-```
-
-### Step 5: Update Frontend Display
-
-**File:** `frontend/src/pages/dashboard/threat-tracker/components/threat-article-card.tsx`
-
-Add new UI components to display:
-
-1. **Threat Level Badge**
-```tsx
-const getThreatLevelColor = (level: string) => {
-  switch(level) {
-    case 'critical': return 'bg-red-500 text-white';
-    case 'high': return 'bg-orange-500 text-white';
-    case 'medium': return 'bg-yellow-500 text-black';
-    case 'low': return 'bg-green-500 text-white';
-    default: return 'bg-gray-500 text-white';
+    // Step 3: Process and link entities
+    const entityManager = new EntityManager();
+    
+    // Process software entities
+    for (const sw of entities.software) {
+      // Find or create company if vendor is specified
+      let companyId = null;
+      if (sw.vendor) {
+        companyId = await entityManager.findOrCreateCompany({
+          name: sw.vendor,
+          type: 'vendor'
+        });
+      }
+      
+      // Find or create software
+      const softwareId = await entityManager.findOrCreateSoftware({
+        name: sw.name,
+        version: sw.version,
+        companyId
+      });
+      
+      // Link to article
+      await db.insert(articleSoftware).values({
+        articleId: newArticle.id,
+        softwareId,
+        confidence: sw.confidence,
+        context: sw.context
+      });
+    }
+    
+    // Process hardware entities
+    for (const hw of entities.hardware) {
+      const hardwareId = await entityManager.findOrCreateHardware({
+        name: hw.name,
+        model: hw.model,
+        manufacturer: hw.manufacturer
+      });
+      
+      await db.insert(articleHardware).values({
+        articleId: newArticle.id,
+        hardwareId,
+        confidence: hw.confidence,
+        context: hw.context
+      });
+    }
+    
+    // Process company entities
+    for (const company of entities.companies) {
+      const companyId = await entityManager.findOrCreateCompany({
+        name: company.name,
+        type: company.type
+      });
+      
+      await db.insert(articleCompanies).values({
+        articleId: newArticle.id,
+        companyId,
+        mentionType: company.type,
+        confidence: company.confidence,
+        context: company.context
+      });
+    }
+    
+    // Process CVEs
+    for (const cve of entities.cves) {
+      // Check if CVE exists in cve_data table
+      const existingCve = await db.select()
+        .from(cveData)
+        .where(eq(cveData.cveId, cve.id))
+        .limit(1);
+      
+      if (existingCve.length > 0) {
+        await db.insert(articleCves).values({
+          articleId: newArticle.id,
+          cveId: cve.id,
+          confidence: cve.confidence,
+          context: cve.context,
+          metadata: { cvss: cve.cvss }
+        });
+      }
+    }
+    
+    // Step 4: Perform threat analysis
+    const threatAnalyzer = new ThreatAnalyzer(entityManager, openaiService);
+    const threatAnalysis = await threatAnalyzer.analyzeArticle(newArticle);
+    
+    // Step 5: Update article with threat scores
+    await db.update(globalArticles)
+      .set({
+        threatMetadata: threatAnalysis.metadata,
+        threatSeverityScore: threatAnalysis.severityScore,
+        threatLevel: threatAnalysis.threatLevel,
+        entitiesExtracted: true,
+        lastThreatAnalysis: new Date(),
+        threatAnalysisVersion: '2.0',
+        // Backward compatibility
+        securityScore: Math.round(threatAnalysis.severityScore * 10)
+      })
+      .where(eq(globalArticles.id, newArticle.id));
+    
+    log(
+      `[Global ThreatTracker] Successfully processed article with ${entities.software.length} software, ` +
+      `${entities.hardware.length} hardware, ${entities.companies.length} companies, ` +
+      `${entities.cves.length} CVEs`,
+      "scraper"
+    );
   }
-};
+}
 ```
 
-2. **Threat Score Display**
-```tsx
-<div className="flex items-center gap-2">
-  <span className={`px-2 py-1 rounded ${getThreatLevelColor(article.threatLevel)}`}>
-    {article.threatLevel?.toUpperCase()}
-  </span>
-  <span className="text-sm text-gray-600">
-    Severity: {article.threatSeverityScore?.toFixed(1)}/10
-  </span>
-</div>
-```
+### Step 5: User Keyword Management Updates
 
-3. **Detailed Threat Information**
-```tsx
-// Expandable section showing:
-- CVEs list
-- Affected software/vendors
-- Attack vectors
-- Threat actors
-- Mitigation status
-```
+**File:** `backend/apps/threat-tracker/services/keyword-manager.ts` (new file)
 
-### Step 6: Create API Endpoints for Threat Data
-
-**File:** `backend/apps/threat-tracker/routes.ts`
-
-Add new endpoints:
+Handle user keyword management with the new entity system:
 
 ```typescript
-// GET /api/threat-tracker/articles/:id/threat-details
-// Returns full threat metadata for an article
-
-// GET /api/threat-tracker/threat-summary
-// Returns aggregated threat statistics for dashboard
-
-// POST /api/threat-tracker/articles/:id/reanalyze
-// Triggers re-analysis of an article with latest model
+export class KeywordManager {
+  async addUserSoftware(userId: string, softwareName: string, version?: string) {
+    // Check if software exists
+    let software = await db.select()
+      .from(softwareTable)
+      .where(and(
+        eq(softwareTable.name, softwareName),
+        version ? eq(softwareTable.version, version) : isNull(softwareTable.version)
+      ))
+      .limit(1);
+    
+    // Create if doesn't exist
+    if (software.length === 0) {
+      const [newSoftware] = await db.insert(softwareTable)
+        .values({
+          name: softwareName,
+          version,
+          createdBy: userId,
+          isVerified: true // User-added software is verified
+        })
+        .returning();
+      software = [newSoftware];
+    }
+    
+    // Link to user
+    await db.insert(usersSoftware)
+      .values({
+        userId,
+        softwareId: software[0].id,
+        isActive: true
+      })
+      .onConflictDoUpdate({
+        target: [usersSoftware.userId, usersSoftware.softwareId],
+        set: { isActive: true }
+      });
+  }
+  
+  async addUserCompany(userId: string, companyName: string, relationshipType: string) {
+    // Similar logic for companies
+  }
+  
+  async addUserHardware(userId: string, hardwareName: string, model?: string) {
+    // Similar logic for hardware
+  }
+  
+  async getUserKeywords(userId: string) {
+    // Get all user's software, hardware, companies
+    const [software, hardware, companies] = await Promise.all([
+      db.select({
+        id: softwareTable.id,
+        name: softwareTable.name,
+        version: softwareTable.version,
+        company: companiesTable.name
+      })
+        .from(usersSoftware)
+        .innerJoin(softwareTable, eq(usersSoftware.softwareId, softwareTable.id))
+        .leftJoin(companiesTable, eq(softwareTable.companyId, companiesTable.id))
+        .where(and(
+          eq(usersSoftware.userId, userId),
+          eq(usersSoftware.isActive, true)
+        )),
+      
+      // Similar queries for hardware and companies
+    ]);
+    
+    return { software, hardware, companies };
+  }
+}
 ```
 
-### Step 7: Add Relevance Scoring Configuration
+### Step 6: Relevance Scoring Implementation
 
-**File:** `backend/apps/threat-tracker/services/relevance-scorer.ts` (new file)
-
-Implement user-specific relevance scoring:
+**File:** `backend/apps/threat-tracker/services/relevance-scorer.ts`
 
 ```typescript
 export class RelevanceScorer {
-  constructor(
-    private userId: string,
-    private userKeywords: UserKeyword[],
-    private userAssets: UserAssets
-  ) {}
+  async scoreArticleForUser(articleId: string, userId: string): Promise<number> {
+    // Get user's entities
+    const userEntities = await this.getUserEntities(userId);
+    
+    // Get article's entities with join queries
+    const articleEntities = await this.getArticleEntities(articleId);
+    
+    // Calculate individual component scores
+    const scores = {
+      software: this.scoreSoftwareMatch(articleEntities.software, userEntities.software),
+      companies: this.scoreCompanyMatch(articleEntities.companies, userEntities.companies),
+      hardware: this.scoreHardwareMatch(articleEntities.hardware, userEntities.hardware),
+      keywordActivity: await this.scoreKeywordActivity(articleId, userId)
+    };
+    
+    // Apply rubric weights
+    const relevanceScore = (
+      (0.25 * scores.software) +
+      (0.25 * scores.companies.client) +
+      (0.20 * scores.companies.vendor) +
+      (0.15 * scores.hardware) +
+      (0.15 * scores.keywordActivity)
+    );
+    
+    return relevanceScore;
+  }
   
-  async scoreArticle(article: GlobalArticle): Promise<number> {
-    // Calculate relevance based on user's:
-    // - Monitored software
-    // - Client list
-    // - Vendor list  
-    // - Hardware inventory
-    // - Keyword activity patterns
+  private scoreSoftwareMatch(
+    articleSoftware: ArticleSoftware[],
+    userSoftware: UserSoftware[]
+  ): number {
+    // Direct match = 10
+    // Same vendor different product = 7
+    // Same category = 4
+    // No match = 0
+    
+    let maxScore = 0;
+    for (const as of articleSoftware) {
+      for (const us of userSoftware) {
+        if (as.softwareId === us.softwareId) {
+          maxScore = Math.max(maxScore, 10);
+        } else if (as.companyId === us.companyId) {
+          maxScore = Math.max(maxScore, 7);
+        } else if (as.category === us.category) {
+          maxScore = Math.max(maxScore, 4);
+        }
+      }
+    }
+    return maxScore;
   }
 }
 ```
 
-### Step 8: Database Query Optimization
+### Step 7: Database Query Optimization
 
 **File:** `backend/apps/threat-tracker/queries/threat-tracker.ts`
 
-Add optimized queries for threat data:
+Add optimized queries for the new entity-based system:
 
 ```typescript
-// Add indexes for array columns
-// CREATE INDEX idx_cve_list ON global_articles USING GIN (cve_list);
-// CREATE INDEX idx_affected_software ON global_articles USING GIN (affected_software);
-// CREATE INDEX idx_threat_level ON global_articles (threat_level);
+// Indexes needed for performance
+/*
+CREATE INDEX idx_article_software_article ON article_software(article_id);
+CREATE INDEX idx_article_software_software ON article_software(software_id);
+CREATE INDEX idx_article_hardware_article ON article_hardware(article_id);
+CREATE INDEX idx_article_companies_article ON article_companies(article_id);
+CREATE INDEX idx_article_cves_article ON article_cves(article_id);
+CREATE INDEX idx_users_software_user ON users_software(user_id);
+CREATE INDEX idx_users_hardware_user ON users_hardware(user_id);
+CREATE INDEX idx_users_companies_user ON users_companies(user_id);
+CREATE INDEX idx_software_company ON software(company_id);
+*/
 
-// Query examples:
-async getHighSeverityThreats(minScore: number = 7.0) {
-  return db.select()
+export async function getArticleWithEntities(articleId: string) {
+  const [article, software, hardware, companies, cves] = await Promise.all([
+    // Get article
+    db.select().from(globalArticles).where(eq(globalArticles.id, articleId)).limit(1),
+    
+    // Get linked software with company info
+    db.select({
+      software: softwareTable,
+      company: companiesTable,
+      confidence: articleSoftware.confidence,
+      context: articleSoftware.context
+    })
+      .from(articleSoftware)
+      .innerJoin(softwareTable, eq(articleSoftware.softwareId, softwareTable.id))
+      .leftJoin(companiesTable, eq(softwareTable.companyId, companiesTable.id))
+      .where(eq(articleSoftware.articleId, articleId)),
+    
+    // Get linked hardware
+    db.select({
+      hardware: hardwareTable,
+      confidence: articleHardware.confidence,
+      context: articleHardware.context
+    })
+      .from(articleHardware)
+      .innerJoin(hardwareTable, eq(articleHardware.hardwareId, hardwareTable.id))
+      .where(eq(articleHardware.articleId, articleId)),
+    
+    // Get linked companies
+    db.select({
+      company: companiesTable,
+      mentionType: articleCompanies.mentionType,
+      confidence: articleCompanies.confidence,
+      context: articleCompanies.context
+    })
+      .from(articleCompanies)
+      .innerJoin(companiesTable, eq(articleCompanies.companyId, companiesTable.id))
+      .where(eq(articleCompanies.articleId, articleId)),
+    
+    // Get linked CVEs
+    db.select({
+      cveId: articleCves.cveId,
+      confidence: articleCves.confidence,
+      context: articleCves.context,
+      metadata: articleCves.metadata
+    })
+      .from(articleCves)
+      .where(eq(articleCves.articleId, articleId))
+  ]);
+  
+  return {
+    ...article[0],
+    entities: {
+      software,
+      hardware,
+      companies,
+      cves
+    }
+  };
+}
+
+export async function getArticlesByAffectedSoftware(softwareId: string) {
+  return db.select({
+    article: globalArticles,
+    confidence: articleSoftware.confidence,
+    context: articleSoftware.context
+  })
+    .from(articleSoftware)
+    .innerJoin(globalArticles, eq(articleSoftware.articleId, globalArticles.id))
+    .where(eq(articleSoftware.softwareId, softwareId))
+    .orderBy(desc(globalArticles.publishDate));
+}
+
+export async function getUserRelevantArticles(userId: string, limit = 50) {
+  // Complex query to get articles matching user's entities
+  const userSoftwareIds = db.select({ id: usersSoftware.softwareId })
+    .from(usersSoftware)
+    .where(and(
+      eq(usersSoftware.userId, userId),
+      eq(usersSoftware.isActive, true)
+    ));
+  
+  return db.selectDistinct({
+    article: globalArticles,
+    matchType: sql<string>`
+      CASE 
+        WHEN as.software_id IS NOT NULL THEN 'software'
+        WHEN ah.hardware_id IS NOT NULL THEN 'hardware'
+        WHEN ac.company_id IS NOT NULL THEN 'company'
+        ELSE 'other'
+      END
+    `.as('match_type')
+  })
     .from(globalArticles)
-    .where(
+    .leftJoin(
+      articleSoftware.as('as'),
       and(
-        eq(globalArticles.isCybersecurity, true),
-        gte(globalArticles.threatSeverityScore, minScore)
+        eq(articleSoftware.articleId, globalArticles.id),
+        inArray(articleSoftware.softwareId, userSoftwareIds)
       )
     )
-    .orderBy(desc(globalArticles.threatSeverityScore));
+    // Similar joins for hardware and companies
+    .where(eq(globalArticles.isCybersecurity, true))
+    .orderBy(desc(globalArticles.threatSeverityScore))
+    .limit(limit);
+}
+```
+
+### Step 8: Frontend Display Updates
+
+**File:** `frontend/src/pages/dashboard/threat-tracker/components/threat-article-card.tsx`
+
+Display entity information in the article cards:
+
+```tsx
+interface ArticleEntities {
+  software: Array<{ name: string; version?: string; company?: string }>;
+  hardware: Array<{ name: string; model?: string; manufacturer?: string }>;
+  companies: Array<{ name: string; type: string }>;
+  cves: Array<{ id: string; cvss?: string }>;
 }
 
-async getThreatsByCVE(cve: string) {
-  return db.select()
+function ThreatArticleCard({ article, userEntities }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const [entities, setEntities] = useState<ArticleEntities | null>(null);
+  
+  // Load entities when details are expanded
+  useEffect(() => {
+    if (showDetails && !entities) {
+      fetchArticleEntities(article.id).then(setEntities);
+    }
+  }, [showDetails]);
+  
+  // Calculate relevance indicators
+  const relevanceIndicators = useMemo(() => {
+    if (!entities || !userEntities) return null;
+    
+    return {
+      matchingSoftware: entities.software.filter(s => 
+        userEntities.software.some(us => us.name === s.name)
+      ),
+      matchingCompanies: entities.companies.filter(c => 
+        userEntities.companies.some(uc => uc.name === c.name)
+      ),
+      matchingHardware: entities.hardware.filter(h => 
+        userEntities.hardware.some(uh => uh.name === h.name)
+      )
+    };
+  }, [entities, userEntities]);
+  
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex justify-between items-start">
+          <h3>{article.title}</h3>
+          <ThreatLevelBadge level={article.threatLevel} score={article.threatSeverityScore} />
+        </div>
+      </CardHeader>
+      
+      <CardContent>
+        {/* Show matching entities for relevance */}
+        {relevanceIndicators && (
+          <div className="mb-4 p-3 bg-blue-50 rounded">
+            <p className="text-sm font-semibold mb-2">Relevant to your environment:</p>
+            {relevanceIndicators.matchingSoftware.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1">
+                {relevanceIndicators.matchingSoftware.map(s => (
+                  <Badge key={s.name} variant="secondary">
+                    <Package className="w-3 h-3 mr-1" />
+                    {s.name} {s.version}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            {relevanceIndicators.matchingCompanies.length > 0 && (
+              <div className="flex flex-wrap gap-1 mb-1">
+                {relevanceIndicators.matchingCompanies.map(c => (
+                  <Badge key={c.name} variant="secondary">
+                    <Building className="w-3 h-3 mr-1" />
+                    {c.name}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+        <p className="text-gray-600 mb-4">{article.summary}</p>
+        
+        <Button onClick={() => setShowDetails(!showDetails)}>
+          {showDetails ? 'Hide Details' : 'Show Threat Details'}
+        </Button>
+        
+        {showDetails && entities && (
+          <div className="mt-4 space-y-3">
+            {/* CVEs */}
+            {entities.cves.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-1">CVEs:</h4>
+                <div className="flex flex-wrap gap-1">
+                  {entities.cves.map(cve => (
+                    <Badge key={cve.id} variant="destructive">
+                      {cve.id} {cve.cvss && `(CVSS: ${cve.cvss})`}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Affected Software */}
+            {entities.software.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-1">Affected Software:</h4>
+                <ul className="text-sm space-y-1">
+                  {entities.software.map((s, i) => (
+                    <li key={i}>
+                      {s.name} {s.version && `v${s.version}`}
+                      {s.company && ` (${s.company})`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {/* Threat Actors */}
+            {article.threatActors?.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-1">Threat Actors:</h4>
+                <div className="flex flex-wrap gap-1">
+                  {article.threatActors.map(actor => (
+                    <Badge key={actor} variant="outline">
+                      {actor}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+```
+
+### Step 9: API Endpoints
+
+**File:** `backend/apps/threat-tracker/routes.ts`
+
+Add API endpoints for entity management:
+
+```typescript
+// Entity search endpoints
+router.get('/api/threat-tracker/entities/software/search', async (req, res) => {
+  const { q } = req.query;
+  const results = await db.select()
+    .from(software)
+    .where(ilike(software.name, `%${q}%`))
+    .limit(10);
+  res.json(results);
+});
+
+// User keyword management
+router.post('/api/threat-tracker/user/keywords/software', async (req, res) => {
+  const { name, version } = req.body;
+  const userId = req.userId;
+  
+  const keywordManager = new KeywordManager();
+  await keywordManager.addUserSoftware(userId, name, version);
+  
+  res.json({ success: true });
+});
+
+// Get user's entities
+router.get('/api/threat-tracker/user/entities', async (req, res) => {
+  const userId = req.userId;
+  
+  const entities = await Promise.all([
+    // Get user's software
+    db.select({
+      id: software.id,
+      name: software.name,
+      version: software.version,
+      company: companies.name,
+      priority: usersSoftware.priority
+    })
+      .from(usersSoftware)
+      .innerJoin(software, eq(usersSoftware.softwareId, software.id))
+      .leftJoin(companies, eq(software.companyId, companies.id))
+      .where(eq(usersSoftware.userId, userId)),
+    
+    // Similar for hardware and companies
+  ]);
+  
+  res.json({
+    software: entities[0],
+    hardware: entities[1],
+    companies: entities[2]
+  });
+});
+
+// Get article entities
+router.get('/api/threat-tracker/articles/:id/entities', async (req, res) => {
+  const { id } = req.params;
+  const entities = await getArticleWithEntities(id);
+  res.json(entities);
+});
+
+// Recalculate relevance for user
+router.post('/api/threat-tracker/articles/:id/relevance', async (req, res) => {
+  const { id } = req.params;
+  const userId = req.userId;
+  
+  const scorer = new RelevanceScorer();
+  const relevanceScore = await scorer.scoreArticleForUser(id, userId);
+  
+  // Store user-specific relevance (could be in a separate table)
+  res.json({ relevanceScore });
+});
+```
+
+### Step 10: Migration Strategy
+
+#### Phase 1: Schema Migration
+```sql
+-- 1. Create all new tables
+-- 2. Add new columns to global_articles
+-- 3. Create indexes for performance
+
+-- Migration script to populate initial data from existing keywords
+INSERT INTO companies (name, type, created_by)
+SELECT DISTINCT term, 'vendor', user_id
+FROM threat_keywords
+WHERE category = 'vendor'
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO companies (name, type, created_by)
+SELECT DISTINCT term, 'client', user_id
+FROM threat_keywords
+WHERE category = 'client'
+ON CONFLICT (name) DO NOTHING;
+
+-- Link companies to users
+INSERT INTO users_companies (user_id, company_id, relationship_type)
+SELECT tk.user_id, c.id, tk.category
+FROM threat_keywords tk
+JOIN companies c ON c.name = tk.term
+WHERE tk.category IN ('vendor', 'client');
+
+-- Similar for software and hardware
+```
+
+#### Phase 2: Entity Extraction Backfill
+```typescript
+// Script to backfill entities for existing articles
+async function backfillEntities() {
+  const articles = await db.select()
     .from(globalArticles)
-    .where(
-      sql`${globalArticles.cveList} @> ARRAY[${cve}]::text[]`
-    );
-}
-```
-
-### Step 9: Testing Strategy
-
-1. **Unit Tests**
-   - Test each scoring component individually
-   - Verify formula calculations
-   - Test edge cases (missing data, invalid inputs)
-
-2. **Integration Tests**
-   - Test full article processing pipeline
-   - Verify database storage
-   - Test API endpoints
-
-3. **Test Articles**
-   - Create test set with known threats
-   - Verify scores match expected ranges
-   - Validate threat level assignments
-
-### Step 10: Migration and Rollout
-
-1. **Data Migration**
-   ```sql
-   -- Backfill threat analysis for existing cybersecurity articles
-   UPDATE global_articles 
-   SET threat_level = 
-     CASE 
-       WHEN CAST(security_score AS INTEGER) >= 80 THEN 'critical'
-       WHEN CAST(security_score AS INTEGER) >= 60 THEN 'high'
-       WHEN CAST(security_score AS INTEGER) >= 40 THEN 'medium'
-       ELSE 'low'
-     END
-   WHERE is_cybersecurity = true;
-   ```
-
-2. **Gradual Rollout**
-   - Phase 1: Deploy schema changes
-   - Phase 2: Deploy analysis service, start collecting new data
-   - Phase 3: Backfill existing articles
-   - Phase 4: Deploy frontend changes
-   - Phase 5: Enable user-specific relevance scoring
-
-3. **Monitoring**
-   - Track analysis processing times
-   - Monitor OpenAI API usage
-   - Log scoring distribution
-   - Track user engagement with threat levels
-
-## Configuration Files
-
-### Environment Variables
-Add to `.env`:
-```
-THREAT_ANALYSIS_VERSION=2.0
-THREAT_ANALYSIS_MODEL=gpt-4-turbo-preview
-THREAT_ANALYSIS_ENABLED=true
-THREAT_ANALYSIS_BATCH_SIZE=10
-```
-
-### Feature Flags
-```json
-{
-  "features": {
-    "enhancedThreatScoring": true,
-    "threatRelevanceScoring": false, // Enable after testing
-    "threatAnalysisV2": true
+    .where(and(
+      eq(globalArticles.isCybersecurity, true),
+      eq(globalArticles.entitiesExtracted, false)
+    ))
+    .limit(100); // Process in batches
+  
+  for (const article of articles) {
+    try {
+      const entities = await extractArticleEntities({
+        title: article.title,
+        content: article.content,
+        url: article.url
+      });
+      
+      await linkArticleToEntities(article.id, entities);
+      
+      await db.update(globalArticles)
+        .set({ entitiesExtracted: true })
+        .where(eq(globalArticles.id, article.id));
+      
+      // Add delay to avoid rate limits
+      await sleep(1000);
+    } catch (error) {
+      console.error(`Failed to extract entities for article ${article.id}`, error);
+    }
   }
 }
 ```
 
-## Validation Checklist
+### Step 11: Testing Strategy
 
-- [ ] Drizzle schema updated and migrated
-- [ ] Threat analysis service implemented
-- [ ] OpenAI prompts optimized for data extraction
-- [ ] Article processing pipeline updated
-- [ ] Frontend displays new threat levels
-- [ ] API endpoints created and tested
-- [ ] Relevance scoring configured per user
-- [ ] Database queries optimized with indexes
-- [ ] Unit and integration tests passing
-- [ ] Existing articles backfilled with threat data
-- [ ] Monitoring and logging in place
-- [ ] Documentation updated
+1. **Entity Extraction Tests**
+```typescript
+describe('Entity Extraction', () => {
+  test('extracts software with versions', async () => {
+    const content = 'Apache Log4j 2.14.1 and earlier versions are vulnerable';
+    const entities = await extractArticleEntities({ content });
+    
+    expect(entities.software).toContainEqual(
+      expect.objectContaining({
+        name: 'Apache Log4j',
+        version: '2.14.1'
+      })
+    );
+  });
+  
+  test('identifies company types correctly', async () => {
+    const content = 'Microsoft released a patch. Customers of Bank of America were affected.';
+    const entities = await extractArticleEntities({ content });
+    
+    expect(entities.companies).toContainEqual(
+      expect.objectContaining({
+        name: 'Microsoft',
+        type: 'vendor'
+      })
+    );
+    expect(entities.companies).toContainEqual(
+      expect.objectContaining({
+        name: 'Bank of America',
+        type: 'client'
+      })
+    );
+  });
+});
+```
 
-## Expected Outcomes
+2. **Relevance Scoring Tests**
+```typescript
+describe('Relevance Scoring', () => {
+  test('scores direct software match as 10', async () => {
+    const userSoftware = [{ id: '123', name: 'Apache Log4j' }];
+    const articleSoftware = [{ softwareId: '123', name: 'Apache Log4j' }];
+    
+    const score = scoreSoftwareMatch(articleSoftware, userSoftware);
+    expect(score).toBe(10);
+  });
+});
+```
 
-1. **Clear Threat Visibility**: Users immediately understand threat severity
-2. **Actionable Intelligence**: Detailed metadata helps prioritization
-3. **Personalized Relevance**: Threats scored based on user's environment
-4. **Improved Accuracy**: Comprehensive analysis using multiple data points
-5. **Historical Analysis**: Track threat trends over time
+## Benefits of the New Architecture
+
+1. **Data Normalization**: No duplicate entity storage, consistent naming
+2. **Relationship Tracking**: Clear associations between articles, users, and entities
+3. **Scalability**: Efficient queries with proper indexing
+4. **Flexibility**: Easy to add new entity types or relationships
+5. **User-Specific Relevance**: Accurate scoring based on user's actual environment
+6. **Historical Analysis**: Track entity mentions over time
+7. **Better Deduplication**: Entities are stored once, linked many times
+8. **Confidence Tracking**: Each extraction has a confidence score
+
+## Configuration Updates
+
+### Environment Variables
+```env
+# Entity extraction settings
+ENTITY_EXTRACTION_ENABLED=true
+ENTITY_EXTRACTION_MODEL=gpt-4-turbo-preview
+ENTITY_EXTRACTION_CONFIDENCE_THRESHOLD=0.7
+ENTITY_EXTRACTION_BATCH_SIZE=10
+
+# Threat analysis settings
+THREAT_ANALYSIS_VERSION=2.0
+THREAT_ANALYSIS_CACHE_TTL=86400
+```
+
+## Monitoring and Metrics
+
+Track these metrics:
+1. Entity extraction accuracy (manual verification sampling)
+2. Average entities per article
+3. User entity match rates
+4. Query performance for entity joins
+5. Storage growth rate
+6. AI API costs for entity extraction
 
 ## Rollback Plan
 
 If issues arise:
-1. Revert to using `security_score` field
-2. Keep new columns but stop populating them
-3. Frontend falls back to old display format
-4. Preserve collected data for debugging
+1. Keep writing to old keyword fields in parallel
+2. Disable entity extraction in article processing
+3. Fall back to keyword-based scoring
+4. Preserve entity tables for future retry
 
 ## Next Steps After Implementation
 
-1. Collect user feedback on threat level accuracy
-2. Fine-tune scoring weights based on real data
-3. Implement threat trend analytics
-4. Add threat intelligence sharing features
-5. Integrate with external threat feeds
+1. Build entity management UI for users
+2. Create entity merge/deduplication tools
+3. Implement entity verification workflow
+4. Add entity relationship graphs
+5. Create threat intelligence sharing based on common entities
+6. Build predictive models based on entity patterns
