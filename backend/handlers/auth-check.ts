@@ -7,6 +7,7 @@ import { db } from 'backend/db/db';
 import { organizations } from '@shared/db/schema/organizations';
 
 
+
 export async function handleAuthCheck(req: Request, res: Response) {
   console.log("[👤 AUTH-CHECK] Checking if user is logged in...")
 
