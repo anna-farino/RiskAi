@@ -1,11 +1,7 @@
-//import Admin from '../../pages/dashboard/Admin'
-//import Secrets from '../../pages/dashboard/Secrets.tsx'
-import OtpPage from '../../pages/otp-page.tsx'
-import ConfirmPassword from '../../pages/new-password.tsx'
 import Settings from '../../pages/dashboard/Settings.tsx'
-import HackRoles from '../../pages/dashboard/hack-roles.tsx'
 import LiveLogs from '../../pages/dashboard/LiveLogs.tsx'
 import WidgetDashboard from '@/pages/Dashboard.tsx'
+import Admin from '@/pages/dashboard/Admin.tsx'
 
 export const dashboardRouter = [
   {
@@ -17,27 +13,11 @@ export const dashboardRouter = [
     element: <Settings/>,
   },
   {
-    path: "hack-roles",
-    element: <HackRoles/>
-  },
-  {
-    path: "settings/otp",
-    element: <OtpPage twHeight='h-full' />
-  },
-  {
-    path: "settings/new-password",
-    element: <ConfirmPassword twHeight='h-full' redirect='settings'/>
-  },
-  {
     path: "dev/live-logs",
     element: <LiveLogs />
   },
-  //{
-  //  path: "admin",
-  //  element: <Admin/>,
-  //},
-  //{
-  //  path: "secrets",
-  //  element: <Secrets/>
-  //},
+  {
+    path: "admin",
+    element: <Admin/>,
+  },
 ]
