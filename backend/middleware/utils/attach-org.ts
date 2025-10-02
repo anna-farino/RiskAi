@@ -1,6 +1,6 @@
 import { db } from "backend/db/db";
-import { organizations } from "shared/db/schema/organizations";
-import { User } from "shared/db/schema/user";
+import { organizations } from "@shared/db/schema/organizations";
+import { User } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
 import { Request } from "express";
 
