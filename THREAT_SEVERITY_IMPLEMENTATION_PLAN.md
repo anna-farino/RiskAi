@@ -272,6 +272,8 @@ This enhanced threat severity scoring system will:
 
 **File:** `backend/services/entity-manager.ts` (new file)
 
+This service handles all entity extraction and management:
+
 ```typescript
 export class EntityManager {
   
@@ -293,15 +295,106 @@ export class EntityManager {
     };
   }
   
+  async findOrCreateSoftware(data: SoftwareData): Promise<string> {
+    // Check if software exists with same name, version, and company
+    let software = await db.select()
+      .from(softwareTable)
+      .where(and(
+        eq(softwareTable.name, data.name),
+        data.version ? eq(softwareTable.version, data.version) : isNull(softwareTable.version),
+        data.companyId ? eq(softwareTable.companyId, data.companyId) : isNull(softwareTable.companyId)
+      ))
+      .limit(1);
+    
+    // Create if doesn't exist
+    if (software.length === 0) {
+      const [newSoftware] = await db.insert(softwareTable)
+        .values({
+          name: data.name,
+          version: data.version,
+          companyId: data.companyId,
+          category: data.category,
+          description: data.description,
+          createdBy: data.createdBy,
+          discoveredFrom: data.discoveredFrom,
+          isVerified: data.isVerified || false,
+          metadata: data.metadata
+        })
+        .returning();
+      return newSoftware.id;
+    }
+    
+    return software[0].id;
+  }
+  
+  async findOrCreateCompany(data: CompanyData): Promise<string> {
+    // Check if company exists by name (case-insensitive)
+    let company = await db.select()
+      .from(companiesTable)
+      .where(ilike(companiesTable.name, data.name))
+      .limit(1);
+    
+    // Create if not found
+    if (company.length === 0) {
+      const [newCompany] = await db.insert(companiesTable)
+        .values({
+          name: data.name,
+          type: data.type,
+          industry: data.industry,
+          website: data.website,
+          createdBy: data.createdBy,
+          discoveredFrom: data.discoveredFrom,
+          isVerified: data.isVerified || false,
+          metadata: data.metadata
+        })
+        .returning();
+      return newCompany.id;
+    }
+    
+    return company[0].id;
+  }
+  
+  async findOrCreateHardware(data: HardwareData): Promise<string> {
+    // Check if hardware exists with same name, model, and manufacturer
+    let hardware = await db.select()
+      .from(hardwareTable)
+      .where(and(
+        eq(hardwareTable.name, data.name),
+        data.model ? eq(hardwareTable.model, data.model) : isNull(hardwareTable.model),
+        data.manufacturer ? eq(hardwareTable.manufacturer, data.manufacturer) : isNull(hardwareTable.manufacturer)
+      ))
+      .limit(1);
+    
+    // Create if not found
+    if (hardware.length === 0) {
+      const [newHardware] = await db.insert(hardwareTable)
+        .values({
+          name: data.name,
+          model: data.model,
+          manufacturer: data.manufacturer,
+          category: data.category,
+          description: data.description,
+          createdBy: data.createdBy,
+          discoveredFrom: data.discoveredFrom,
+          isVerified: data.isVerified || false,
+          metadata: data.metadata
+        })
+        .returning();
+      return newHardware.id;
+    }
+    
+    return hardware[0].id;
+  }
+  
   async findOrCreateThreatActor(data: ThreatActorData): Promise<string> {
-    // Check if threat actor exists
+    // Check if threat actor exists by name
     let actor = await db.select()
       .from(threatActors)
       .where(eq(threatActors.name, data.name))
       .limit(1);
     
     if (actor.length === 0) {
-      // Check aliases
+      // Check aliases for existing actor
       actor = await db.select()
         .from(threatActors)
         .where(sql`${data.name} = ANY(${threatActors.aliases})`)
@@ -338,11 +431,133 @@ export class EntityManager {
     return actor[0].id;
   }
   
+  async linkArticleToEntities(articleId: string, entities: ExtractedEntities): Promise<void> {
+    // Process all entity types in parallel for efficiency
+    await Promise.all([
+      // Link software
+      this.linkArticleToSoftware(articleId, entities.software),
+      
+      // Link hardware
+      this.linkArticleToHardware(articleId, entities.hardware),
+      
+      // Link companies
+      this.linkArticleToCompanies(articleId, entities.companies),
+      
+      // Link CVEs
+      this.linkArticleToCVEs(articleId, entities.cves),
+      
+      // Link threat actors
+      this.linkArticleToThreatActors(articleId, entities.threatActors)
+    ]);
+  }
+  
+  async linkArticleToSoftware(articleId: string, softwareList: SoftwareExtraction[]) {
+    for (const sw of softwareList) {
+      // Find or create company if vendor is specified
+      let companyId = null;
+      if (sw.vendor) {
+        companyId = await this.findOrCreateCompany({
+          name: sw.vendor,
+          type: 'vendor',
+          discoveredFrom: articleId
+        });
+      }
+      
+      // Find or create software
+      const softwareId = await this.findOrCreateSoftware({
+        name: sw.name,
+        version: sw.version,
+        companyId,
+        category: sw.category,
+        discoveredFrom: articleId
+      });
+      
+      // Link to article
+      await db.insert(articleSoftware)
+        .values({
+          articleId,
+          softwareId,
+          confidence: sw.confidence,
+          context: sw.context,
+          metadata: sw.metadata
+        })
+        .onConflictDoNothing();
+    }
+  }
+  
+  async linkArticleToHardware(articleId: string, hardwareList: HardwareExtraction[]) {
+    for (const hw of hardwareList) {
+      const hardwareId = await this.findOrCreateHardware({
+        name: hw.name,
+        model: hw.model,
+        manufacturer: hw.manufacturer,
+        category: hw.category,
+        discoveredFrom: articleId
+      });
+      
+      await db.insert(articleHardware)
+        .values({
+          articleId,
+          hardwareId,
+          confidence: hw.confidence,
+          context: hw.context,
+          metadata: hw.metadata
+        })
+        .onConflictDoNothing();
+    }
+  }
+  
+  async linkArticleToCompanies(articleId: string, companiesList: CompanyExtraction[]) {
+    for (const company of companiesList) {
+      const companyId = await this.findOrCreateCompany({
+        name: company.name,
+        type: company.type,
+        discoveredFrom: articleId
+      });
+      
+      await db.insert(articleCompanies)
+        .values({
+          articleId,
+          companyId,
+          mentionType: company.type,
+          confidence: company.confidence,
+          context: company.context,
+          metadata: company.metadata
+        })
+        .onConflictDoNothing();
+    }
+  }
+  
+  async linkArticleToCVEs(articleId: string, cveList: CVEExtraction[]) {
+    for (const cve of cveList) {
+      // Check if CVE exists in cve_data table (optional)
+      const existingCve = await db.select()
+        .from(cveData)
+        .where(eq(cveData.cveId, cve.id))
+        .limit(1);
+      
+      // Link to article (even if not in cve_data table yet)
+      await db.insert(articleCves)
+        .values({
+          articleId,
+          cveId: cve.id,
+          confidence: cve.confidence,
+          context: cve.context,
+          metadata: { 
+            cvss: cve.cvss,
+            inCveDatabase: existingCve.length > 0 
+          }
+        })
+        .onConflictDoNothing();
+    }
+  }
+  
   async linkArticleToThreatActors(articleId: string, actors: ThreatActorExtraction[]) {
     for (const actor of actors) {
       const actorId = await this.findOrCreateThreatActor({
         name: actor.name,
         type: actor.type,
+        aliases: actor.aliases,
         articleId
       });
       
@@ -352,10 +567,61 @@ export class EntityManager {
           threatActorId: actorId,
           confidence: actor.confidence,
           context: actor.context,
-          activityType: actor.activityType
+          activityType: actor.activityType,
+          metadata: actor.metadata
         })
         .onConflictDoNothing();
     }
+  }
+  
+  async getUserEntities(userId: string): Promise<UserEntities> {
+    // Get all software, hardware, companies associated with user
+    const [software, hardware, companies] = await Promise.all([
+      db.select({
+        id: softwareTable.id,
+        name: softwareTable.name,
+        version: softwareTable.version,
+        company: companiesTable.name,
+        priority: usersSoftware.priority
+      })
+        .from(usersSoftware)
+        .innerJoin(softwareTable, eq(usersSoftware.softwareId, softwareTable.id))
+        .leftJoin(companiesTable, eq(softwareTable.companyId, companiesTable.id))
+        .where(and(
+          eq(usersSoftware.userId, userId),
+          eq(usersSoftware.isActive, true)
+        )),
+      
+      db.select({
+        id: hardwareTable.id,
+        name: hardwareTable.name,
+        model: hardwareTable.model,
+        manufacturer: hardwareTable.manufacturer,
+        priority: usersHardware.priority
+      })
+        .from(usersHardware)
+        .innerJoin(hardwareTable, eq(usersHardware.hardwareId, hardwareTable.id))
+        .where(and(
+          eq(usersHardware.userId, userId),
+          eq(usersHardware.isActive, true)
+        )),
+      
+      db.select({
+        id: companiesTable.id,
+        name: companiesTable.name,
+        type: companiesTable.type,
+        relationshipType: usersCompanies.relationshipType,
+        priority: usersCompanies.priority
+      })
+        .from(usersCompanies)
+        .innerJoin(companiesTable, eq(usersCompanies.companyId, companiesTable.id))
+        .where(and(
+          eq(usersCompanies.userId, userId),
+          eq(usersCompanies.isActive, true)
+        ))
+    ]);
+    
+    return { software, hardware, companies };
   }
 }
 ```
