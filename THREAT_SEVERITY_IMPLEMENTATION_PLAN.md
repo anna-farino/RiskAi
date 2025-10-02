@@ -626,7 +626,223 @@ export class EntityManager {
 }
 ```
 
-### Step 2: User-Specific Relevance Scoring Strategy
+### Step 2: Update OpenAI Integration for Entity Extraction
+
+**File:** `backend/services/openai.ts`
+
+Add new comprehensive entity extraction function:
+
+```typescript
+export async function extractArticleEntities(article: {
+  title: string;
+  content: string;
+  url?: string;
+}): Promise<{
+  software: Array<{
+    name: string;
+    version?: string;
+    vendor?: string;
+    category?: string;
+    confidence: number;
+    context: string;
+  }>;
+  hardware: Array<{
+    name: string;
+    model?: string;
+    manufacturer?: string;
+    category?: string;
+    confidence: number;
+    context: string;
+  }>;
+  companies: Array<{
+    name: string;
+    type: 'vendor' | 'client' | 'affected' | 'mentioned';
+    confidence: number;
+    context: string;
+  }>;
+  cves: Array<{
+    id: string;
+    cvss?: string;
+    confidence: number;
+    context: string;
+  }>;
+  threatActors: Array<{
+    name: string;
+    type?: 'apt' | 'ransomware' | 'hacktivist' | 'criminal' | 'nation-state' | 'unknown';
+    aliases?: string[];
+    activityType?: 'attributed' | 'suspected' | 'mentioned';
+    confidence: number;
+    context: string;
+  }>;
+  attackVectors: string[];
+}> {
+  const prompt = `
+    Analyze this article and extract ALL mentioned entities with high precision.
+    
+    For SOFTWARE, extract:
+    - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
+    - Versions if specified
+    - Vendor/company that makes it
+    - Category (os, application, library, framework, etc.)
+    - The sentence/context where mentioned
+    
+    For HARDWARE, extract:
+    - Device names/models (e.g., "Cisco ASA 5500", "Netgear R7000")
+    - Manufacturer
+    - Category (router, iot, server, workstation, etc.)
+    - The context where mentioned
+    
+    For COMPANIES, extract:
+    - Company names and classify as:
+      - vendor (makes products/services)
+      - client (affected organization)
+      - affected (impacted by issue)
+      - mentioned (referenced but not directly affected)
+    
+    For CVEs, extract:
+    - CVE identifiers (format: CVE-YYYY-NNNNN)
+    - CVSS scores if mentioned
+    - Context of the vulnerability
+    
+    For THREAT ACTORS, extract:
+    - Actor/group names (e.g., "APT28", "Lazarus Group", "LockBit")
+    - Type (apt, ransomware, hacktivist, criminal, nation-state)
+    - Any aliases mentioned
+    - Activity type (attributed, suspected, mentioned)
+    - Context where mentioned
+    
+    Also identify:
+    - Attack vectors used (network, email, physical, supply chain, etc.)
+    
+    Be very precise - only extract entities explicitly mentioned, not implied.
+    Include confidence score (0-1) for each extraction.
+    
+    Article Title: ${article.title}
+    Article Content: ${article.content}
+    
+    Return as structured JSON with this exact format:
+    {
+      "software": [
+        {
+          "name": "product name",
+          "version": "version if specified",
+          "vendor": "company that makes it",
+          "category": "category type",
+          "confidence": 0.95,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "hardware": [
+        {
+          "name": "device name",
+          "model": "model number",
+          "manufacturer": "company name",
+          "category": "device type",
+          "confidence": 0.9,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "companies": [
+        {
+          "name": "company name",
+          "type": "vendor|client|affected|mentioned",
+          "confidence": 0.85,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "cves": [
+        {
+          "id": "CVE-YYYY-NNNNN",
+          "cvss": "score if mentioned",
+          "confidence": 1.0,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "threatActors": [
+        {
+          "name": "actor name",
+          "type": "apt|ransomware|etc",
+          "aliases": ["alias1", "alias2"],
+          "activityType": "attributed|suspected|mentioned",
+          "confidence": 0.9,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "attackVectors": ["vector1", "vector2"]
+    }
+  `;
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a cybersecurity analyst extracting entities from articles with high precision. Only extract entities that are explicitly mentioned in the text."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-4-turbo-preview", // Use GPT-4 for better entity recognition
+      response_format: { type: "json_object" },
+      temperature: 0.3, // Lower temperature for more consistent extraction
+      max_tokens: 4000
+    });
+    
+    const responseContent = completion.choices[0].message.content;
+    
+    if (!responseContent || responseContent.trim() === '') {
+      console.error('Empty response from OpenAI API in extractArticleEntities');
+      return {
+        software: [],
+        hardware: [],
+        companies: [],
+        cves: [],
+        threatActors: [],
+        attackVectors: []
+      };
+    }
+    
+    let result;
+    try {
+      result = JSON.parse(responseContent);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response from OpenAI:', parseError);
+      console.error('Response content:', responseContent);
+      return {
+        software: [],
+        hardware: [],
+        companies: [],
+        cves: [],
+        threatActors: [],
+        attackVectors: []
+      };
+    }
+    
+    // Validate and normalize the response
+    return {
+      software: Array.isArray(result.software) ? result.software : [],
+      hardware: Array.isArray(result.hardware) ? result.hardware : [],
+      companies: Array.isArray(result.companies) ? result.companies : [],
+      cves: Array.isArray(result.cves) ? result.cves : [],
+      threatActors: Array.isArray(result.threatActors) ? result.threatActors : [],
+      attackVectors: Array.isArray(result.attackVectors) ? result.attackVectors : []
+    };
+    
+  } catch (error) {
+    console.error('Error extracting entities with OpenAI:', error);
+    // Return empty arrays if extraction fails
+    return {
+      software: [],
+      hardware: [],
+      companies: [],
+      cves: [],
+      threatActors: [],
+      attackVectors: []
+    };
+  }
+}
+```
+
+### Step 3: User-Specific Relevance Scoring Strategy
 
 **File:** `backend/apps/threat-tracker/services/relevance-scorer.ts`
 
