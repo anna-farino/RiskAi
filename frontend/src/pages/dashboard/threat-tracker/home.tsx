@@ -188,8 +188,6 @@ export default function ThreatHome() {
         const queryString = buildQueryString();
         const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
 
-        console.log("Fetching articles with URL:", url);
-
         const response = await fetchWithAuth(url, {
           method: "GET",
         });

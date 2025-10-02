@@ -4,10 +4,12 @@ import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
 import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart, Loader2, ArrowRight } from 'lucide-react';
 import { useQuery } from "@tanstack/react-query";
 import { useFetch } from "@/hooks/use-fetch";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Dashboard() {
   const navigate = useNavigate();
   const fetchWithAuth = useFetch();
+  const { data: userData } = useAuth();
   
   // Fetch News Radar keywords
   const { data: newsKeywords } = useQuery({
@@ -683,186 +685,187 @@ export default function Dashboard() {
             </div>
           </RisqWidget>
           
-          
-          
-          <RisqWidget
-            title="News Capsule"
-            description="Executive reports"
-            icon={<Radar className="w-10 h-10 text-purple-400" />}
-            variant="interactive"
-            delay={0.4}
-            onClick={() => navigate("/dashboard/news-capsule/home")}
-            footer={
-              <div className="mt-auto">
-                <div className="text-xs text-gray-400 mt-2 text-center">
-                  {capsuleLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Loading reports...
-                    </div>
-                  ) : capsuleError ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
-                      <span className="text-red-400">Reports API offline</span>
-                      <button 
-                        onClick={() => refetchCapsule()} 
-                        className="text-orange-400 hover:text-orange-300 transition-colors"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-full">
-                      <button 
-                        onClick={() => navigate('/dashboard/news-capsule/home')}
-                        className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-purple-300 hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-purple-200 hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
-                      >
-                        <span>View All Reports</span>
-                        <ArrowRight className="h-3 w-3 flex-shrink-0" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            }
-          >
-            <div className="space-y-2 flex-1">
-              {capsuleLoading ? (
-                <>
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="bg-black rounded-md p-3 border border-gray-600/30 animate-pulse">
-                      <div className="flex justify-between items-start mb-2">
-                        <div className="w-16 h-4 bg-gray-600 rounded"></div>
-                        <div className="w-12 h-3 bg-gray-600 rounded"></div>
-                      </div>
-                      <div className="space-y-1">
-                        <div className="w-full h-3 bg-gray-600 rounded"></div>
-                        <div className="w-3/4 h-3 bg-gray-600 rounded"></div>
-                      </div>
-                    </div>
-                  ))}
-                </>
-              ) : capsuleError ? (
-                <div className="bg-black rounded-md p-3 border border-red-500/30 text-center">
-                  <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
-                  <p className="text-xs text-red-400">Failed to load reports</p>
-                  <p className="text-xs text-gray-500 mt-1">Check API connection</p>
-                </div>
-              ) : capsuleReports && capsuleReports.length > 0 ? (
-                <>
-                  {/* Recent Reports Summary Bar */}
-                  <div className="bg-black rounded-md p-2 border border-gray-600/30 mb-3">
-                    <div className="flex items-center justify-between text-xs mb-2">
-                      <span className="text-gray-300 font-medium">Recent Reports</span>
-                      <div className="flex items-center gap-3 text-xs">
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                          <span className="text-gray-400">Critical</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-                          <span className="text-gray-400">High</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                          <span className="text-gray-400">Info</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="space-y-2 py-2">
-                      {capsuleReports.slice(0, 5).map((report: any, index: number) => {
-                        const status = getReportStatus(report);
-                        
-                        // Determine priority based on report content for color coding
-                        const getPriorityFromReport = (report: any) => {
-                          if (report.articles && report.articles.length > 0) {
-                            const criticalKeywords = ['critical', 'urgent', 'exploit', 'zero-day', 'breach', 'ransomware'];
-                            const highKeywords = ['vulnerability', 'cve', 'attack', 'malware', 'threat'];
-                            
-                            const reportText = `${report.summary || ''} ${report.articles.map((a: any) => `${a.title || ''} ${a.summary || ''}`).join(' ')}`.toLowerCase();
-                            
-                            if (criticalKeywords.some(keyword => reportText.includes(keyword))) {
-                              return 'HIGH'; // Maps to Critical in UI
-                            } else if (highKeywords.some(keyword => reportText.includes(keyword))) {
-                              return 'MED'; // Maps to High in UI  
-                            }
-                          }
-                          return 'INFO'; // Maps to Info in UI
-                        };
-                        
-                        const priority = getPriorityFromReport(report);
-                        const buttonStyles = {
-                          'HIGH': {
-                            bg: 'bg-gradient-to-r from-red-500/20 to-red-600/20',
-                            border: 'border-red-500/40',
-                            text: 'text-red-300',
-                            hover: 'hover:from-red-500/30 hover:to-red-600/30 hover:border-red-400/60 hover:text-red-200 hover:shadow-lg hover:shadow-red-500/20'
-                          },
-                          'MED': {
-                            bg: 'bg-gradient-to-r from-blue-500/20 to-blue-600/20',
-                            border: 'border-blue-500/40',
-                            text: 'text-blue-300',
-                            hover: 'hover:from-blue-500/30 hover:to-blue-600/30 hover:border-blue-400/60 hover:text-blue-200 hover:shadow-lg hover:shadow-blue-500/20'
-                          },
-                          'INFO': {
-                            bg: 'bg-gradient-to-r from-green-500/20 to-green-600/20',
-                            border: 'border-green-500/40',
-                            text: 'text-green-300',
-                            hover: 'hover:from-green-500/30 hover:to-green-600/30 hover:border-green-400/60 hover:text-green-200 hover:shadow-lg hover:shadow-green-500/20'
-                          }
-                        };
-                        const buttonStyle = buttonStyles[priority as keyof typeof buttonStyles] || buttonStyles['INFO'];
-                        
-                        const reportTitle = `Executive Report: ${report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', { 
-                          month: 'short', 
-                          day: 'numeric' 
-                        }) : 'Recent'}`;
-                        
-                        return (
-                          <button
-                            key={report.id || index}
-                            onClick={() => handleCapsuleClick(report)}
-                            className={`text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 backdrop-blur-sm shadow-sm text-left block w-full ${buttonStyle.bg} ${buttonStyle.border} ${buttonStyle.text} ${buttonStyle.hover}`}
-                          >
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate">{reportTitle}</div>
-                                <div className="text-xs opacity-70 mt-0.5">
-                                  {report.createdAt ? `${new Date(report.createdAt).toLocaleDateString('en-US', { 
-                                    month: 'short', 
-                                    day: 'numeric',
-                                    year: 'numeric'
-                                  })} at ${new Date(report.createdAt).toLocaleTimeString('en-US', { 
-                                    hour: '2-digit', 
-                                    minute: '2-digit'
-                                  })}` : 'Unknown date'}
-                                </div>
-                              </div>
-                              <ArrowRight className="h-3 w-3 flex-shrink-0 ml-2" />
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                  
-                </>
-              ) : (
-                <div className="bg-black rounded-md p-4 border border-purple-500/30 text-center">
-                  <Radar className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                  <p className="text-xs text-gray-400 mb-1">No reports generated yet</p>
-                  <p className="text-xs text-gray-500 mb-3">Start processing articles to create executive reports</p>
-                  <button 
-                    onClick={() => navigate('/dashboard/news-capsule/home')}
-                    className="text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-purple-300 hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-purple-200 hover:shadow-lg hover:shadow-purple-500/20"
-                  >
-                    Process Articles →
-                  </button>
+          {true && (
+            <RisqWidget
+              title="News Capsule"
+              description="Executive reports"
+              icon={<Radar className="w-10 h-10 text-purple-400" />}
+              variant="interactive"
+              delay={0.4}
+              onClick={() => navigate("/dashboard/news-capsule/home")}
+              footer={
+                <div className="mt-auto">
+                  <div className="text-xs text-gray-400 mt-2 text-center">
+                    {capsuleLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Loading reports...
+                      </div>
+                    ) : capsuleError ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                        <span className="text-red-400">Reports API offline</span>
+                        <button
+                          onClick={() => refetchCapsule()}
+                          className="text-orange-400 hover:text-orange-300 transition-colors"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-full">
+                        <button
+                          onClick={() => navigate('/dashboard/news-capsule/home')}
+                          className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-purple-300 hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-purple-200 hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
+                        >
+                          <span>View All Reports</span>
+                          <ArrowRight className="h-3 w-3 flex-shrink-0" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-              )}
-            </div>
-          </RisqWidget>
+              }
+            >
+              <div className="space-y-2 flex-1">
+                {capsuleLoading ? (
+                  <>
+                    {[1, 2, 3, 4].map((i) => (
+                      <div key={i} className="bg-black rounded-md p-3 border border-gray-600/30 animate-pulse">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="w-16 h-4 bg-gray-600 rounded"></div>
+                          <div className="w-12 h-3 bg-gray-600 rounded"></div>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="w-full h-3 bg-gray-600 rounded"></div>
+                          <div className="w-3/4 h-3 bg-gray-600 rounded"></div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                ) : capsuleError ? (
+                  <div className="bg-black rounded-md p-3 border border-red-500/30 text-center">
+                    <AlertTriangle className="w-4 h-4 text-red-400 mx-auto mb-1" />
+                    <p className="text-xs text-red-400">Failed to load reports</p>
+                    <p className="text-xs text-gray-500 mt-1">Check API connection</p>
+                  </div>
+                ) : capsuleReports && capsuleReports.length > 0 ? (
+                  <>
+                    {/* Recent Reports Summary Bar */}
+                    <div className="bg-black rounded-md p-2 border border-gray-600/30 mb-3">
+                      <div className="flex items-center justify-between text-xs mb-2">
+                        <span className="text-gray-300 font-medium">Recent Reports</span>
+                        <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                            <span className="text-gray-400">Critical</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-blue-500"></div>
+                            <span className="text-gray-400">High</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                            <span className="text-gray-400">Info</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="space-y-2 py-2">
+                        {capsuleReports.slice(0, 5).map((report: any, index: number) => {
+                          const status = getReportStatus(report);
+
+                          // Determine priority based on report content for color coding
+                          const getPriorityFromReport = (report: any) => {
+                            if (report.articles && report.articles.length > 0) {
+                              const criticalKeywords = ['critical', 'urgent', 'exploit', 'zero-day', 'breach', 'ransomware'];
+                              const highKeywords = ['vulnerability', 'cve', 'attack', 'malware', 'threat'];
+
+                              const reportText = `${report.summary || ''} ${report.articles.map((a: any) => `${a.title || ''} ${a.summary || ''}`).join(' ')}`.toLowerCase();
+
+                              if (criticalKeywords.some(keyword => reportText.includes(keyword))) {
+                                return 'HIGH'; // Maps to Critical in UI
+                              } else if (highKeywords.some(keyword => reportText.includes(keyword))) {
+                                return 'MED'; // Maps to High in UI
+                              }
+                            }
+                            return 'INFO'; // Maps to Info in UI
+                          };
+
+                          const priority = getPriorityFromReport(report);
+                          const buttonStyles = {
+                            'HIGH': {
+                              bg: 'bg-gradient-to-r from-red-500/20 to-red-600/20',
+                              border: 'border-red-500/40',
+                              text: 'text-red-300',
+                              hover: 'hover:from-red-500/30 hover:to-red-600/30 hover:border-red-400/60 hover:text-red-200 hover:shadow-lg hover:shadow-red-500/20'
+                            },
+                            'MED': {
+                              bg: 'bg-gradient-to-r from-blue-500/20 to-blue-600/20',
+                              border: 'border-blue-500/40',
+                              text: 'text-blue-300',
+                              hover: 'hover:from-blue-500/30 hover:to-blue-600/30 hover:border-blue-400/60 hover:text-blue-200 hover:shadow-lg hover:shadow-blue-500/20'
+                            },
+                            'INFO': {
+                              bg: 'bg-gradient-to-r from-green-500/20 to-green-600/20',
+                              border: 'border-green-500/40',
+                              text: 'text-green-300',
+                              hover: 'hover:from-green-500/30 hover:to-green-600/30 hover:border-green-400/60 hover:text-green-200 hover:shadow-lg hover:shadow-green-500/20'
+                            }
+                          };
+                          const buttonStyle = buttonStyles[priority as keyof typeof buttonStyles] || buttonStyles['INFO'];
+
+                          const reportTitle = `Executive Report: ${report.createdAt ? new Date(report.createdAt).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric'
+                          }) : 'Recent'}`;
+
+                          return (
+                            <button
+                              key={report.id || index}
+                              onClick={() => handleCapsuleClick(report)}
+                              className={`text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 backdrop-blur-sm shadow-sm text-left block w-full ${buttonStyle.bg} ${buttonStyle.border} ${buttonStyle.text} ${buttonStyle.hover}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex-1 min-w-0">
+                                  <div className="truncate">{reportTitle}</div>
+                                  <div className="text-xs opacity-70 mt-0.5">
+                                    {report.createdAt ? `${new Date(report.createdAt).toLocaleDateString('en-US', {
+                                      month: 'short',
+                                      day: 'numeric',
+                                      year: 'numeric'
+                                    })} at ${new Date(report.createdAt).toLocaleTimeString('en-US', {
+                                      hour: '2-digit',
+                                      minute: '2-digit'
+                                    })}` : 'Unknown date'}
+                                  </div>
+                                </div>
+                                <ArrowRight className="h-3 w-3 flex-shrink-0 ml-2" />
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+
+                  </>
+                ) : (
+                  <div className="bg-black rounded-md p-4 border border-purple-500/30 text-center">
+                    <Radar className="w-6 h-6 text-gray-400 mx-auto mb-2" />
+                    <p className="text-xs text-gray-400 mb-1">No reports generated yet</p>
+                    <p className="text-xs text-gray-500 mb-3">Start processing articles to create executive reports</p>
+                    <button
+                      onClick={() => navigate('/dashboard/news-capsule/home')}
+                      className="text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-purple-300 hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-purple-200 hover:shadow-lg hover:shadow-purple-500/20"
+                    >
+                      Process Articles →
+                    </button>
+                  </div>
+                )}
+              </div>
+            </RisqWidget>
+          )}
 
           {false && <RisqWidget
             title="Trend Analysis"

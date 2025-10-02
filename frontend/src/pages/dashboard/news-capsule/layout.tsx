@@ -1,7 +1,9 @@
 import { cn } from "@/lib/utils";
 import { useState, useEffect } from "react";
-import { Link, Outlet, useLocation } from "react-router-dom";
+import { Link, Outlet, useLocation, Navigate } from "react-router-dom";
 import { NewsCapsuleProvider } from "@/context/NewsCapsuleContext";
+import { useAuth } from "@/hooks/use-auth";
+import { Shield, AlertTriangle } from "lucide-react";
 
 const buttons = [
   {
@@ -21,17 +23,35 @@ const buttons = [
 export default function NewsCapsuleLayout() {
   const location = useLocation().pathname.split('/')[3];
   const [isMobile, setIsMobile] = useState(false);
+  const { data: userData, isLoading } = useAuth();
 
   // Check if we're on mobile for responsive rendering
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth < 1024);
     };
-    
+
     handleResize();
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Show loading state while checking authentication
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BF00FF]"></div>
+        <p className="text-slate-400 mt-4">Verifying access...</p>
+      </div>
+    );
+  }
+
+  // Redirect non-admin users to dashboard
+  if (!userData 
+    //|| userData.role !== 'admin'
+  ) {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   return (
     <NewsCapsuleProvider>
