@@ -32,7 +32,7 @@ export const companies = pgTable('companies', {
 export const software = pgTable('software', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
-  version: text('version'), // Specific version if known
+  // Version removed - now tracked in junction tables
   companyId: uuid('company_id').references(() => companies.id),
   category: text('category'), // 'os', 'application', 'library', 'framework', etc.
   description: text('description'),
@@ -43,7 +43,7 @@ export const software = pgTable('software', {
   metadata: jsonb('metadata') // CPE, additional identifiers, etc.
 }, (table) => {
   return {
-    unq: unique().on(table.name, table.version, table.companyId)
+    unq: unique().on(table.name, table.companyId)
   };
 });
 
@@ -93,6 +93,7 @@ export const threatActors = pgTable('threat_actors', {
 export const usersSoftware = pgTable('users_software', {
   userId: uuid('user_id').notNull(), // references users.id
   softwareId: uuid('software_id').notNull().references(() => software.id),
+  version: text('version'), // Specific version user is running
   addedAt: timestamp('added_at').defaultNow(),
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(50), // For relevance scoring (1-100)
@@ -137,10 +138,12 @@ export const usersCompanies = pgTable('users_companies', {
 export const articleSoftware = pgTable('article_software', {
   articleId: uuid('article_id').notNull().references(() => globalArticles.id),
   softwareId: uuid('software_id').notNull().references(() => software.id),
+  versionFrom: text('version_from'), // Start of version range affected (e.g., "2.14.0")
+  versionTo: text('version_to'), // End of version range affected (e.g., "2.17.0")
   confidence: numeric('confidence', { precision: 3, scale: 2 }), // AI confidence 0.00-1.00
   context: text('context'), // Snippet where software was mentioned
   extractedAt: timestamp('extracted_at').defaultNow(),
-  metadata: jsonb('metadata') // Version info, vulnerability details, etc.
+  metadata: jsonb('metadata') // Vulnerability details, patch info, etc.
 }, (table) => {
   return {
     pk: primaryKey({ columns: [table.articleId, table.softwareId] })
@@ -274,13 +277,20 @@ npm run db:push --force
 
 ## Key Architectural Decisions
 
-### 1. Threat Actors as Separate Entities
+### 1. Version Tracking in Junction Tables
+- Software versions moved from `software` table to junction tables for flexibility:
+  - `article_software` table tracks version ranges (`version_from`, `version_to`) for vulnerabilities
+  - `users_software` table tracks specific versions users are running
+- Allows accurate vulnerability matching: user's version 2.15.0 matches article's range 2.14.0-2.17.0
+- Software entities remain unique by name and company only
+
+### 2. Threat Actors as Separate Entities
 - Threat actors are now in their own table (AI-discovered only, not user-entered)
 - Connected to articles via `article_threat_actors` junction table
 - Enables tracking of threat actor activity across articles
 - Allows for threat intelligence aggregation
 
-### 2. User-Specific Relevance Scoring (Database Storage)
+### 3. User-Specific Relevance Scoring (Database Storage)
 - **STORED in the database** in `article_relevance_score` table for efficiency
 - Calculated in batches when:
   - User logs in and new articles exist (up to 1 year old OR 2000 articles, whichever is smaller)
@@ -289,7 +299,7 @@ npm run db:push --force
 - Avoids redundant recalculation and improves query performance
 - Each user has their own set of relevance scores
 
-### 3. Severity Scoring is User-Independent
+### 4. Severity Scoring is User-Independent
 - **CONFIRMED**: Severity score is based purely on threat characteristics in the article
 - Stored in `threat_severity_score` column in `global_articles` table
 - Calculated using the rubric's severity components only (CVSS, exploitability, impact, etc.)
@@ -338,12 +348,11 @@ export class EntityManager {
   }
   
   async findOrCreateSoftware(data: SoftwareData): Promise<string> {
-    // Check if software exists with same name, version, and company
+    // Check if software exists with same name and company
     let software = await db.select()
       .from(softwareTable)
       .where(and(
         eq(softwareTable.name, data.name),
-        data.version ? eq(softwareTable.version, data.version) : isNull(softwareTable.version),
         data.companyId ? eq(softwareTable.companyId, data.companyId) : isNull(softwareTable.companyId)
       ))
       .limit(1);
@@ -353,7 +362,7 @@ export class EntityManager {
       const [newSoftware] = await db.insert(softwareTable)
         .values({
           name: data.name,
-          version: data.version,
+          // Version removed - now tracked in junction tables
           companyId: data.companyId,
           category: data.category,
           description: data.description,
@@ -505,20 +514,21 @@ export class EntityManager {
         });
       }
       
-      // Find or create software
+      // Find or create software (without version - now tracked in junction)
       const softwareId = await this.findOrCreateSoftware({
         name: sw.name,
-        version: sw.version,
         companyId,
         category: sw.category,
         discoveredFrom: articleId
       });
       
-      // Link to article
+      // Link to article with version range information
       await db.insert(articleSoftware)
         .values({
           articleId,
           softwareId,
+          versionFrom: sw.versionFrom || sw.version, // Single version or range start
+          versionTo: sw.versionTo || sw.version, // Single version or range end
           confidence: sw.confidence,
           context: sw.context,
           metadata: sw.metadata
@@ -622,7 +632,7 @@ export class EntityManager {
       db.select({
         id: softwareTable.id,
         name: softwareTable.name,
-        version: softwareTable.version,
+        version: usersSoftware.version, // Version from junction table
         company: companiesTable.name,
         priority: usersSoftware.priority
       })
@@ -682,7 +692,9 @@ export async function extractArticleEntities(article: {
 }): Promise<{
   software: Array<{
     name: string;
-    version?: string;
+    version?: string; // Single version if no range
+    versionFrom?: string; // Start of version range
+    versionTo?: string; // End of version range
     vendor?: string;
     category?: string;
     confidence: number;
@@ -723,7 +735,10 @@ export async function extractArticleEntities(article: {
     
     For SOFTWARE, extract:
     - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
-    - Versions if specified
+    - Versions if specified - distinguish between:
+      * Single versions (e.g., "version 2.14.1")
+      * Version ranges (e.g., "versions 2.14.0 through 2.17.0", "2.x before 2.17.1")
+    - For ranges, extract versionFrom (start) and versionTo (end)
     - Vendor/company that makes it
     - Category (os, application, library, framework, etc.)
     - The sentence/context where mentioned
@@ -767,7 +782,9 @@ export async function extractArticleEntities(article: {
       "software": [
         {
           "name": "product name",
-          "version": "version if specified",
+          "version": "single version if not a range",
+          "versionFrom": "start of range (e.g., 2.14.0)",
+          "versionTo": "end of range (e.g., 2.17.0)",
           "vendor": "company that makes it",
           "category": "category type",
           "confidence": 0.95,
