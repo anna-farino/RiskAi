@@ -202,13 +202,49 @@ export const articleThreatActors = pgTable('article_threat_actors', {
 });
 
 // =====================================================
+// USER-SPECIFIC RELEVANCE SCORING TABLE
+// =====================================================
+export const articleRelevanceScore = pgTable('article_relevance_score', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  articleId: uuid('article_id').notNull().references(() => globalArticles.id, { onDelete: 'cascade' }),
+  userId: uuid('user_id').notNull(), // references users.id
+  
+  // Relevance scoring components
+  relevanceScore: numeric('relevance_score', { precision: 4, scale: 2 }), // 0.00-100.00
+  softwareScore: numeric('software_score', { precision: 4, scale: 2 }), // Component score
+  clientScore: numeric('client_score', { precision: 4, scale: 2 }), // Component score
+  vendorScore: numeric('vendor_score', { precision: 4, scale: 2 }), // Component score
+  hardwareScore: numeric('hardware_score', { precision: 4, scale: 2 }), // Component score
+  keywordScore: numeric('keyword_score', { precision: 4, scale: 2 }), // Component score
+  
+  // Metadata for debugging and analysis
+  matchedSoftware: text('matched_software').array(), // Software IDs that matched
+  matchedCompanies: text('matched_companies').array(), // Company IDs that matched
+  matchedHardware: text('matched_hardware').array(), // Hardware IDs that matched
+  matchedKeywords: text('matched_keywords').array(), // Keywords that matched
+  
+  // Tracking
+  calculatedAt: timestamp('calculated_at').defaultNow(),
+  calculationVersion: text('calculation_version').default('1.0'),
+  metadata: jsonb('metadata') // Additional scoring details
+}, (table) => {
+  return {
+    // Unique constraint: one score per user-article combination
+    unique: unique().on(table.articleId, table.userId),
+    // Index for efficient queries
+    userArticleIdx: index('user_article_idx').on(table.userId, table.articleId),
+    articleDateIdx: index('article_date_idx').on(table.articleId, table.calculatedAt)
+  };
+});
+
+// =====================================================
 // UPDATED GLOBAL ARTICLES TABLE
 // =====================================================
 export const globalArticles = pgTable('global_articles', {
   // ... existing columns (id, sourceId, title, content, url, etc.) ...
   
   // Enhanced threat scoring fields
-  // NOTE: No relevance score here - calculated per user at query time
+  // NOTE: Relevance scores stored separately in article_relevance_score table
   threatMetadata: jsonb('threat_metadata'), // Detailed scoring components
   threatSeverityScore: numeric('threat_severity_score', { precision: 4, scale: 2 }), // User-independent severity
   threatLevel: text('threat_level'), // 'low', 'medium', 'high', 'critical' - based on severity only
@@ -244,27 +280,33 @@ npm run db:push --force
 - Enables tracking of threat actor activity across articles
 - Allows for threat intelligence aggregation
 
-### 2. User-Specific Relevance Scoring
-- **NOT stored in the database** - calculated at query time for each user
-- Ensures always up-to-date based on user's current keyword stack
-- Implemented via efficient SQL queries with proper indexing
-- Cached in application memory with short TTL for performance
+### 2. User-Specific Relevance Scoring (Database Storage)
+- **STORED in the database** in `article_relevance_score` table for efficiency
+- Calculated in batches when:
+  - User logs in and new articles exist (up to 1 year old OR 2000 articles, whichever is smaller)
+  - User changes their technology stack keywords
+- One-off scoring available for articles older than 1 year via "generate score" button
+- Avoids redundant recalculation and improves query performance
+- Each user has their own set of relevance scores
 
 ### 3. Severity Scoring is User-Independent
 - **CONFIRMED**: Severity score is based purely on threat characteristics in the article
 - Stored in `threat_severity_score` column in `global_articles` table
 - Calculated using the rubric's severity components only (CVSS, exploitability, impact, etc.)
 - Same severity score for all users viewing the same article
-- Relevance scoring (user-specific) is separate and calculated at display time
+- Relevance scoring (user-specific) is separate and stored per user
 
 ## Implementation Overview
 
 This enhanced threat severity scoring system will:
 1. Extract entities (software, hardware, companies, CVEs, threat actors) into normalized tables
 2. Calculate **severity scores** based on threat characteristics (stored in DB)
-3. Calculate **relevance scores** per user at query time (not stored)
+3. Calculate **relevance scores** per user in batches (stored in DB):
+   - On user login for new articles
+   - When user changes technology stack
+   - On-demand for older articles
 4. Display combined threat assessment to users
-5. Maintain high performance through strategic caching and indexing
+5. Maintain high performance through database storage and batch processing
 
 ## Detailed Implementation Steps
 
@@ -842,66 +884,222 @@ export async function extractArticleEntities(article: {
 }
 ```
 
-### Step 3: User-Specific Relevance Scoring Strategy
+### Step 3: User-Specific Relevance Scoring with Database Storage
 
 **File:** `backend/apps/threat-tracker/services/relevance-scorer.ts`
 
 ```typescript
 export class RelevanceScorer {
-  private cache = new Map<string, { score: number; timestamp: number }>();
-  private CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private readonly MAX_BATCH_SIZE = 2000;
+  private readonly MAX_AGE_DAYS = 365; // 1 year
   
   /**
-   * Calculate relevance score at query time for a user
-   * This is NOT stored in the database
+   * Batch calculate and store relevance scores for new articles
+   * Called when user logs in or changes technology stack
    */
-  async calculateRelevanceForUser(
-    articleId: string, 
+  async batchCalculateRelevance(
     userId: string,
-    options?: { useCache?: boolean }
-  ): Promise<number> {
-    // Check cache first
-    const cacheKey = `${userId}:${articleId}`;
-    if (options?.useCache !== false) {
-      const cached = this.cache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-        return cached.score;
-      }
+    options?: { 
+      forceRecalculate?: boolean; // For tech stack changes
+      articleIds?: string[]; // Specific articles to calculate
+    }
+  ): Promise<void> {
+    // Get user's current technology stack
+    const userEntities = await this.getUserEntities(userId);
+    
+    // Find articles that need scoring
+    const articlesToScore = await this.getArticlesNeedingScores(userId, options);
+    
+    // Process in batches to avoid memory issues
+    const batchSize = 100;
+    for (let i = 0; i < articlesToScore.length; i += batchSize) {
+      const batch = articlesToScore.slice(i, i + batchSize);
+      await this.processBatch(batch, userId, userEntities);
+    }
+  }
+  
+  /**
+   * Get articles that need relevance scores
+   */
+  private async getArticlesNeedingScores(
+    userId: string,
+    options?: { forceRecalculate?: boolean; articleIds?: string[] }
+  ): Promise<Article[]> {
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    
+    if (options?.articleIds) {
+      // Specific articles requested (e.g., for one-off scoring)
+      return db.select()
+        .from(globalArticles)
+        .where(and(
+          inArray(globalArticles.id, options.articleIds),
+          eq(globalArticles.isCybersecurity, true)
+        ))
+        .limit(this.MAX_BATCH_SIZE);
     }
     
-    // Perform efficient single query to get all relevance data
-    const relevanceData = await this.getRelevanceData(articleId, userId);
+    if (options?.forceRecalculate) {
+      // Tech stack changed - recalculate all scores within limits
+      return db.select()
+        .from(globalArticles)
+        .where(and(
+          eq(globalArticles.isCybersecurity, true),
+          gte(globalArticles.publishedAt, oneYearAgo)
+        ))
+        .orderBy(desc(globalArticles.publishedAt))
+        .limit(this.MAX_BATCH_SIZE);
+    }
+    
+    // Normal case - only calculate missing scores
+    return db.select()
+      .from(globalArticles)
+      .leftJoin(
+        articleRelevanceScore,
+        and(
+          eq(articleRelevanceScore.articleId, globalArticles.id),
+          eq(articleRelevanceScore.userId, userId)
+        )
+      )
+      .where(and(
+        eq(globalArticles.isCybersecurity, true),
+        gte(globalArticles.publishedAt, oneYearAgo),
+        isNull(articleRelevanceScore.id) // No existing score
+      ))
+      .orderBy(desc(globalArticles.publishedAt))
+      .limit(this.MAX_BATCH_SIZE);
+  }
+  
+  /**
+   * Process a batch of articles and calculate relevance scores
+   */
+  private async processBatch(
+    articles: Article[], 
+    userId: string, 
+    userEntities: UserEntities
+  ): Promise<void> {
+    const scores = [];
+    
+    for (const article of articles) {
+      const score = await this.calculateRelevanceScore(article.id, userId, userEntities);
+      scores.push({
+        articleId: article.id,
+        userId,
+        relevanceScore: score.total,
+        softwareScore: score.software,
+        clientScore: score.client,
+        vendorScore: score.vendor,
+        hardwareScore: score.hardware,
+        keywordScore: score.keyword,
+        matchedSoftware: score.matchedSoftware,
+        matchedCompanies: score.matchedCompanies,
+        matchedHardware: score.matchedHardware,
+        matchedKeywords: score.matchedKeywords,
+        calculatedAt: new Date(),
+        calculationVersion: '1.0',
+        metadata: score.metadata
+      });
+    }
+    
+    // Bulk insert/update scores
+    if (scores.length > 0) {
+      await db.insert(articleRelevanceScore)
+        .values(scores)
+        .onConflictDoUpdate({
+          target: [articleRelevanceScore.articleId, articleRelevanceScore.userId],
+          set: {
+            relevanceScore: excluded.relevanceScore,
+            softwareScore: excluded.softwareScore,
+            clientScore: excluded.clientScore,
+            vendorScore: excluded.vendorScore,
+            hardwareScore: excluded.hardwareScore,
+            keywordScore: excluded.keywordScore,
+            matchedSoftware: excluded.matchedSoftware,
+            matchedCompanies: excluded.matchedCompanies,
+            matchedHardware: excluded.matchedHardware,
+            matchedKeywords: excluded.matchedKeywords,
+            calculatedAt: excluded.calculatedAt,
+            calculationVersion: excluded.calculationVersion,
+            metadata: excluded.metadata
+          }
+        });
+    }
+  }
+  
+  /**
+   * Calculate relevance score for a single article
+   * Used both in batch processing and one-off calculations
+   */
+  async calculateRelevanceScore(
+    articleId: string, 
+    userId: string, 
+    userEntities?: UserEntities
+  ): Promise<RelevanceScoreResult> {
+    // Get user entities if not provided
+    if (!userEntities) {
+      userEntities = await this.getUserEntities(userId);
+    }
+    
+    // Get article's entities
+    const articleEntities = await this.getArticleEntities(articleId);
     
     // Calculate component scores
     const scores = {
-      software: this.scoreSoftwareRelevance(relevanceData.software),
-      client: this.scoreClientRelevance(relevanceData.clients),
-      vendor: this.scoreVendorRelevance(relevanceData.vendors),
-      hardware: this.scoreHardwareRelevance(relevanceData.hardware),
-      keywordActivity: await this.scoreKeywordActivity(articleId, userId)
+      software: this.scoreSoftwareRelevance(articleEntities.software, userEntities.software),
+      client: this.scoreClientRelevance(articleEntities.companies, userEntities.companies),
+      vendor: this.scoreVendorRelevance(articleEntities.companies, userEntities.companies),
+      hardware: this.scoreHardwareRelevance(articleEntities.hardware, userEntities.hardware),
+      keyword: await this.scoreKeywordActivity(articleId, userId)
     };
     
     // Apply rubric weights
-    const relevanceScore = (
+    const totalScore = (
       (0.25 * scores.software) +
       (0.25 * scores.client) +
       (0.20 * scores.vendor) +
       (0.15 * scores.hardware) +
-      (0.15 * scores.keywordActivity)
+      (0.15 * scores.keyword)
     );
     
-    // Cache the result
-    this.cache.set(cacheKey, { 
-      score: relevanceScore, 
-      timestamp: Date.now() 
-    });
+    return {
+      total: totalScore,
+      ...scores,
+      matchedSoftware: this.getMatchedIds(articleEntities.software, userEntities.software),
+      matchedCompanies: this.getMatchedIds(articleEntities.companies, userEntities.companies),
+      matchedHardware: this.getMatchedIds(articleEntities.hardware, userEntities.hardware),
+      matchedKeywords: await this.getMatchedKeywords(articleId, userId),
+      metadata: {
+        userEntityCounts: {
+          software: userEntities.software.length,
+          companies: userEntities.companies.length,
+          hardware: userEntities.hardware.length
+        },
+        articleEntityCounts: {
+          software: articleEntities.software.length,
+          companies: articleEntities.companies.length,
+          hardware: articleEntities.hardware.length
+        }
+      }
+    };
+  }
+  
+  /**
+   * Handle one-off score generation for old articles
+   */
+  async generateOneOffScore(articleId: string, userId: string): Promise<void> {
+    await this.batchCalculateRelevance(userId, { articleIds: [articleId] });
+  }
+  
+  /**
+   * Trigger recalculation when tech stack changes
+   */
+  async onTechStackChange(userId: string): Promise<void> {
+    // Delete existing scores to force recalculation
+    await db.delete(articleRelevanceScore)
+      .where(eq(articleRelevanceScore.userId, userId));
     
-    // Clean old cache entries periodically
-    if (Math.random() < 0.01) { // 1% chance
-      this.cleanCache();
-    }
-    
-    return relevanceScore;
+    // Recalculate scores with current tech stack
+    await this.batchCalculateRelevance(userId, { forceRecalculate: true });
   }
   
   /**
@@ -1486,29 +1684,16 @@ function ThreatArticleCard({ article, severityScore, relevanceScore, threatLevel
 export class PerformanceOptimizer {
   
   /**
-   * Pre-calculate relevance for active users (run as background job)
+   * Ensure all active users have up-to-date relevance scores
+   * Run this as a background job periodically
    */
-  async warmRelevanceCache(activeUserIds: string[]) {
-    const recentArticles = await db.select()
-      .from(globalArticles)
-      .where(and(
-        eq(globalArticles.isCybersecurity, true),
-        gte(globalArticles.publishDate, subDays(new Date(), 7))
-      ))
-      .limit(100);
-    
+  async updateRelevanceScores(activeUserIds: string[]) {
     const scorer = new RelevanceScorer();
     
-    // Parallel calculation for all users
-    await Promise.all(
-      activeUserIds.map(userId =>
-        Promise.all(
-          recentArticles.map(article =>
-            scorer.calculateRelevanceForUser(article.id, userId, { useCache: true })
-          )
-        )
-      )
-    );
+    // Process each user's missing scores
+    for (const userId of activeUserIds) {
+      await scorer.batchCalculateRelevance(userId);
+    }
   }
   
   /**
@@ -1549,6 +1734,14 @@ export class PerformanceOptimizer {
       CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_articles_threat_level 
         ON global_articles(threat_level) 
         WHERE is_cybersecurity = true;
+      
+      -- Relevance score indexes for fast queries
+      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_relevance_user_article 
+        ON article_relevance_score(user_id, article_id);
+      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_relevance_article_score 
+        ON article_relevance_score(article_id, relevance_score DESC);
+      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_relevance_user_score 
+        ON article_relevance_score(user_id, relevance_score DESC);
     `);
   }
 }
@@ -1595,18 +1788,42 @@ describe('Severity Scoring', () => {
 describe('Relevance Scoring', () => {
   test('relevance score is user-specific', async () => {
     const article = await createTestArticle();
-    const user1Relevance = await scorer.calculateRelevanceForUser(article.id, user1.id);
-    const user2Relevance = await scorer.calculateRelevanceForUser(article.id, user2.id);
-    expect(user1Relevance).not.toBe(user2Relevance);
+    await scorer.batchCalculateRelevance(user1.id, { articleIds: [article.id] });
+    await scorer.batchCalculateRelevance(user2.id, { articleIds: [article.id] });
+    
+    const user1Score = await db.select()
+      .from(articleRelevanceScore)
+      .where(and(
+        eq(articleRelevanceScore.articleId, article.id),
+        eq(articleRelevanceScore.userId, user1.id)
+      ));
+    
+    const user2Score = await db.select()
+      .from(articleRelevanceScore)
+      .where(and(
+        eq(articleRelevanceScore.articleId, article.id),
+        eq(articleRelevanceScore.userId, user2.id)
+      ));
+    
+    expect(user1Score[0].relevanceScore).not.toBe(user2Score[0].relevanceScore);
   });
   
-  test('relevance is not stored in database', async () => {
-    const article = await db.select()
-      .from(globalArticles)
-      .where(eq(globalArticles.id, testArticleId))
+  test('relevance is stored in database per user', async () => {
+    const article = await createTestArticle();
+    await scorer.batchCalculateRelevance(user1.id, { articleIds: [article.id] });
+    
+    const storedScore = await db.select()
+      .from(articleRelevanceScore)
+      .where(and(
+        eq(articleRelevanceScore.articleId, article.id),
+        eq(articleRelevanceScore.userId, user1.id)
+      ))
       .limit(1);
     
-    expect(article[0].threatRelevanceScore).toBeUndefined();
+    expect(storedScore.length).toBe(1);
+    expect(storedScore[0].relevanceScore).toBeDefined();
+    expect(storedScore[0].articleId).toBe(article.id);
+    expect(storedScore[0].userId).toBe(user1.id);
   });
 });
 ```
