@@ -14,7 +14,8 @@ import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, numeric, uniqu
 // =====================================================
 export const companies = pgTable('companies', {
   id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull().unique(),
+  name: text('name').notNull(),
+  normalizedName: text('normalized_name').notNull().unique(), // For deduplication
   type: text('type'), // 'vendor', 'client', 'both', 'other'
   industry: text('industry'),
   description: text('description'),
@@ -24,6 +25,10 @@ export const companies = pgTable('companies', {
   discoveredFrom: uuid('discovered_from'), // article_id where first found (if AI-discovered)
   isVerified: boolean('is_verified').default(false),
   metadata: jsonb('metadata') // Additional flexible data
+}, (table) => {
+  return {
+    normalizedIdx: index('companies_normalized_idx').on(table.normalizedName)
+  };
 });
 
 // =====================================================
@@ -32,6 +37,7 @@ export const companies = pgTable('companies', {
 export const software = pgTable('software', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
+  normalizedName: text('normalized_name').notNull(), // For deduplication
   // Version removed - now tracked in junction tables
   companyId: uuid('company_id').references(() => companies.id),
   category: text('category'), // 'os', 'application', 'library', 'framework', etc.
@@ -43,7 +49,8 @@ export const software = pgTable('software', {
   metadata: jsonb('metadata') // CPE, additional identifiers, etc.
 }, (table) => {
   return {
-    unq: unique().on(table.name, table.companyId)
+    unq: unique().on(table.normalizedName, table.companyId),
+    normalizedIdx: index('software_normalized_idx').on(table.normalizedName)
   };
 });
 
@@ -53,6 +60,7 @@ export const software = pgTable('software', {
 export const hardware = pgTable('hardware', {
   id: uuid('id').defaultRandom().primaryKey(),
   name: text('name').notNull(),
+  normalizedName: text('normalized_name').notNull(), // For deduplication
   model: text('model'),
   manufacturer: text('manufacturer'),
   category: text('category'), // 'router', 'iot', 'server', 'workstation', etc.
@@ -64,7 +72,8 @@ export const hardware = pgTable('hardware', {
   metadata: jsonb('metadata')
 }, (table) => {
   return {
-    unq: unique().on(table.name, table.model, table.manufacturer)
+    unq: unique().on(table.normalizedName, table.model, table.manufacturer),
+    normalizedIdx: index('hardware_normalized_idx').on(table.normalizedName)
   };
 });
 
@@ -73,7 +82,8 @@ export const hardware = pgTable('hardware', {
 // =====================================================
 export const threatActors = pgTable('threat_actors', {
   id: uuid('id').defaultRandom().primaryKey(),
-  name: text('name').notNull().unique(),
+  name: text('name').notNull(),
+  normalizedName: text('normalized_name').notNull().unique(), // For deduplication
   aliases: text('aliases').array(), // Alternative names
   type: text('type'), // 'apt', 'ransomware', 'hacktivist', 'criminal', 'nation-state'
   origin: text('origin'), // Country/region of origin if known
@@ -85,6 +95,10 @@ export const threatActors = pgTable('threat_actors', {
   discoveredFrom: uuid('discovered_from'), // article_id where first found
   isVerified: boolean('is_verified').default(false),
   metadata: jsonb('metadata') // Additional threat intelligence
+}, (table) => {
+  return {
+    normalizedIdx: index('threat_actors_normalized_idx').on(table.normalizedName)
+  };
 });
 
 // =====================================================
@@ -299,7 +313,15 @@ npm run db:push --force
 - Avoids redundant recalculation and improves query performance
 - Each user has their own set of relevance scores
 
-### 4. Severity Scoring is User-Independent
+### 4. AI-Powered Entity Resolution for Deduplication
+- Separate AI service (`resolveEntity`) handles entity matching and normalization
+- Clean separation: extraction focuses on finding entities, resolution focuses on matching
+- Caching layer (`entity_resolution_cache` table) stores decisions for 30 days
+- Different confidence thresholds per entity type (0.85 default, 0.75 for threat actors)
+- Handles variations: abbreviations (MSFT→Microsoft), typos, subsidiaries, legal suffixes
+- Maintains canonical names and alias tracking for comprehensive matching
+
+### 5. Severity Scoring is User-Independent
 - **CONFIRMED**: Severity score is based purely on threat characteristics in the article
 - Stored in `threat_severity_score` column in `global_articles` table
 - Calculated using the rubric's severity components only (CVSS, exploitability, impact, etc.)
@@ -901,7 +923,421 @@ export async function extractArticleEntities(article: {
 }
 ```
 
-### Step 3: User-Specific Relevance Scoring with Database Storage
+### Step 3: AI Entity Resolution Service
+
+**File:** `backend/services/openai.ts`
+
+Add dedicated entity resolution function for deduplication:
+
+```typescript
+/**
+ * AI-powered entity resolution to match new entities against existing ones
+ * Handles variations, abbreviations, typos, and aliases
+ */
+export async function resolveEntity(
+  newName: string,
+  existingEntities: Array<{
+    id: string;
+    name: string; 
+    aliases?: string[];
+  }>,
+  entityType: 'company' | 'software' | 'hardware' | 'threat_actor'
+): Promise<{
+  matchedId: string | null;
+  canonicalName: string;
+  confidence: number;
+  aliases: string[];
+  reasoning: string;
+}> {
+  const prompt = `
+    Determine if the new ${entityType} name matches any existing entities.
+    
+    New name: "${newName}"
+    
+    Existing entities:
+    ${existingEntities.map(e => `- ID: ${e.id}, Name: ${e.name}${e.aliases ? `, Aliases: ${e.aliases.join(', ')}` : ''}`).join('\n')}
+    
+    Consider:
+    - Abbreviations (e.g., MSFT → Microsoft, GCP → Google Cloud Platform)
+    - Common variations (e.g., MS → Microsoft, Chrome → Google Chrome)
+    - Subsidiaries and acquisitions (e.g., YouTube → Google subsidiary)
+    - Typos and common misspellings
+    - Different legal entity suffixes (Inc, Corp, Ltd, LLC)
+    - Version-less references (e.g., "Windows" matches "Windows 10")
+    ${entityType === 'threat_actor' ? '- Known APT group aliases and campaign names' : ''}
+    ${entityType === 'software' ? '- Product suite relationships (Office 365 → Microsoft Office)' : ''}
+    
+    Return a JSON object with:
+    {
+      "matchedId": "existing entity ID if match found, null if new entity",
+      "canonicalName": "most official/common form of the name",
+      "confidence": 0.0 to 1.0 confidence in the match,
+      "aliases": ["list", "of", "known", "variations"],
+      "reasoning": "brief explanation of the decision"
+    }
+    
+    Be conservative - only match if confidence is high. When in doubt, treat as new entity.
+  `;
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an entity resolution expert specializing in cybersecurity entities. Your job is to accurately determine if entities are the same while avoiding false matches."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-4-turbo-preview",
+      response_format: { type: "json_object" },
+      temperature: 0.2, // Lower temperature for consistent matching
+      max_tokens: 1000
+    });
+    
+    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    
+    return {
+      matchedId: result.matchedId || null,
+      canonicalName: result.canonicalName || newName,
+      confidence: result.confidence || 0,
+      aliases: result.aliases || [],
+      reasoning: result.reasoning || ''
+    };
+  } catch (error) {
+    console.error('Error in entity resolution:', error);
+    // Fallback to treating as new entity
+    return {
+      matchedId: null,
+      canonicalName: newName,
+      confidence: 0,
+      aliases: [],
+      reasoning: 'Error in resolution, treating as new entity'
+    };
+  }
+}
+```
+
+**Database Table for Caching Resolutions:**
+
+Add to `shared/db/schema/global-tables.ts`:
+
+```typescript
+export const entityResolutionCache = pgTable('entity_resolution_cache', {
+  id: text('id').$defaultFn(() => ulid()).primaryKey(),
+  inputName: text('input_name').notNull(),
+  entityType: text('entity_type').notNull(), // 'company', 'software', etc.
+  resolvedId: text('resolved_id'), // null if new entity
+  canonicalName: text('canonical_name').notNull(),
+  confidence: real('confidence').notNull(),
+  aliases: text('aliases').array().notNull().default(sql`ARRAY[]::text[]`),
+  reasoning: text('reasoning'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull() // Cache expiry (30 days)
+}, (table) => ({
+  lookupIdx: index('entity_resolution_lookup_idx').on(
+    table.inputName, 
+    table.entityType
+  ),
+  expiryIdx: index('entity_resolution_expiry_idx').on(table.expiresAt)
+}));
+```
+
+**Updated EntityManager findOrCreate methods:**
+
+```typescript
+export class EntityManager {
+  private readonly RESOLUTION_CONFIDENCE_THRESHOLD = 0.85;
+  private readonly CACHE_DURATION_DAYS = 30;
+  
+  async findOrCreateCompany(data: {
+    name: string;
+    type?: string;
+    articleId?: string;
+  }): Promise<string> {
+    // Check cache first
+    const cached = await this.getCachedResolution(data.name, 'company');
+    if (cached) {
+      if (cached.resolvedId) return cached.resolvedId;
+      // Cached as new entity, create with canonical name
+      return this.createCompany({
+        ...data,
+        name: cached.canonicalName
+      });
+    }
+    
+    // Get top existing companies for comparison
+    const existingCompanies = await db.select({
+      id: companiesTable.id,
+      name: companiesTable.name
+    })
+    .from(companiesTable)
+    .limit(50); // Get reasonable sample for comparison
+    
+    // Call AI for resolution
+    const resolution = await resolveEntity(
+      data.name,
+      existingCompanies,
+      'company'
+    );
+    
+    // Cache the resolution
+    await this.cacheResolution(data.name, 'company', resolution);
+    
+    // Use matched entity or create new
+    if (resolution.matchedId && resolution.confidence >= this.RESOLUTION_CONFIDENCE_THRESHOLD) {
+      return resolution.matchedId;
+    }
+    
+    // Create new company with canonical name
+    const [company] = await db.insert(companiesTable)
+      .values({
+        name: resolution.canonicalName,
+        type: data.type,
+        normalizedName: this.normalize(resolution.canonicalName)
+      })
+      .returning({ id: companiesTable.id });
+    
+    // Store original name as alias if different
+    if (data.name !== resolution.canonicalName) {
+      await this.addAlias(company.id, 'company', data.name);
+    }
+    
+    return company.id;
+  }
+  
+  private async getCachedResolution(
+    inputName: string, 
+    entityType: string
+  ): Promise<ResolutionResult | null> {
+    const [cached] = await db.select()
+      .from(entityResolutionCache)
+      .where(and(
+        eq(entityResolutionCache.inputName, this.normalize(inputName)),
+        eq(entityResolutionCache.entityType, entityType),
+        gt(entityResolutionCache.expiresAt, new Date())
+      ))
+      .limit(1);
+    
+    return cached || null;
+  }
+  
+  private async cacheResolution(
+    inputName: string,
+    entityType: string,
+    resolution: ResolutionResult
+  ): Promise<void> {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + this.CACHE_DURATION_DAYS);
+    
+    await db.insert(entityResolutionCache)
+      .values({
+        inputName: this.normalize(inputName),
+        entityType,
+        resolvedId: resolution.matchedId,
+        canonicalName: resolution.canonicalName,
+        confidence: resolution.confidence,
+        aliases: resolution.aliases,
+        reasoning: resolution.reasoning,
+        expiresAt
+      })
+      .onConflictDoNothing(); // Avoid duplicates
+  }
+  
+  private normalize(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s]/g, '')
+      .replace(/\s+/g, ' ');
+  }
+  
+  async findOrCreateSoftware(data: {
+    name: string;
+    companyId?: string;
+    category?: string;
+  }): Promise<string> {
+    // Check cache first
+    const cached = await this.getCachedResolution(data.name, 'software');
+    if (cached && cached.resolvedId) {
+      return cached.resolvedId;
+    }
+    
+    // Build query with optional company filter
+    let query = db.select({
+      id: softwareTable.id,
+      name: softwareTable.name
+    }).from(softwareTable);
+    
+    if (data.companyId) {
+      query = query.where(eq(softwareTable.companyId, data.companyId));
+    }
+    
+    const existingSoftware = await query.limit(50);
+    
+    // Call AI for resolution
+    const resolution = await resolveEntity(
+      data.name,
+      existingSoftware,
+      'software'
+    );
+    
+    // Cache the resolution
+    await this.cacheResolution(data.name, 'software', resolution);
+    
+    // Use matched entity or create new
+    if (resolution.matchedId && resolution.confidence >= this.RESOLUTION_CONFIDENCE_THRESHOLD) {
+      return resolution.matchedId;
+    }
+    
+    // Create new software with canonical name
+    const [software] = await db.insert(softwareTable)
+      .values({
+        name: resolution.canonicalName,
+        companyId: data.companyId,
+        category: data.category,
+        normalizedName: this.normalize(resolution.canonicalName)
+      })
+      .returning({ id: softwareTable.id });
+    
+    return software.id;
+  }
+  
+  async findOrCreateHardware(data: {
+    name: string;
+    model?: string;
+    manufacturer?: string;
+    category?: string;
+  }): Promise<string> {
+    const lookupName = data.model || data.name;
+    
+    // Check cache
+    const cached = await this.getCachedResolution(lookupName, 'hardware');
+    if (cached && cached.resolvedId) {
+      return cached.resolvedId;
+    }
+    
+    // Get existing hardware for comparison
+    const existingHardware = await db.select({
+      id: hardwareTable.id,
+      name: hardwareTable.name
+    })
+    .from(hardwareTable)
+    .limit(50);
+    
+    // Call AI for resolution
+    const resolution = await resolveEntity(
+      lookupName,
+      existingHardware,
+      'hardware'
+    );
+    
+    // Cache the resolution
+    await this.cacheResolution(lookupName, 'hardware', resolution);
+    
+    // Use matched entity or create new
+    if (resolution.matchedId && resolution.confidence >= this.RESOLUTION_CONFIDENCE_THRESHOLD) {
+      return resolution.matchedId;
+    }
+    
+    // Create new hardware with canonical name
+    const [hardware] = await db.insert(hardwareTable)
+      .values({
+        name: resolution.canonicalName,
+        model: data.model,
+        manufacturer: data.manufacturer,
+        category: data.category,
+        normalizedName: this.normalize(resolution.canonicalName)
+      })
+      .returning({ id: hardwareTable.id });
+    
+    return hardware.id;
+  }
+  
+  async findOrCreateThreatActor(data: {
+    name: string;
+    type?: string;
+    aliases?: string[];
+    articleId?: string;
+  }): Promise<string> {
+    // Check cache
+    const cached = await this.getCachedResolution(data.name, 'threat_actor');
+    if (cached && cached.resolvedId) {
+      return cached.resolvedId;
+    }
+    
+    // Get existing threat actors with their aliases
+    const existingActors = await db.select({
+      id: threatActorsTable.id,
+      name: threatActorsTable.name,
+      aliases: threatActorsTable.aliases
+    })
+    .from(threatActorsTable)
+    .limit(100); // More samples for threat actors due to many aliases
+    
+    // Call AI for resolution
+    const resolution = await resolveEntity(
+      data.name,
+      existingActors,
+      'threat_actor'
+    );
+    
+    // Cache the resolution
+    await this.cacheResolution(data.name, 'threat_actor', resolution);
+    
+    // Use matched entity or create new
+    if (resolution.matchedId && resolution.confidence >= 0.75) { // Lower threshold for threat actors
+      // Update aliases if we have new ones
+      if (data.aliases && data.aliases.length > 0) {
+        await this.updateThreatActorAliases(resolution.matchedId, data.aliases);
+      }
+      return resolution.matchedId;
+    }
+    
+    // Combine aliases from AI and data
+    const allAliases = [...new Set([
+      ...(resolution.aliases || []),
+      ...(data.aliases || [])
+    ])];
+    
+    // Create new threat actor with canonical name
+    const [actor] = await db.insert(threatActorsTable)
+      .values({
+        name: resolution.canonicalName,
+        type: data.type,
+        aliases: allAliases,
+        normalizedName: this.normalize(resolution.canonicalName),
+        firstSeenAt: new Date(),
+        metadata: {
+          originalName: data.name,
+          createdFromArticle: data.articleId
+        }
+      })
+      .returning({ id: threatActorsTable.id });
+    
+    return actor.id;
+  }
+  
+  private async updateThreatActorAliases(actorId: string, newAliases: string[]) {
+    const [existing] = await db.select()
+      .from(threatActorsTable)
+      .where(eq(threatActorsTable.id, actorId))
+      .limit(1);
+    
+    if (existing) {
+      const combinedAliases = [...new Set([
+        ...(existing.aliases || []),
+        ...newAliases
+      ])];
+      
+      await db.update(threatActorsTable)
+        .set({ aliases: combinedAliases })
+        .where(eq(threatActorsTable.id, actorId));
+    }
+  }
+}
+```
+
+### Step 4: User-Specific Relevance Scoring with Database Storage
 
 **File:** `backend/apps/threat-tracker/services/relevance-scorer.ts`
 
