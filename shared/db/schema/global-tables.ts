@@ -1,7 +1,7 @@
 // New Drizzle Schema Definitions for Re-Architecture
 // These schemas should be used to generate migration files
 
-import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, unique, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, numeric, unique, primaryKey, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Import existing users table (reference only - already exists)
@@ -24,14 +24,33 @@ export const globalArticles = pgTable('global_articles', {
   isCybersecurity: boolean('is_cybersecurity').default(false),
   securityScore: integer('security_score'), // 0-100, only for cybersecurity articles
   threatCategories: jsonb('threat_categories'), // {malware: true, ransomware: false, etc}
-  
+
+  // Enhanced threat scoring fields
+  threatMetadata: jsonb('threat_metadata'), // Detailed scoring components
+  threatSeverityScore: numeric('threat_severity_score', { precision: 4, scale: 2 }), // User-independent severity
+  threatLevel: text('threat_level'), // 'low', 'medium', 'high', 'critical' - based on severity only
+
+  // Attack vectors remain in main table (not entity-based)
+  attackVectors: text('attack_vectors').array(),
+
+  // Analysis tracking
+  lastThreatAnalysis: timestamp('last_threat_analysis'),
+  threatAnalysisVersion: text('threat_analysis_version'),
+  entitiesExtracted: boolean('entities_extracted').default(false), // Track if entity extraction completed
+
   // Metadata
   scrapedAt: timestamp('scraped_at').defaultNow(),
   lastAnalyzedAt: timestamp('last_analyzed_at'),
   analysisVersion: text('analysis_version'), // Track AI model version used
-  
+
   // Legacy fields for compatibility
   detectedKeywords: jsonb('detected_keywords') // Maintained but populated differently
+}, (table) => {
+  return {
+    // Add indexes for new threat scoring fields
+    severityIdx: index('idx_articles_severity').on(table.threatSeverityScore),
+    threatLevelIdx: index('idx_articles_threat_level').on(table.threatLevel)
+  };
 });
 
 // =====================================================
