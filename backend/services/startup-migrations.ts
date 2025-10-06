@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/postgres-js";
-import { eq, sql } from "drizzle-orm";
-import { appMigrations } from "../../shared/db/schema/app-migrations";
+import { sql } from "drizzle-orm";
 import postgres from "postgres";
 import { logger } from "../utils/logger";
 
