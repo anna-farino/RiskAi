@@ -1669,25 +1669,17 @@ export class RelevanceScorer {
     return Math.min(maxScore, 10); // Cap at 10
   }
   
-  private cleanCache() {
-    const now = Date.now();
-    for (const [key, value] of this.cache.entries()) {
-      if (now - value.timestamp > this.CACHE_TTL) {
-        this.cache.delete(key);
-      }
-    }
-  }
 }
 ```
 
-### Step 3: Optimized Query Strategies for Articles with Relevance
+### Step 5: Optimized Query Strategies for Articles with Relevance
 
 **File:** `backend/apps/threat-tracker/queries/threat-tracker.ts`
 
 ```typescript
 /**
- * Get articles with calculated relevance scores for a specific user
- * Relevance is calculated at query time, not stored
+ * Get articles with pre-calculated relevance scores for a specific user
+ * Relevance scores are retrieved from the article_relevance_score table
  */
 export async function getArticlesWithRelevance(
   userId: string,
@@ -1700,135 +1692,61 @@ export async function getArticlesWithRelevance(
 ): Promise<ArticleWithRelevance[]> {
   const { limit = 50, offset = 0, minSeverity = 0, sortBy = 'relevance' } = options;
   
-  // Strategy 1: For small result sets, calculate relevance in application
-  if (limit <= 20) {
-    // Get articles first
-    const articles = await db.select()
-      .from(globalArticles)
-      .where(and(
-        eq(globalArticles.isCybersecurity, true),
-        gte(globalArticles.threatSeverityScore, minSeverity)
-      ))
-      .orderBy(desc(globalArticles.threatSeverityScore))
-      .limit(limit * 2) // Get more to account for filtering
-      .offset(offset);
-    
-    // Calculate relevance for each article
-    const scorer = new RelevanceScorer();
-    const articlesWithRelevance = await Promise.all(
-      articles.map(async (article) => ({
-        ...article,
-        relevanceScore: await scorer.calculateRelevanceForUser(article.id, userId)
-      }))
-    );
-    
-    // Sort by chosen field and limit
-    let sorted = articlesWithRelevance;
-    if (sortBy === 'relevance') {
-      sorted = articlesWithRelevance.sort((a, b) => b.relevanceScore - a.relevanceScore);
-    } else if (sortBy === 'severity') {
-      sorted = articlesWithRelevance.sort((a, b) => 
-        (b.threatSeverityScore || 0) - (a.threatSeverityScore || 0)
-      );
-    }
-    
-    return sorted.slice(0, limit);
-  }
-  
-  // Strategy 2: For large result sets, use materialized view or pre-filtering
-  // Pre-filter by user's entities to reduce calculation overhead
-  const userEntityIds = await getUserEntityIds(userId);
-  
-  // Get articles that match at least one user entity
-  const relevantArticles = await db.execute(sql`
-    SELECT DISTINCT a.*, 
-      -- Basic relevance hint (not full calculation)
-      (
-        CASE WHEN EXISTS (
-          SELECT 1 FROM article_software ars
-          JOIN users_software us ON us.software_id = ars.software_id
-          WHERE ars.article_id = a.id AND us.user_id = ${userId}
-        ) THEN 2 ELSE 0 END +
-        CASE WHEN EXISTS (
-          SELECT 1 FROM article_hardware arh
-          JOIN users_hardware uh ON uh.hardware_id = arh.hardware_id
-          WHERE arh.article_id = a.id AND uh.user_id = ${userId}
-        ) THEN 1 ELSE 0 END +
-        CASE WHEN EXISTS (
-          SELECT 1 FROM article_companies arc
-          JOIN users_companies uc ON uc.company_id = arc.company_id
-          WHERE arc.article_id = a.id AND uc.user_id = ${userId}
-        ) THEN 1 ELSE 0 END
-      ) as relevance_hint
-    FROM global_articles a
-    WHERE a.is_cybersecurity = true
-      AND a.threat_severity_score >= ${minSeverity}
-      AND EXISTS (
-        SELECT 1 FROM article_software ars
-        WHERE ars.article_id = a.id 
-          AND ars.software_id = ANY(${userEntityIds.software})
-        UNION
-        SELECT 1 FROM article_hardware arh
-        WHERE arh.article_id = a.id 
-          AND arh.hardware_id = ANY(${userEntityIds.hardware})
-        UNION
-        SELECT 1 FROM article_companies arc
-        WHERE arc.article_id = a.id 
-          AND arc.company_id = ANY(${userEntityIds.companies})
+  // Join articles with pre-calculated relevance scores
+  const query = db
+    .select({
+      article: globalArticles,
+      relevanceData: articleRelevanceScore
+    })
+    .from(globalArticles)
+    .leftJoin(
+      articleRelevanceScore,
+      and(
+        eq(articleRelevanceScore.articleId, globalArticles.id),
+        eq(articleRelevanceScore.userId, userId)
       )
-    ORDER BY 
-      ${sortBy === 'relevance' ? sql`relevance_hint DESC, a.threat_severity_score DESC` :
-        sortBy === 'severity' ? sql`a.threat_severity_score DESC` :
-        sql`a.publish_date DESC`}
-    LIMIT ${limit}
-    OFFSET ${offset}
-  `);
+    )
+    .where(and(
+      eq(globalArticles.isCybersecurity, true),
+      gte(globalArticles.threatSeverityScore, minSeverity)
+    ));
   
-  // Calculate full relevance scores for the filtered set
-  const scorer = new RelevanceScorer();
-  const results = await Promise.all(
-    relevantArticles.map(async (article) => ({
-      ...article,
-      relevanceScore: await scorer.calculateRelevanceForUser(article.id, userId, { useCache: true })
-    }))
-  );
-  
-  // Final sort if needed
+  // Apply sorting based on user preference
   if (sortBy === 'relevance') {
-    results.sort((a, b) => b.relevanceScore - a.relevanceScore);
+    query.orderBy(
+      desc(articleRelevanceScore.relevanceScore),
+      desc(globalArticles.threatSeverityScore)
+    );
+  } else if (sortBy === 'severity') {
+    query.orderBy(
+      desc(globalArticles.threatSeverityScore),
+      desc(articleRelevanceScore.relevanceScore)
+    );
+  } else {
+    query.orderBy(desc(globalArticles.publishedAt));
   }
   
-  return results;
+  const results = await query.limit(limit).offset(offset);
+  
+  // Transform results to include relevance score
+  return results.map(row => ({
+    ...row.article,
+    relevanceScore: row.relevanceData?.relevanceScore || 0,
+    softwareScore: row.relevanceData?.softwareScore || 0,
+    clientScore: row.relevanceData?.clientScore || 0,
+    vendorScore: row.relevanceData?.vendorScore || 0,
+    hardwareScore: row.relevanceData?.hardwareScore || 0,
+    keywordScore: row.relevanceData?.keywordScore || 0,
+    matchedSoftware: row.relevanceData?.matchedSoftware || [],
+    matchedCompanies: row.relevanceData?.matchedCompanies || [],
+    matchedHardware: row.relevanceData?.matchedHardware || [],
+    matchedKeywords: row.relevanceData?.matchedKeywords || []
+  }));
 }
 
-/**
- * Create a materialized view for very frequent queries
- * Run this periodically (e.g., every hour) for active users
- */
-export async function refreshUserRelevanceView(userId: string) {
-  // This creates a temporary calculation that can be used for the next hour
-  // Store in Redis or temporary table
-  const articles = await db.select()
-    .from(globalArticles)
-    .where(eq(globalArticles.isCybersecurity, true))
-    .limit(1000);
-  
-  const scorer = new RelevanceScorer();
-  const relevanceScores = await Promise.all(
-    articles.map(async (article) => ({
-      articleId: article.id,
-      userId,
-      relevanceScore: await scorer.calculateRelevanceForUser(article.id, userId),
-      calculatedAt: new Date()
-    }))
-  );
-  
-  // Store in cache/Redis with 1-hour TTL
-  await cacheRelevanceScores(userId, relevanceScores);
-}
 ```
 
-### Step 4: Severity Scoring Implementation (User-Independent)
+### Step 6: Severity Scoring Implementation (User-Independent)
 
 **File:** `backend/services/threat-analysis.ts`
 
@@ -1939,7 +1857,7 @@ export class ThreatAnalyzer {
 }
 ```
 
-### Step 5: Article Processing Pipeline Update
+### Step 7: Article Processing Pipeline Update
 
 **File:** `backend/apps/threat-tracker/services/background-jobs.ts`
 
@@ -2028,7 +1946,7 @@ async function processArticle(
 }
 ```
 
-### Step 6: Frontend Display with Real-time Relevance
+### Step 8: Frontend Display with Real-time Relevance
 
 **File:** `frontend/src/pages/dashboard/threat-tracker/components/threat-article-list.tsx`
 
@@ -2129,7 +2047,7 @@ function ThreatArticleCard({ article, severityScore, relevanceScore, threatLevel
 }
 ```
 
-### Step 7: Performance Optimization Strategies
+### Step 9: Performance Optimization Strategies
 
 **File:** `backend/apps/threat-tracker/services/performance-optimizer.ts`
 
@@ -2205,7 +2123,7 @@ export class PerformanceOptimizer {
 ### For Best Performance:
 
 1. **Use Batch Queries**: When displaying multiple articles, fetch relevance in batches
-2. **Cache Aggressively**: Cache relevance scores with short TTL (5-15 minutes)
+2. **Batch Processing**: Process relevance scores in batches during login or tech stack changes
 3. **Pre-filter**: Use EXISTS queries to pre-filter articles before calculating relevance
 4. **Index Properly**: Ensure all foreign keys and frequently queried columns are indexed
 5. **Limit Calculations**: Only calculate relevance for articles user will actually see
@@ -2284,7 +2202,7 @@ describe('Relevance Scoring', () => {
 ## Summary of Key Decisions
 
 1. **Threat Actors**: Separate table, AI-discovered only, linked via junction table
-2. **Relevance Scoring**: Calculated at query time per user, cached for performance, NOT stored in DB
+2. **Relevance Scoring**: Pre-calculated in batches per user, stored in article_relevance_score table
 3. **Severity Scoring**: User-independent, based purely on threat characteristics, stored in DB
 
 This architecture ensures:
