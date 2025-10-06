@@ -280,13 +280,37 @@ export const globalArticles = pgTable('global_articles', {
   
   // ... rest of existing columns ...
 });
+
+// =====================================================
+// ENTITY RESOLUTION CACHE TABLE
+// =====================================================
+export const entityResolutionCache = pgTable('entity_resolution_cache', {
+  id: text('id').$defaultFn(() => ulid()).primaryKey(),
+  inputName: text('input_name').notNull(),
+  entityType: text('entity_type').notNull(), // 'company', 'software', etc.
+  resolvedId: text('resolved_id'), // null if new entity
+  canonicalName: text('canonical_name').notNull(),
+  confidence: real('confidence').notNull(),
+  aliases: text('aliases').array().notNull().default(sql`ARRAY[]::text[]`),
+  reasoning: text('reasoning'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull() // Cache expiry (30 days)
+}, (table) => ({
+  lookupIdx: index('entity_resolution_lookup_idx').on(
+    table.inputName, 
+    table.entityType
+  ),
+  expiryIdx: index('entity_resolution_expiry_idx').on(table.expiresAt)
+}));
 ```
 
 After adding these tables, run the migration:
 ```bash
-npm run db:push
-# If you get a data-loss warning and are okay with it:
-npm run db:push --force
+# Generate migration files from Drizzle schemas
+npx drizzle-kit generate
+
+# Apply migrations to the database
+npx drizzle-kit migrate
 ```
 
 ## Key Architectural Decisions
@@ -1015,31 +1039,6 @@ export async function resolveEntity(
     };
   }
 }
-```
-
-**Database Table for Caching Resolutions:**
-
-Add to `shared/db/schema/global-tables.ts`:
-
-```typescript
-export const entityResolutionCache = pgTable('entity_resolution_cache', {
-  id: text('id').$defaultFn(() => ulid()).primaryKey(),
-  inputName: text('input_name').notNull(),
-  entityType: text('entity_type').notNull(), // 'company', 'software', etc.
-  resolvedId: text('resolved_id'), // null if new entity
-  canonicalName: text('canonical_name').notNull(),
-  confidence: real('confidence').notNull(),
-  aliases: text('aliases').array().notNull().default(sql`ARRAY[]::text[]`),
-  reasoning: text('reasoning'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
-  expiresAt: timestamp('expires_at').notNull() // Cache expiry (30 days)
-}, (table) => ({
-  lookupIdx: index('entity_resolution_lookup_idx').on(
-    table.inputName, 
-    table.entityType
-  ),
-  expiryIdx: index('entity_resolution_expiry_idx').on(table.expiresAt)
-}));
 ```
 
 **Updated EntityManager findOrCreate methods:**
