@@ -138,7 +138,7 @@ export default function Keywords() {
 
   // Initialize the single keyword form
   const form = useForm<KeywordFormValues>({
-    resolver: zodResolver(keywordFormSchema) as any,
+    resolver: zodResolver(keywordFormSchema),
     defaultValues: {
       term: "",
       category: "threat",
@@ -148,7 +148,7 @@ export default function Keywords() {
 
   // Initialize the bulk keyword form
   const bulkForm = useForm<BulkKeywordFormValues>({
-    resolver: zodResolver(bulkKeywordFormSchema) as any,
+    resolver: zodResolver(bulkKeywordFormSchema),
     defaultValues: {
       terms: "",
       category: "threat",

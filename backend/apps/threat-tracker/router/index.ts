@@ -10,8 +10,12 @@ import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
 import { extractTitlesFromUrls, isValidUrl } from "backend/services/scraping/extractors/title-extraction/bulk-title-extractor";
+import { techStackRouter } from "./tech-stack";
 
 export const threatRouter = Router();
+
+// Mount tech-stack router for entity management
+threatRouter.use('/tech-stack', techStackRouter);
 
 // Note: Scheduler is now initialized in backend/index.ts on server startup
 // This prevents duplicate initialization that was causing job conflicts
