@@ -262,6 +262,12 @@ export async function migrateKeywordsToEntities(userId?: string): Promise<Migrat
   }
 }
 
+// Export wrapper function for migration runner
+export async function runMigration() {
+  // Run for all users (pass undefined to migrate all keywords)
+  return await migrateKeywordsToEntities(undefined);
+}
+
 // Run migration if called directly
 if (require.main === module) {
   const userId = process.argv[2]; // Optional: pass user ID as argument
