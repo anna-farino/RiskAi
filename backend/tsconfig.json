@@ -5,9 +5,8 @@
     "module": "es2020",
     "target": "ES2020",
     "esModuleInterop": true,
-    "baseUrl": ".",             
+    "baseUrl": ".",
     "paths": {
-      "@backend/*": ["../backend/*"],
       "@shared/*": ["../shared/*"],
       "backend/*": ["./*"]
     },

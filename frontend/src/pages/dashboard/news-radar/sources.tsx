@@ -1,10 +1,23 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Loader2,
   Globe,
+  Search,
+  Filter,
+  Plus,
+  Link,
+  CheckCircle,
+  XCircle,
+  HelpCircle,
+  Briefcase,
+  Rss,
+  Tag,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +36,11 @@ export default function Sources() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fetchWithAuth = useFetch();
+  
+  // Toolbar state management
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'industry' | 'mainstream'>('all');
 
   // Phase 4: Fetch available global sources with user's enabled status
   const availableSources = useQuery<GlobalSource[]>({
@@ -102,6 +120,52 @@ export default function Sources() {
     },
   });
 
+  // Helper function to categorize sources
+  const getSourceCategory = (source: GlobalSource) => {
+    const name = source.name.toLowerCase();
+    const url = source.url.toLowerCase();
+    
+    // Mainstream sources - major news outlets
+    const mainstreamPatterns = ['reuters', 'bbc', 'cnn', 'associated press', 'ap news', 'npr', 'guardian', 'washington post', 'new york times', 'wall street journal', 'bloomberg', 'abc news', 'cbs news', 'nbc news', 'fox news', 'usa today'];
+    if (mainstreamPatterns.some(pattern => name.includes(pattern) || url.includes(pattern))) {
+      return 'mainstream';
+    }
+    
+    // Industry sources - specialized/trade publications
+    const industryPatterns = ['techcrunch', 'wired', 'zdnet', 'ars technica', 'tech', 'cyber', 'security', 'industry', 'trade', 'business', 'finance', 'market', 'enterprise', 'venturebeat', 'engadget', 'verge'];
+    if (industryPatterns.some(pattern => name.includes(pattern) || url.includes(pattern))) {
+      return 'industry';
+    }
+    
+    // Default to mainstream for independent/regional/blog sources
+    return 'mainstream';
+  };
+
+  // Filter sources based on search term, status, and category
+  const filteredSources = availableSources.data?.filter(source => {
+    const matchesSearch = source.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         source.url.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    let matchesStatus = true;
+    if (statusFilter === 'enabled') {
+      matchesStatus = source.isEnabled;
+    } else if (statusFilter === 'disabled') {
+      matchesStatus = !source.isEnabled;
+    }
+    
+    let matchesCategory = true;
+    if (categoryFilter !== 'all') {
+      const sourceCategory = getSourceCategory(source);
+      matchesCategory = categoryFilter === sourceCategory;
+    }
+    
+    return matchesSearch && matchesStatus && matchesCategory;
+  }) || [];
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+  };
+
   return (
     <div
       className={cn(
@@ -109,97 +173,356 @@ export default function Sources() {
       )}
     >
 
+      {/* Sources Toolbar */}
       <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
-                News Sources
+              <h1 className="text-xl md:text-2xl lg:text-2xl [letter-spacing:1px] text-white">
+                Source Management
               </h1>
-              <p className="text-sm text-slate-300">
-                Manage news sources and control updates
+              <p className="text-base text-slate-400">
+                Search, filter, and manage news sources for content monitoring
               </p>
+            </div>
+          </div>
+
+          {/* Toolbar Content */}
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Search Section */}
+            <div className="col-span-1">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Search className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Search Sources</span>
+                </div>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                  <Input
+                    placeholder="Search by name or URL..."
+                    className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                    value={searchTerm}
+                    onChange={handleSearchChange}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Section */}
+            <div className="col-span-1">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Filter className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Status Filters</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'all'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('all')}
+                    title="Show All Sources"
+                  >
+                    <Filter className="h-3 w-3 mr-1" />
+                    All
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'enabled'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('enabled')}
+                    title="Show Enabled Sources"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Enabled
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      statusFilter === 'disabled'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setStatusFilter('disabled')}
+                    title="Show Disabled Sources"
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Disabled
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Category Filters Section */}
+            <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Tag className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Category Filters</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      categoryFilter === 'all'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setCategoryFilter('all')}
+                    title="Show all source categories"
+                  >
+                    <Filter className="h-3 w-3 mr-1" />
+                    All
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      categoryFilter === 'industry'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setCategoryFilter('industry')}
+                    title="Trade publications and specialized sector sources"
+                  >
+                    <Briefcase className="h-3 w-3 mr-1" />
+                    Industry
+                  </button>
+                  <button
+                    className={cn(
+                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      categoryFilter === 'mainstream'
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                    onClick={() => setCategoryFilter('mainstream')}
+                    title="Major news outlets and established media"
+                  >
+                    <Globe className="h-3 w-3 mr-1" />
+                    Mainstream
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div
-        className={cn(
-          "bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md overflow-hidden",
-          "flex flex-col",
-        )}
-      >
-        <div className="p-4 border-b border-slate-700/50">
-          <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-sm sm:text-base lg:text-lg font-medium text-white">
-                Source List
-              </h2>
-              <div className="text-xs sm:text-sm text-slate-400 bg-slate-800/70 pl-2 pr-2 pt-1 pb-1 rounded-full">
-                {availableSources.data?.filter(s => s.isEnabled).length || 0} / {availableSources.data?.length || 0} enabled
-              </div>
+      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+        <div className="flex flex-row gap-x-4 items-center justify-between mb-6">
+          <div className="flex items-center gap-2">
+            <h2 className="hidden sm:block text-lg font-medium text-white">Source List</h2>
+            <h2 className="sm:hidden text-lg font-medium text-white">Sources</h2>
+            <div className="px-2 py-0.5 text-xs font-medium rounded-full bg-primary/20 text-primary">
+              {filteredSources.length}{filteredSources.length !== availableSources.data?.length && ` of ${availableSources.data?.length || 0}`}
             </div>
-        {availableSources.isLoading ? (
-          <div className="flex justify-center py-8">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            {/* Toggle All Sources Button */}
+            {availableSources.data && availableSources.data.length > 0 && (
+              (() => {
+                const enabledCount = availableSources.data.filter(s => s.isEnabled).length;
+                const allEnabled = enabledCount === availableSources.data.length;
+                const hasEnabled = enabledCount > 0;
+                
+                return (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      // Toggle all sources
+                      const targetSources = !hasEnabled ? 
+                        availableSources.data.filter(s => !s.isEnabled) : // If enabling, get disabled sources
+                        availableSources.data.filter(s => s.isEnabled);   // If disabling, get enabled sources
+                      
+                      targetSources.forEach(source => {
+                        toggleSource.mutate({
+                          sourceId: source.id,
+                          isEnabled: !hasEnabled,
+                        });
+                      });
+                    }}
+                    disabled={toggleSource.isPending}
+                    className={cn(
+                      "h-7 px-2 text-xs transition-all duration-200",
+                      hasEnabled 
+                        ? "border-orange-500/30 hover:bg-orange-500/10 text-orange-400 hover:text-orange-300"
+                        : "border-green-500/30 hover:bg-green-500/10 text-green-400 hover:text-green-300"
+                    )}
+                    title={hasEnabled ? "Disable all sources" : "Enable all sources"}
+                  >
+                    {toggleSource.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    ) : hasEnabled ? (
+                      <XCircle className="h-3 w-3 mr-1" />
+                    ) : (
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                    )}
+                    {hasEnabled ? "Disable All" : "Enable All"}
+                  </Button>
+                );
+              })()
+            )}
           </div>
-          ) : availableSources.data && availableSources.data.length > 0 ? (
-            <div className="space-y-3">
-              {availableSources.data?.map((source) => (
-                <div
-                  key={source.id}
+          
+          <div className="flex items-center gap-2 text-sm text-slate-400">
+            {searchTerm && (
+              <span>Searching: "{searchTerm}"</span>
+            )}
+            {statusFilter !== 'all' && (
+              <span>Filter: {statusFilter === 'enabled' ? 'Enabled' : 'Disabled'}</span>
+            )}
+          </div>
+        </div>
+
+        {availableSources.isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+          </div>
+        ) : availableSources.data?.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
+              <HelpCircle className="h-8 w-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-medium text-white mb-2">No sources found</h3>
+            <p className="text-slate-400 max-w-md mb-6">
+              Contact an administrator to add sources to the global pool.
+            </p>
+          </div>
+        ) : filteredSources.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="h-16 w-16 rounded-full bg-slate-800/70 flex items-center justify-center mb-4">
+              <Search className="h-8 w-8 text-slate-400" />
+            </div>
+            <h3 className="text-xl font-medium text-white mb-2">No sources found</h3>
+            <p className="text-slate-400 max-w-md mb-6">
+              {searchTerm 
+                ? `No sources match "${searchTerm}". Try adjusting your search terms.`
+                : statusFilter !== 'all'
+                  ? `No ${statusFilter} sources found. Try selecting a different status filter.`
+                  : categoryFilter !== 'all'
+                    ? `No ${categoryFilter} sources found. Try selecting a different category filter.`
+                    : "No sources to display."
+              }
+            </p>
+            {(searchTerm || statusFilter !== 'all' || categoryFilter !== 'all') && (
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setSearchTerm("");
+                  setStatusFilter('all');
+                  setCategoryFilter('all');
+                }}
+                className="border-slate-600/50 hover:border-slate-500/70 hover:bg-white/10 text-white"
+              >
+                Clear Filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2">
+            {/* Use filteredSources for display */}
+            {filteredSources
+              .sort((a,b) => a.name.localeCompare(b.name))
+              .map((source) => {
+              // Check if this item has a pending action
+              const isPending = toggleSource.isPending && toggleSource.variables?.sourceId === source.id;
+              const isCurrentlyEnabled = 
+                toggleSource.isPending && toggleSource.variables?.sourceId === source.id
+                  ? toggleSource.variables.isEnabled 
+                  : source.isEnabled;
+              
+              return (
+                <div 
+                  key={source.id} 
                   className={cn(
-                    "flex items-center justify-between p-4 rounded-lg border transition-all",
-                    source.isEnabled
-                      ? "bg-slate-800/50 border-[#BF00FF]/30"
-                      : "bg-slate-900/50 border-slate-700/50 opacity-75"
+                    "relative border border-slate-700/50 rounded-md overflow-hidden",
+                    "transition-all duration-200",
+                    isPending 
+                      ? "border-orange-500/50 shadow-orange-500/10 shadow-md" 
+                      : "hover:border-slate-500",
+                    source.isEnabled ? "bg-primary/5" : "bg-slate-800/70"
                   )}
                 >
-                  <div className="flex items-center gap-3 flex-1">
-                    <Globe className={cn(
-                      "h-5 w-5",
-                      source.isEnabled ? "text-[#BF00FF]" : "text-slate-500"
-                    )} />
-                    <div className="flex-1">
+                  {/* Show loading indicator for pending items */}
+                  {isPending && (
+                    <div className="absolute inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-10">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                  )}
+                
+                  <div className={cn(
+                    "absolute top-0 right-0 h-6 w-6 flex items-center justify-center",
+                    "rounded-bl-lg",
+                    source.isEnabled ? "bg-green-500/20" : "bg-slate-500/20"
+                  )}>
+                    {source.isEnabled ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-green-500" />
+                    ) : (
+                      <XCircle className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </div>
+                  
+                  <div className="p-4">
+                    <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-white">{source.name}</span>
-                        {source.isGlobal && (
-                          <Badge variant="secondary" className="text-xs">
-                            Global
-                          </Badge>
-                        )}
+                        <div className={cn(
+                          "h-8 w-8 rounded-full flex items-center justify-center",
+                          source.isEnabled ? "bg-primary/20" : "bg-slate-500/20"
+                        )}>
+                          <Globe className={cn(
+                            "h-4 w-4", 
+                            source.isEnabled ? "text-primary" : "text-slate-400"
+                          )} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium text-white truncate">{source.name}</h3>
+                            {source.isGlobal && (
+                              <Badge variant="secondary" className="text-xs flex-shrink-0">
+                                Global
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                      <div className="text-sm text-slate-400 truncate">
+                    </div>
+                    
+                    <div className="mt-2 mb-4">
+                      <p className="text-xs text-slate-400 truncate" title={source.url}>
                         {source.url}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={isCurrentlyEnabled}
+                          disabled={toggleSource.isPending}
+                          onCheckedChange={(checked) =>
+                            toggleSource.mutate({ sourceId: source.id, isEnabled: checked })
+                          }
+                          className="data-[state=checked]:bg-[#BF00FF]"
+                        />
+                        <span className={cn(
+                          "text-xs font-medium",
+                          isCurrentlyEnabled ? "text-green-400" : "text-slate-400",
+                          isPending && "opacity-50"
+                        )}>
+                          {isCurrentlyEnabled ? "Enabled" : "Disabled"}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={source.isEnabled}
-                      onCheckedChange={(checked) => {
-                        toggleSource.mutate({
-                          sourceId: source.id,
-                          isEnabled: checked,
-                        });
-                      }}
-                      disabled={toggleSource.isPending}
-                      className="data-[state=checked]:bg-[#BF00FF]"
-                    />
-                  </div>
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-slate-400">
-              No sources available. Contact an administrator to add sources to the global pool.
-            </div>
-          )}
+              );
+            })}
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

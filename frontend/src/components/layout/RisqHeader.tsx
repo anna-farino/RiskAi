@@ -6,7 +6,7 @@ import { useLogout } from '@/hooks/use-logout';
 import { useAuth } from '@/hooks/use-auth';
 import { useAuth0 } from '@auth0/auth0-react';
 import { cn } from '@/lib/utils';
-import { ChevronDown, LogOut, Menu, Search } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Search, Shield } from 'lucide-react';
 import { MobileNavigation } from './MainNavigation';
 import { Input } from '@/components/ui/input';
 
@@ -106,6 +106,15 @@ export function RisqHeader() {
                   >
                     Settings
                   </Link>
+                  {userData?.role === 'admin' && (
+                    <Link
+                      to="/dashboard/admin"
+                      className="flex items-center px-4 py-2 text-sm text-[#FF69FF] hover:bg-[#FF69FF]/10"
+                    >
+                      <Shield className="h-4 w-4 mr-2" />
+                      Admin
+                    </Link>
+                  )}
                   <button
                     onClick={logout}
                     className="flex w-full items-center px-4 py-2 text-sm text-[#00FFFF] hover:bg-[#00FFFF]/10"
