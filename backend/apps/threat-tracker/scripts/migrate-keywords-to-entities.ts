@@ -63,17 +63,32 @@ export async function migrateKeywordsToEntities(userId?: string): Promise<Migrat
   try {
     log('🔄 Starting keyword to entity migration...');
     
-    // Fetch all keywords (default + user-specific if userId provided)
-    const keywords = await db.select()
-      .from(threatKeywords)
-      .where(
-        userId 
-          ? eq(threatKeywords.userId, userId)
-          : isNull(threatKeywords.userId)
-      );
+    // Fetch keywords - either for specific user or ALL keywords
+    let keywords;
+    if (userId) {
+      // Fetch only for specific user
+      keywords = await db.select()
+        .from(threatKeywords)
+        .where(eq(threatKeywords.userId, userId));
+    } else {
+      // Fetch ALL keywords (both default and user-specific)
+      keywords = await db.select()
+        .from(threatKeywords);
+    }
     
     stats.totalKeywords = keywords.length;
     log(`📊 Found ${stats.totalKeywords} keywords to process`);
+    
+    // Log category breakdown
+    const categoryBreakdown = keywords.reduce((acc, k) => {
+      acc[k.category] = (acc[k.category] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    log(`📊 Category breakdown:`);
+    Object.entries(categoryBreakdown).forEach(([category, count]) => {
+      log(`   - ${category}: ${count}`);
+    });
     
     for (const keyword of keywords) {
       try {

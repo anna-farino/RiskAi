@@ -177,7 +177,7 @@ export async function migrateKeywordsToEntitiesEnhanced(
     // Log detection summary
     const vendorKeywords = categorizedKeywords.filter(k => k.detectedCategory === 'vendor');
     const hardwareKeywords = categorizedKeywords.filter(k => k.detectedCategory === 'hardware');
-    const threatKeywords = categorizedKeywords.filter(k => k.detectedCategory === 'threat');
+    const threatKeywordsList = categorizedKeywords.filter(k => k.detectedCategory === 'threat');
     
     log(`\n📊 Categorization Analysis:`);
     log(`   🏢 Detected ${vendorKeywords.length} vendor keywords:`);
@@ -192,13 +192,13 @@ export async function migrateKeywordsToEntitiesEnhanced(
       stats.detectedHardware.push(k.term);
     });
     
-    log(`   🔒 Detected ${threatKeywords.length} threat keywords (will be preserved)`);
+    log(`   🔒 Detected ${threatKeywordsList.length} threat keywords (will be preserved)`);
     
     if (dryRun) {
       // In dry run mode, just count what would be migrated
       stats.migratedVendors = vendorKeywords.length;
       stats.migratedHardware = hardwareKeywords.length;
-      stats.preservedThreats = threatKeywords.length;
+      stats.preservedThreats = threatKeywordsList.length;
       
       log('\n✅ Dry run completed! No changes were made.');
       return stats;
