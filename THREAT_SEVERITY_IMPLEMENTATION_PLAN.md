@@ -27,7 +27,8 @@ export const companies = pgTable('companies', {
   metadata: jsonb('metadata') // Additional flexible data
 }, (table) => {
   return {
-    normalizedIdx: index('companies_normalized_idx').on(table.normalizedName)
+    normalizedIdx: index('companies_normalized_idx').on(table.normalizedName),
+    nameIdx: index('idx_companies_name').on(table.name)
   };
 });
 
@@ -50,7 +51,8 @@ export const software = pgTable('software', {
 }, (table) => {
   return {
     unq: unique().on(table.normalizedName, table.companyId),
-    normalizedIdx: index('software_normalized_idx').on(table.normalizedName)
+    normalizedIdx: index('software_normalized_idx').on(table.normalizedName),
+    nameIdx: index('idx_software_name').on(table.name)
   };
 });
 
@@ -97,7 +99,9 @@ export const threatActors = pgTable('threat_actors', {
   metadata: jsonb('metadata') // Additional threat intelligence
 }, (table) => {
   return {
-    normalizedIdx: index('threat_actors_normalized_idx').on(table.normalizedName)
+    normalizedIdx: index('threat_actors_normalized_idx').on(table.normalizedName),
+    nameIdx: index('idx_threat_actors_name').on(table.name),
+    aliasesIdx: index('idx_threat_actors_aliases').on(table.aliases) // GIN index for array search
   };
 });
 
@@ -129,7 +133,8 @@ export const usersHardware = pgTable('users_hardware', {
   metadata: jsonb('metadata')
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.userId, table.hardwareId] })
+    pk: primaryKey({ columns: [table.userId, table.hardwareId] }),
+    userIdx: index('idx_users_hardware_user').on(table.userId)
   };
 });
 
@@ -143,7 +148,8 @@ export const usersCompanies = pgTable('users_companies', {
   metadata: jsonb('metadata')
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.userId, table.companyId] })
+    pk: primaryKey({ columns: [table.userId, table.companyId] }),
+    userIdx: index('idx_users_companies_user').on(table.userId)
   };
 });
 
@@ -257,8 +263,10 @@ export const articleRelevanceScore = pgTable('article_relevance_score', {
   return {
     // Unique constraint: one score per user-article combination
     unique: unique().on(table.articleId, table.userId),
-    // Index for efficient queries
-    userArticleIdx: index('user_article_idx').on(table.userId, table.articleId),
+    // Indexes for efficient queries
+    userArticleIdx: index('idx_relevance_user_article').on(table.userId, table.articleId),
+    articleScoreIdx: index('idx_relevance_article_score').on(table.articleId, table.relevanceScore),
+    userScoreIdx: index('idx_relevance_user_score').on(table.userId, table.relevanceScore),
     articleDateIdx: index('article_date_idx').on(table.articleId, table.calculatedAt)
   };
 });
@@ -266,6 +274,7 @@ export const articleRelevanceScore = pgTable('article_relevance_score', {
 // =====================================================
 // UPDATED GLOBAL ARTICLES TABLE
 // =====================================================
+// NOTE: Add these columns and indexes to the existing globalArticles table definition
 export const globalArticles = pgTable('global_articles', {
   // ... existing columns (id, sourceId, title, content, url, etc.) ...
   
@@ -288,6 +297,13 @@ export const globalArticles = pgTable('global_articles', {
   securityScore: integer('security_score'), // Backward compatibility
   
   // ... rest of existing columns ...
+}, (table) => {
+  return {
+    // ... existing indexes ...
+    // Add these new indexes:
+    severityIdx: index('idx_articles_severity').on(table.threatSeverityScore),
+    threatLevelIdx: index('idx_articles_threat_level').on(table.threatLevel)
+  };
 });
 
 // =====================================================
@@ -2075,54 +2091,8 @@ export class PerformanceOptimizer {
     }
   }
   
-  /**
-   * Create database indexes for optimal performance
-   */
-  async createIndexes() {
-    await db.execute(sql`
-      -- Entity lookup indexes
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_software_name 
-        ON software USING gin(name gin_trgm_ops);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_companies_name 
-        ON companies USING gin(name gin_trgm_ops);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_threat_actors_name 
-        ON threat_actors(name);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_threat_actors_aliases 
-        ON threat_actors USING gin(aliases);
-      
-      -- Junction table indexes for fast joins
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_article_software_article 
-        ON article_software(article_id);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_article_software_software 
-        ON article_software(software_id);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_article_threat_actors_article 
-        ON article_threat_actors(article_id);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_article_threat_actors_actor 
-        ON article_threat_actors(threat_actor_id);
-      
-      -- User association indexes
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_software_user 
-        ON users_software(user_id) WHERE is_active = true;
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_users_companies_user 
-        ON users_companies(user_id) WHERE is_active = true;
-      
-      -- Article filtering indexes
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_articles_severity 
-        ON global_articles(threat_severity_score DESC) 
-        WHERE is_cybersecurity = true;
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_articles_threat_level 
-        ON global_articles(threat_level) 
-        WHERE is_cybersecurity = true;
-      
-      -- Relevance score indexes for fast queries
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_relevance_user_article 
-        ON article_relevance_score(user_id, article_id);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_relevance_article_score 
-        ON article_relevance_score(article_id, relevance_score DESC);
-      CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_relevance_user_score 
-        ON article_relevance_score(user_id, relevance_score DESC);
-    `);
-  }
+  // Note: All database indexes are defined in the Drizzle schema (Step 1)
+  // No manual index creation is needed or allowed
 }
 ```
 
