@@ -58,14 +58,6 @@ httpServer.listen(port, async () => {
     console.log('💻 [SERVER] Development mode: Proxying non-API requests to Vite dev server');
   }
   
-  // Run startup migrations (non-blocking)
-  try {
-    const { runStartupMigrationsAsync } = await import('./services/startup-migrations');
-    runStartupMigrationsAsync();
-  } catch (error) {
-    console.error('❌ [MIGRATIONS] Error initializing startup migrations:', error);
-  }
-  
   // Phase 2.1: Initialize UNIFIED global scheduler (replaces separate app schedulers)
   try {
     const { initializeGlobalScheduler } = await import('./services/global-scheduler.js');

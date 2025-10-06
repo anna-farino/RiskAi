@@ -49,7 +49,7 @@ interface MigrationStats {
   errors: string[];
 }
 
-export async function migrateKeywordsToEntities(): Promise<MigrationStats> {
+export async function migrateKeywordsToEntities(userId?: string): Promise<MigrationStats> {
   const stats: MigrationStats = {
     totalKeywords: 0,
     preservedThreats: 0,
@@ -61,11 +61,16 @@ export async function migrateKeywordsToEntities(): Promise<MigrationStats> {
   };
 
   try {
-    log('🔄 Starting keyword to entity migration for ALL users...');
+    log('🔄 Starting keyword to entity migration...');
     
-    // Fetch ALL keywords (both default and user-specific)
+    // Fetch all keywords (default + user-specific if userId provided)
     const keywords = await db.select()
-      .from(threatKeywords);
+      .from(threatKeywords)
+      .where(
+        userId 
+          ? eq(threatKeywords.userId, userId)
+          : isNull(threatKeywords.userId)
+      );
     
     stats.totalKeywords = keywords.length;
     log(`📊 Found ${stats.totalKeywords} keywords to process`);
@@ -259,7 +264,9 @@ export async function migrateKeywordsToEntities(): Promise<MigrationStats> {
 
 // Run migration if called directly
 if (require.main === module) {
-  migrateKeywordsToEntities()
+  const userId = process.argv[2]; // Optional: pass user ID as argument
+  
+  migrateKeywordsToEntities(userId)
     .then(stats => {
       console.log('Migration completed:', stats);
       process.exit(0);
