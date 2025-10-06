@@ -117,7 +117,6 @@ const softwareFormSchema = z.object({
   vendor: z.string().optional(),
   versionRange: z.string().optional(),
   category: z.string().optional(),
-  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
 });
 
 type SoftwareFormValues = z.infer<typeof softwareFormSchema>;
@@ -128,7 +127,6 @@ const hardwareFormSchema = z.object({
   model: z.string().optional(),
   firmwareVersion: z.string().optional(),
   type: z.string().optional(),
-  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
 });
 
 type HardwareFormValues = z.infer<typeof hardwareFormSchema>;
@@ -137,7 +135,6 @@ const companyFormSchema = z.object({
   name: z.string().min(1, "Company name is required"),
   relationshipType: z.enum(['vendor', 'partner', 'client', 'competitor']).optional(),
   industry: z.string().optional(),
-  priority: z.enum(['critical', 'high', 'medium', 'low']).optional(),
 });
 
 type CompanyFormValues = z.infer<typeof companyFormSchema>;
@@ -166,7 +163,6 @@ export default function TechStack() {
       vendor: "",
       versionRange: "",
       category: "",
-      priority: "medium",
     },
   });
 
@@ -178,7 +174,6 @@ export default function TechStack() {
       model: "",
       firmwareVersion: "",
       type: "",
-      priority: "medium",
     },
   });
 
@@ -188,7 +183,6 @@ export default function TechStack() {
       name: "",
       relationshipType: "vendor",
       industry: "",
-      priority: "medium",
     },
   });
 
@@ -500,21 +494,6 @@ export default function TechStack() {
     item.industry?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];
 
-  // Priority colors
-  const getPriorityColor = (priority?: string) => {
-    switch (priority) {
-      case 'critical':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
-      case 'high':
-        return 'bg-orange-500/10 text-orange-500 border-orange-500/20';
-      case 'medium':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
-      case 'low':
-        return 'bg-green-500/10 text-green-500 border-green-500/20';
-      default:
-        return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
-    }
-  };
 
   // Relationship type colors
   const getRelationshipColor = (type?: string) => {
@@ -657,7 +636,6 @@ export default function TechStack() {
                             <TableHead>Name</TableHead>
                             <TableHead>Vendor</TableHead>
                             <TableHead>Version</TableHead>
-                            <TableHead>Priority</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -667,11 +645,6 @@ export default function TechStack() {
                               <TableCell className="font-medium">{item.name}</TableCell>
                               <TableCell>{item.vendor || "-"}</TableCell>
                               <TableCell>{item.versionRange || "All versions"}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={cn(getPriorityColor(item.priority))}>
-                                  {item.priority || "medium"}
-                                </Badge>
-                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
                                   <Button
@@ -684,7 +657,6 @@ export default function TechStack() {
                                         vendor: item.vendor || "",
                                         versionRange: item.versionRange || "",
                                         category: item.category || "",
-                                        priority: item.priority || "medium",
                                       });
                                       setSoftwareDialogOpen(true);
                                     }}
@@ -754,7 +726,6 @@ export default function TechStack() {
                             <TableHead>Manufacturer</TableHead>
                             <TableHead>Model</TableHead>
                             <TableHead>Firmware</TableHead>
-                            <TableHead>Priority</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -765,11 +736,6 @@ export default function TechStack() {
                               <TableCell>{item.manufacturer || "-"}</TableCell>
                               <TableCell>{item.model || "-"}</TableCell>
                               <TableCell>{item.firmwareVersion || "-"}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={cn(getPriorityColor(item.priority))}>
-                                  {item.priority || "medium"}
-                                </Badge>
-                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
                                   <Button
@@ -783,7 +749,6 @@ export default function TechStack() {
                                         model: item.model || "",
                                         firmwareVersion: item.firmwareVersion || "",
                                         type: item.type || "",
-                                        priority: item.priority || "medium",
                                       });
                                       setHardwareDialogOpen(true);
                                     }}
@@ -852,7 +817,6 @@ export default function TechStack() {
                             <TableHead>Name</TableHead>
                             <TableHead>Relationship</TableHead>
                             <TableHead>Industry</TableHead>
-                            <TableHead>Priority</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -866,11 +830,6 @@ export default function TechStack() {
                                 </Badge>
                               </TableCell>
                               <TableCell>{item.industry || "-"}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={cn(getPriorityColor(item.priority))}>
-                                  {item.priority || "medium"}
-                                </Badge>
-                              </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex justify-end gap-2">
                                   <Button
@@ -882,7 +841,6 @@ export default function TechStack() {
                                         name: item.name,
                                         relationshipType: item.relationshipType || "vendor",
                                         industry: item.industry || "",
-                                        priority: item.priority || "medium",
                                       });
                                       setCompanyDialogOpen(true);
                                     }}
@@ -998,30 +956,6 @@ export default function TechStack() {
                 )}
               />
 
-              <FormField
-                control={softwareForm.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="critical">Critical</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setSoftwareDialogOpen(false)}>
                   Cancel
@@ -1119,30 +1053,6 @@ export default function TechStack() {
                 )}
               />
 
-              <FormField
-                control={hardwareForm.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="critical">Critical</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setHardwareDialogOpen(false)}>
                   Cancel
@@ -1231,30 +1141,6 @@ export default function TechStack() {
                     <FormControl>
                       <Input placeholder="e.g., Technology, Finance, Healthcare" {...field} />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={companyForm.control}
-                name="priority"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Priority</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="critical">Critical</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="low">Low</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
