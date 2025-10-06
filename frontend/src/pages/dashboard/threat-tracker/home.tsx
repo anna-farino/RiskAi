@@ -24,6 +24,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
+import { Loader2, Sparkles } from "lucide-react";
 
 export default function ThreatHome() {
   const { toast } = useToast();
@@ -176,9 +177,10 @@ export default function ThreatHome() {
   };
 
   // Articles query with filtering - only fetch when keywords are selected
+  // Now using enhanced endpoint with relevance scores
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
-      "/api/threat-tracker/articles",
+      "/api/threat-tracker/articles/with-relevance",
       searchTerm,
       selectedKeywordIds,
       originalDateRange,
@@ -186,18 +188,18 @@ export default function ThreatHome() {
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+        const url = `/api/threat-tracker/articles/with-relevance${queryString ? `?${queryString}` : ""}`;
 
         const response = await fetchWithAuth(url, {
           method: "GET",
         });
 
-        if (!response.ok) throw new Error("Failed to fetch articles");
+        if (!response.ok) throw new Error("Failed to fetch articles with relevance");
         const data = await response.json();
-        console.log("Received filtered articles:", data.length);
+        console.log("Received filtered articles with relevance scores:", data.length);
         return data || [];
       } catch (error) {
-        console.error("Error fetching articles:", error);
+        console.error("Error fetching articles with relevance:", error);
         return [];
       }
     },
@@ -385,6 +387,51 @@ export default function ThreatHome() {
       });
     }
   };
+
+  // Calculate relevance scores mutation
+  const calculateRelevance = useMutation({
+    mutationFn: async ({ forceRecalculate }: { forceRecalculate?: boolean }) => {
+      const response = await fetchWithAuth("/api/threat-tracker/relevance/calculate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ forceRecalculate }),
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to calculate relevance scores");
+      }
+      
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Relevance Calculation Started",
+        description: "Calculating personalized relevance scores for all articles. This may take a few minutes.",
+      });
+      
+      // Refetch articles after a delay to show updated scores
+      setTimeout(() => {
+        queryClient.invalidateQueries({
+          queryKey: ["/api/threat-tracker/articles/with-relevance"],
+        });
+      }, 5000);
+    },
+    onError: (error) => {
+      console.error("Error calculating relevance:", error);
+      toast({
+        title: "Calculation Error",
+        description: "Failed to calculate relevance scores. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Check if any articles are missing relevance scores
+  const hasUnscoreedArticles = localArticles.some(
+    article => !article.relevanceScore || parseFloat(article.relevanceScore) === 0
+  );
 
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
@@ -900,6 +947,39 @@ export default function ThreatHome() {
       {/* Articles Container - Separate from actions */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6">
         <div className="space-y-6">
+          {/* Relevance Score Calculation Button - show when articles exist but scores are missing */}
+          {!articles.isLoading && localArticles.length > 0 && hasUnscoreedArticles && (
+            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg border border-purple-500/20">
+              <div className="flex items-center gap-3">
+                <Sparkles className="h-5 w-5 text-purple-400" />
+                <div>
+                  <p className="text-sm font-medium text-white">Personalized Relevance Scoring Available</p>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Calculate relevance scores based on your technology stack to prioritize the most important threats
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={() => calculateRelevance.mutate({ forceRecalculate: false })}
+                disabled={calculateRelevance.isPending}
+                className="bg-purple-600 hover:bg-purple-700 text-white"
+                size="sm"
+              >
+                {calculateRelevance.isPending ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
+                    Calculating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-3 w-3 mr-1.5" />
+                    Calculate Scores
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+          
           {articles.isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6 py-4">
               {/* Standardized skeleton items */}

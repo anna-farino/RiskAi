@@ -19,11 +19,36 @@ import { Progress } from "@/components/ui/progress";
 import { formatDateOnly } from "@/utils/date-utils";
 
 
-// Extend the ThreatArticle type to include securityScore and sourceName
-interface ExtendedThreatArticle extends ThreatArticle {
-  securityScore: string | null;
+// Extend the ThreatArticle type to include enhanced scores and metadata
+interface ExtendedThreatArticle extends Omit<ThreatArticle, 'relevanceScore' | 'securityScore'> {
+  // Override original fields to allow undefined
+  relevanceScore?: string | null;
+  securityScore?: string | null;
   sourceName?: string | null;
+  // New threat severity and relevance fields from enhanced system
+  threatSeverityScore?: string | null;
+  softwareScore?: string | null;
+  clientScore?: string | null;
+  vendorScore?: string | null;
+  hardwareScore?: string | null;
+  keywordScore?: string | null;
+  matchedSoftware?: string[];
+  matchedCompanies?: string[];
+  matchedHardware?: string[];
   matchedKeywords?: string[];
+  // Threat metadata
+  threatMetadata?: {
+    cves?: string[];
+    cvssScore?: number;
+    exploitabilityScore?: number;
+    impactScore?: number;
+    attackVectors?: string[];
+    threatActors?: string[];
+    affectedSoftware?: Array<{ name: string; version?: string }>;
+    affectedHardware?: string[];
+    patchStatus?: string;
+    exploitInWild?: boolean;
+  };
 }
 
 interface ThreatArticleCardProps {
@@ -66,21 +91,24 @@ export function ThreatArticleCard({
     }
   };
 
-  // Parse the relevance score (either string or number)
+  // Parse the relevance score (either string or number) from enhanced system
   const relevanceScore =
     typeof article.relevanceScore === "string"
-      ? parseInt(article.relevanceScore, 10)
+      ? parseFloat(article.relevanceScore)
       : article.relevanceScore || 0;
 
-  // Parse the security/severity score (either string or number)
-  const securityScore =
-    typeof article.securityScore === "string"
+  // Parse the threat severity score from the new system (prioritize over legacy securityScore)
+  const severityScore = article.threatSeverityScore ? 
+    (typeof article.threatSeverityScore === "string"
+      ? parseFloat(article.threatSeverityScore)
+      : article.threatSeverityScore) :
+    (typeof article.securityScore === "string"
       ? parseInt(article.securityScore, 10)
-      : article.securityScore || 0;
+      : article.securityScore || 0);
 
-  // Safety check in case scores are NaN
-  const normalizedRelevanceScore = isNaN(relevanceScore) ? 0 : relevanceScore;
-  const normalizedSecurityScore = isNaN(securityScore) ? 0 : securityScore;
+  // Safety check in case scores are NaN (scale 0-10 for display)
+  const normalizedRelevanceScore = isNaN(relevanceScore) ? 0 : Math.min(10, relevanceScore);
+  const normalizedSecurityScore = isNaN(severityScore) ? 0 : Math.min(10, severityScore);
 
   // Calculate color based on score (0-10 scale)
   const getScoreColor = (score: number) => {
@@ -246,6 +274,72 @@ export function ThreatArticleCard({
                 )}
               />
             </div>
+
+            {/* Component scores breakdown - only show if we have enhanced scoring data */}
+            {(article.softwareScore || article.vendorScore || article.clientScore || article.hardwareScore) && (
+              <div className="mt-2 p-2 bg-slate-800/30 rounded-md">
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  {article.softwareScore && parseFloat(article.softwareScore) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Software:</span>
+                      <span className="text-slate-300 font-medium">{Math.round(parseFloat(article.softwareScore) * 10)}%</span>
+                    </div>
+                  )}
+                  {article.vendorScore && parseFloat(article.vendorScore) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Vendor:</span>
+                      <span className="text-slate-300 font-medium">{Math.round(parseFloat(article.vendorScore) * 10)}%</span>
+                    </div>
+                  )}
+                  {article.clientScore && parseFloat(article.clientScore) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Client:</span>
+                      <span className="text-slate-300 font-medium">{Math.round(parseFloat(article.clientScore) * 10)}%</span>
+                    </div>
+                  )}
+                  {article.hardwareScore && parseFloat(article.hardwareScore) > 0 && (
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Hardware:</span>
+                      <span className="text-slate-300 font-medium">{Math.round(parseFloat(article.hardwareScore) * 10)}%</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {/* Matched entities from enhanced scoring */}
+            {((article.matchedSoftware && article.matchedSoftware.length > 0) || 
+              (article.matchedCompanies && article.matchedCompanies.length > 0) || 
+              (article.matchedHardware && article.matchedHardware.length > 0)) && (
+              <div className="mt-2 space-y-1">
+                {article.matchedSoftware && article.matchedSoftware.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-xs text-slate-500 mr-1">Software:</span>
+                    {article.matchedSoftware.slice(0, 2).map((sw, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs py-0 px-1 h-5 bg-purple-500/10 text-purple-400 border-purple-500/30">
+                        {sw}
+                      </Badge>
+                    ))}
+                    {article.matchedSoftware.length > 2 && (
+                      <span className="text-xs text-slate-500">+{article.matchedSoftware.length - 2}</span>
+                    )}
+                  </div>
+                )}
+                {article.matchedCompanies && article.matchedCompanies.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    <span className="text-xs text-slate-500 mr-1">Companies:</span>
+                    {article.matchedCompanies.slice(0, 2).map((company, idx) => (
+                      <Badge key={idx} variant="outline" className="text-xs py-0 px-1 h-5 bg-green-500/10 text-green-400 border-green-500/30">
+                        {company}
+                      </Badge>
+                    ))}
+                    {article.matchedCompanies.length > 2 && (
+                      <span className="text-xs text-slate-500">+{article.matchedCompanies.length - 2}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-3 mb-3">
