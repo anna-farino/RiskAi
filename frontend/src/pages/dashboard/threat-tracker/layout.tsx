@@ -8,12 +8,16 @@ const buttons = [
     url: "/dashboard/threat/home",
   },
   {
-    label: "Keywords",
-    url: "/dashboard/threat/keywords",
+    label: "Threat Intelligence",
+    url: "/dashboard/threat/threats",
   },
   {
     label: "Sources",
     url: "/dashboard/threat/sources",
+  },
+  {
+    label: "Tech Stack",
+    url: "/dashboard/threat/tech-stack",
   },
 ];
 

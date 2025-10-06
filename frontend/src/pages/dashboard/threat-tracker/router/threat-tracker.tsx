@@ -1,5 +1,5 @@
 import ThreatHome from "../home";
-import Keywords from "../keywords";
+import Threats from "../threats";
 import ThreatLayout from "../layout";
 import Sources from "../sources";
 
@@ -16,8 +16,8 @@ export const threatTrackerRouter = {
       element: <Sources/>,
     },
     {
-      path: "keywords",
-      element: <Keywords/>,
+      path: "threats",
+      element: <Threats/>,
     },
   ]
 }
