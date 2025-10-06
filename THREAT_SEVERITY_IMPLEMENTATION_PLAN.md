@@ -114,7 +114,8 @@ export const usersSoftware = pgTable('users_software', {
   metadata: jsonb('metadata') // User-specific notes, deployment info, etc.
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.userId, table.softwareId] })
+    pk: primaryKey({ columns: [table.userId, table.softwareId] }),
+    userIdx: index('idx_users_software_user').on(table.userId)
   };
 });
 
@@ -160,7 +161,9 @@ export const articleSoftware = pgTable('article_software', {
   metadata: jsonb('metadata') // Vulnerability details, patch info, etc.
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.articleId, table.softwareId] })
+    pk: primaryKey({ columns: [table.articleId, table.softwareId] }),
+    articleIdx: index('idx_article_software_article').on(table.articleId),
+    softwareIdx: index('idx_article_software_software').on(table.softwareId)
   };
 });
 
@@ -173,7 +176,9 @@ export const articleHardware = pgTable('article_hardware', {
   metadata: jsonb('metadata')
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.articleId, table.hardwareId] })
+    pk: primaryKey({ columns: [table.articleId, table.hardwareId] }),
+    articleIdx: index('idx_article_hardware_article').on(table.articleId),
+    hardwareIdx: index('idx_article_hardware_hardware').on(table.hardwareId)
   };
 });
 
@@ -187,7 +192,9 @@ export const articleCompanies = pgTable('article_companies', {
   metadata: jsonb('metadata')
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.articleId, table.companyId] })
+    pk: primaryKey({ columns: [table.articleId, table.companyId] }),
+    articleIdx: index('idx_article_companies_article').on(table.articleId),
+    companyIdx: index('idx_article_companies_company').on(table.companyId)
   };
 });
 
@@ -214,7 +221,9 @@ export const articleThreatActors = pgTable('article_threat_actors', {
   metadata: jsonb('metadata') // Campaign info, TTPs mentioned, etc.
 }, (table) => {
   return {
-    pk: primaryKey({ columns: [table.articleId, table.threatActorId] })
+    pk: primaryKey({ columns: [table.articleId, table.threatActorId] }),
+    articleIdx: index('idx_article_threat_actors_article').on(table.articleId),
+    actorIdx: index('idx_article_threat_actors_actor').on(table.threatActorId)
   };
 });
 
