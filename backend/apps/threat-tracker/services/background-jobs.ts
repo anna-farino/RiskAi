@@ -1,7 +1,9 @@
 import { storage } from "../queries/threat-tracker";
 import { analyzeContent } from "./openai";
 import { scrapingService } from "./scraper";
-import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai"; // Phase 2.2: AI Processing
+import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities } from "backend/services/openai"; // Phase 2.2: AI Processing
+import { EntityManager } from '../../../services/entity-manager';
+import { ThreatAnalyzer } from '../../../services/threat-analysis';
 
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
@@ -13,6 +15,9 @@ import {
   createThreatTrackerContext,
   type ScrapingContextInfo 
 } from "backend/services/error-logging";
+import { db } from '../../../db/db';
+import { globalArticles } from '../../../../shared/db/schema/global-tables';
+import { eq } from 'drizzle-orm';
 
 // Track active scraping processes for individual sources
 export const activeScraping = new Map<string, boolean>();
@@ -170,48 +175,103 @@ async function processArticle(
       url: articleUrl
     });
     
-    // Calculate the risk score for cybersecurity articles
-    let securityScore = analysis.severityScore?.toString() || "0";
-    if (cyberAnalysis.isCybersecurity) {
-      log(`[Global ThreatTracker] Article identified as cybersecurity-related (confidence: ${cyberAnalysis.confidence})`, "scraper");
-      const riskAnalysis = await calculateSecurityRisk({
-        title: articleData.title,
-        content: articleData.content,
-        detectedKeywords: analysis.detectedKeywords
-      });
-      securityScore = riskAnalysis.score.toString();
-      log(`[Global ThreatTracker] Security risk score: ${securityScore} (${riskAnalysis.severity})`, "scraper");
-    }
-
     // Store cybersecurity metadata in detectedKeywords object
-    // Add special keys for cybersecurity detection
     const keywordsWithMeta = {
       ...analysis.detectedKeywords,
       _cyber: cyberAnalysis.isCybersecurity ? "true" : "false",
       _confidence: cyberAnalysis.confidence.toString(),
       _categories: (cyberAnalysis.categories || []).join(",")
     };
-
-    // Store the article in the GLOBAL database (no userId)
-    const newArticle = await storage.createArticle({
-      sourceId,
-      title: articleData.title,
-      content: articleData.content,
-      url: articleUrl, // Use original URL to preserve exact structure
-      author: articleData.author,
-      publishDate: publishDate,
-      summary: analysis.summary,
-      relevanceScore: analysis.relevanceScore.toString(),
-      securityScore: securityScore, // Use calculated security score
-      detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
-      userId: undefined, // No userId for global articles
-    });
-
-    log(
-      `[Global ThreatTracker] Successfully processed and stored article in global database: ${articleUrl}`,
-      "scraper",
-    );
-    return newArticle;
+    
+    // Process cybersecurity articles with enhanced threat analysis
+    if (cyberAnalysis.isCybersecurity) {
+      log(`[Global ThreatTracker] Article identified as cybersecurity-related (confidence: ${cyberAnalysis.confidence})`, "scraper");
+      
+      // Extract all entities including threat actors
+      log(`[Global ThreatTracker] Extracting entities from article`, "scraper");
+      const entities = await extractArticleEntities({
+        title: articleData.title,
+        content: articleData.content,
+        url: articleUrl
+      });
+      
+      // Store the article first
+      const newArticle = await storage.createArticle({
+        sourceId,
+        title: articleData.title,
+        content: articleData.content,
+        url: articleUrl,
+        author: articleData.author,
+        publishDate: publishDate,
+        summary: analysis.summary,
+        relevanceScore: "0", // Will be calculated per user later
+        securityScore: "0", // Will be updated after threat analysis
+        detectedKeywords: keywordsWithMeta, // Contains cyber metadata
+        userId: undefined, // No userId for global articles
+      });
+      
+      const entityManager = new EntityManager();
+      
+      // Process all entity types including threat actors
+      log(`[Global ThreatTracker] Processing extracted entities`, "scraper");
+      await entityManager.linkArticleToEntities(newArticle.id, entities);
+      
+      // Calculate severity score (user-independent)
+      log(`[Global ThreatTracker] Calculating threat severity score`, "scraper");
+      const threatAnalyzer = new ThreatAnalyzer();
+      const severityAnalysis = await threatAnalyzer.calculateSeverityScore(
+        newArticle,
+        entities
+      );
+      
+      // Update article with severity score (NOT relevance - that's calculated per user)
+      await db.update(globalArticles)
+        .set({
+          threatMetadata: severityAnalysis.metadata,
+          threatSeverityScore: severityAnalysis.severityScore.toString(),
+          threatLevel: severityAnalysis.threatLevel,
+          entitiesExtracted: true,
+          lastThreatAnalysis: new Date(),
+          threatAnalysisVersion: '2.0',
+          securityScore: Math.round(severityAnalysis.severityScore * 10), // Backward compatibility
+          detectedKeywords: keywordsWithMeta
+        })
+        .where(eq(globalArticles.id, newArticle.id));
+      
+      log(
+        `[Global ThreatTracker] Processed article with severity score: ${severityAnalysis.severityScore.toFixed(2)} (${severityAnalysis.threatLevel})`,
+        "scraper"
+      );
+      log(
+        `[Global ThreatTracker] Extracted: ${entities.software.length} software, ` +
+        `${entities.hardware.length} hardware, ${entities.companies.length} companies, ` +
+        `${entities.cves.length} CVEs, ${entities.threatActors.length} threat actors`,
+        "scraper"
+      );
+      
+      return newArticle;
+    } else {
+      // Non-cybersecurity article - store with basic info
+      const newArticle = await storage.createArticle({
+        sourceId,
+        title: articleData.title,
+        content: articleData.content,
+        url: articleUrl,
+        author: articleData.author,
+        publishDate: publishDate,
+        summary: analysis.summary,
+        relevanceScore: analysis.relevanceScore.toString(),
+        securityScore: "0",
+        detectedKeywords: keywordsWithMeta,
+        userId: undefined, // No userId for global articles
+      });
+      
+      log(
+        `[Global ThreatTracker] Stored non-cybersecurity article in global database: ${articleUrl}`,
+        "scraper",
+      );
+      return newArticle;
+    }
   } catch (error: any) {
     log(
       `[Global ThreatTracker] Error processing article ${articleUrl}: ${error.message}`,
