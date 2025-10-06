@@ -16,6 +16,8 @@ import {
 } from '../../../../shared/db/schema/threat-tracker/user-associations';
 import { software, hardware, companies } from '../../../../shared/db/schema/threat-tracker/entities';
 import { entityManager } from '../../../services/entity-manager';
+import { performanceOptimizer } from './performance-optimizer';
+import { relevanceQueue } from './rate-limiter';
 
 // =====================================================
 // TYPE DEFINITIONS
