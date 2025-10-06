@@ -26,6 +26,20 @@ export async function runStartupMigrations() {
   const db = drizzle(client);
   
   try {
+    // Ensure the app_migrations table exists (use simple table structure to avoid enum permission issues)
+    await db.execute(sql`
+      CREATE TABLE IF NOT EXISTS app_migrations (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed')),
+        started_at TIMESTAMP,
+        completed_at TIMESTAMP,
+        retries INTEGER NOT NULL DEFAULT 0,
+        error_message TEXT,
+        result TEXT
+      )
+    `);
+    
     // Try to acquire an advisory lock to prevent concurrent migrations
     const lockResult = await db.execute(sql`SELECT pg_try_advisory_lock(12345)`);
     const hasLock = lockResult[0]?.pg_try_advisory_lock;
@@ -61,12 +75,12 @@ async function processMigration(
   migration: { name: string; description: string; execute: () => Promise<any> }
 ) {
   try {
-    // Check if migration has already been run
-    const existing = await db
-      .select()
-      .from(appMigrations)
-      .where(eq(appMigrations.name, migration.name))
-      .limit(1);
+    // Check if migration has already been run (use raw SQL to avoid schema mismatch)
+    const existing = await db.execute(sql`
+      SELECT * FROM app_migrations 
+      WHERE name = ${migration.name}
+      LIMIT 1
+    `);
     
     if (existing.length > 0) {
       const record = existing[0];
@@ -88,16 +102,15 @@ async function processMigration(
       // First time running this migration
       logger.info(`🚀 Running new migration: '${migration.name}'`);
       
-      // Insert initial record
-      const [insertedRecord] = await db
-        .insert(appMigrations)
-        .values({
-          name: migration.name,
-          status: "pending" as const,
-        })
-        .returning();
+      // Insert initial record (use raw SQL)
+      const insertResult = await db.execute(sql`
+        INSERT INTO app_migrations (name, status)
+        VALUES (${migration.name}, 'pending')
+        RETURNING id
+      `);
       
-      await runMigration(db, migration, insertedRecord.id);
+      const insertedId = insertResult[0]?.id;
+      await runMigration(db, migration, insertedId);
     }
   } catch (error) {
     logger.error(`Error processing migration '${migration.name}':`, error);
@@ -115,40 +128,36 @@ async function runMigration(
   const startTime = new Date();
   
   try {
-    // Update status to running
-    await db
-      .update(appMigrations)
-      .set({
-        status: "running" as const,
-        startedAt: startTime,
-      })
-      .where(eq(appMigrations.id, migrationId));
+    // Update status to running (use raw SQL)
+    await db.execute(sql`
+      UPDATE app_migrations 
+      SET status = 'running', started_at = ${startTime}
+      WHERE id = ${migrationId}
+    `);
     
     // Execute the migration
     const result = await migration.execute();
     
-    // Update status to completed
-    await db
-      .update(appMigrations)
-      .set({
-        status: "completed" as const,
-        completedAt: new Date(),
-        result: JSON.stringify(result),
-      })
-      .where(eq(appMigrations.id, migrationId));
+    // Update status to completed (use raw SQL)
+    await db.execute(sql`
+      UPDATE app_migrations 
+      SET status = 'completed', 
+          completed_at = ${new Date()},
+          result = ${JSON.stringify(result)}
+      WHERE id = ${migrationId}
+    `);
     
     logger.info(`✅ Migration '${migration.name}' completed successfully`, result);
     
   } catch (error: any) {
-    // Update status to failed
-    await db
-      .update(appMigrations)
-      .set({
-        status: "failed" as const,
-        errorMessage: error?.message || "Unknown error",
-        retries: sql`${appMigrations.retries} + 1`,
-      })
-      .where(eq(appMigrations.id, migrationId));
+    // Update status to failed (use raw SQL)
+    await db.execute(sql`
+      UPDATE app_migrations 
+      SET status = 'failed',
+          error_message = ${error?.message || "Unknown error"},
+          retries = retries + 1
+      WHERE id = ${migrationId}
+    `);
     
     logger.error(`❌ Migration '${migration.name}' failed:`, error);
     throw error;
