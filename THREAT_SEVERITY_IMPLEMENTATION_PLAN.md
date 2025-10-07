@@ -389,6 +389,24 @@ This enhanced threat severity scoring system will:
 4. Display combined threat assessment to users
 5. Maintain high performance through database storage and batch processing
 
+## Processing Workflow
+
+```
+Article marked as is_cybersecurity=true
+↓
+Extract structured data (CVEs, vendors, software, etc.)
+↓
+Score each component using AI + pattern matching
+↓
+Calculate weighted severity scores using rubric formulas
+↓
+Store all metadata in database
+↓
+Generate relevance score when a user loads application frontend, on per user basis, or when they modify their tech stack keywords
+↓
+Display appropriate threat severity and relevance level to users on article cards
+```
+
 ## Detailed Implementation Steps
 
 ### Step 1: Entity Management Services
