@@ -2180,14 +2180,449 @@ describe('Relevance Scoring', () => {
 });
 ```
 
+### Step 10: User Interface - Keywords Page & Technology Stack Page
+
+This final step implements the new user-facing configuration pages for managing threat monitoring preferences.
+
+---
+
+#### A. Keywords Page Updates
+
+**File:** `frontend/src/pages/dashboard/threat-tracker/keywords.tsx`
+
+**Changes:** Simplify to only handle **Threat Keywords** and **Threat Actors** (remove hardware/software/vendors/clients)
+
+```tsx
+export default function KeywordsPage() {
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Threat Keyword Management</h2>
+        <p className="text-gray-600">
+          Manage keywords for threat monitoring across security categories
+        </p>
+      </div>
+
+      {/* Threat Keywords Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Threat Keywords</CardTitle>
+          <CardDescription>
+            Keywords related to cybersecurity threats (e.g., malware, breach, zero-day)
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input 
+                placeholder="Search & add threat keywords..." 
+                data-testid="input-threat-keyword"
+              />
+              <Button data-testid="button-add-keyword">
+                + Add
+              </Button>
+            </div>
+            
+            {/* Keyword list */}
+            <div className="flex flex-wrap gap-2">
+              {threatKeywords.map(keyword => (
+                <Badge 
+                  key={keyword.id} 
+                  variant="secondary"
+                  data-testid={`badge-keyword-${keyword.id}`}
+                >
+                  {keyword.text}
+                  <button 
+                    className="ml-2"
+                    data-testid={`button-remove-keyword-${keyword.id}`}
+                  >
+                    ×
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Threat Actors Section (Read-only, AI-populated) */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Threat Actors</CardTitle>
+          <CardDescription>
+            APT groups, ransomware gangs, and threat actors automatically detected from articles
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {threatActors.map(actor => (
+              <div 
+                key={actor.id}
+                className="flex items-center justify-between p-2 border rounded"
+                data-testid={`threat-actor-${actor.id}`}
+              >
+                <div>
+                  <div className="font-medium">{actor.name}</div>
+                  {actor.aliases?.length > 0 && (
+                    <div className="text-sm text-gray-500">
+                      Also known as: {actor.aliases.join(', ')}
+                    </div>
+                  )}
+                </div>
+                <Badge variant="outline" data-testid={`badge-actor-type-${actor.id}`}>
+                  {actor.type}
+                </Badge>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 text-sm text-gray-500">
+            ℹ️ Threat actors are automatically extracted from articles using AI
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+---
+
+#### B. Technology Stack Page (NEW)
+
+**File:** `frontend/src/pages/dashboard/threat-tracker/tech-stack.tsx`
+
+**Design:** Unified configuration with inline threat indicators
+
+```tsx
+export default function TechStackPage() {
+  const { data: techStack, isLoading } = useQuery({
+    queryKey: ['/api/tech-stack'],
+  });
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold">Technology Stack</h2>
+        <p className="text-gray-600">
+          Configure your software, hardware, vendors, and clients for personalized threat monitoring
+        </p>
+      </div>
+
+      <Card>
+        <CardContent className="pt-6">
+          {/* Software Section */}
+          <Collapsible defaultOpen>
+            <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+              <ChevronDown className="h-4 w-4" />
+              <h3 className="text-lg font-semibold">
+                Software ({techStack?.software?.length || 0})
+              </h3>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 space-y-2">
+              <div className="flex gap-2 mb-4">
+                <Input 
+                  placeholder="Search software..." 
+                  data-testid="input-search-software"
+                />
+                <Button data-testid="button-add-software">+ Add</Button>
+              </div>
+              
+              {techStack?.software?.map(item => (
+                <TechStackItem
+                  key={item.id}
+                  item={item}
+                  type="software"
+                  data-testid={`software-item-${item.id}`}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Separator className="my-6" />
+
+          {/* Hardware Section */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+              <ChevronDown className="h-4 w-4" />
+              <h3 className="text-lg font-semibold">
+                Hardware ({techStack?.hardware?.length || 0})
+              </h3>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 space-y-2">
+              <div className="flex gap-2 mb-4">
+                <Input 
+                  placeholder="Search hardware..." 
+                  data-testid="input-search-hardware"
+                />
+                <Button data-testid="button-add-hardware">+ Add</Button>
+              </div>
+              
+              {techStack?.hardware?.map(item => (
+                <TechStackItem
+                  key={item.id}
+                  item={item}
+                  type="hardware"
+                  data-testid={`hardware-item-${item.id}`}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Separator className="my-6" />
+
+          {/* Vendors Section */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+              <ChevronDown className="h-4 w-4" />
+              <h3 className="text-lg font-semibold">
+                Vendors ({techStack?.vendors?.length || 0})
+              </h3>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 space-y-2">
+              <div className="flex gap-2 mb-4">
+                <Input 
+                  placeholder="Search vendors..." 
+                  data-testid="input-search-vendors"
+                />
+                <Button data-testid="button-add-vendor">+ Add</Button>
+              </div>
+              
+              {techStack?.vendors?.map(item => (
+                <TechStackItem
+                  key={item.id}
+                  item={item}
+                  type="vendor"
+                  data-testid={`vendor-item-${item.id}`}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+
+          <Separator className="my-6" />
+
+          {/* Clients Section */}
+          <Collapsible>
+            <CollapsibleTrigger className="flex items-center gap-2 w-full text-left">
+              <ChevronDown className="h-4 w-4" />
+              <h3 className="text-lg font-semibold">
+                Clients ({techStack?.clients?.length || 0})
+              </h3>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4 space-y-2">
+              <div className="flex gap-2 mb-4">
+                <Input 
+                  placeholder="Search clients..." 
+                  data-testid="input-search-clients"
+                />
+                <Button data-testid="button-add-client">+ Add</Button>
+              </div>
+              
+              {techStack?.clients?.map(item => (
+                <TechStackItem
+                  key={item.id}
+                  item={item}
+                  type="client"
+                  data-testid={`client-item-${item.id}`}
+                />
+              ))}
+            </CollapsibleContent>
+          </Collapsible>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// Reusable component for tech stack items with threat indicators
+function TechStackItem({ item, type }: { item: TechStackItemType; type: string }) {
+  const getThreatColor = (level: string) => {
+    switch(level) {
+      case 'critical': return 'bg-red-500';
+      case 'high': return 'bg-orange-500';
+      case 'medium': return 'bg-yellow-500';
+      case 'low': return 'bg-green-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const getThreatLabel = (level: string) => {
+    return level.charAt(0).toUpperCase() + level.slice(1);
+  };
+
+  return (
+    <div 
+      className="flex items-center justify-between py-2 px-3 hover:bg-gray-50 rounded"
+      data-testid={`tech-item-${item.id}`}
+    >
+      <div className="flex items-center gap-2">
+        <span data-testid={`text-item-name-${item.id}`}>• {item.name}</span>
+        {item.version && (
+          <span className="text-gray-500" data-testid={`text-item-version-${item.id}`}>
+            | {item.version}
+          </span>
+        )}
+      </div>
+
+      {/* Threat indicator - only shows if threats exist */}
+      {item.threats && item.threats.count > 0 && (
+        <button
+          onClick={() => {
+            // Navigate to threats page with filter or open modal
+            window.location.href = `/dashboard/threat-tracker?filter=${type}:${item.id}`;
+          }}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity"
+          data-testid={`button-threat-indicator-${item.id}`}
+        >
+          <span 
+            className={`w-3 h-3 rounded-full ${getThreatColor(item.threats.highestLevel)}`}
+            data-testid={`indicator-threat-${item.id}`}
+          />
+          <span className="text-sm" data-testid={`text-threat-count-${item.id}`}>
+            {item.threats.count} {getThreatLabel(item.threats.highestLevel)} threats
+          </span>
+        </button>
+      )}
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => removeTechItem(item.id, type)}
+        data-testid={`button-remove-${item.id}`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+```
+
+---
+
+#### C. API Endpoints for Tech Stack
+
+**File:** `backend/apps/threat-tracker/routes/tech-stack.ts`
+
+```typescript
+// GET /api/tech-stack - Fetch user's tech stack with threat counts
+router.get('/tech-stack', async (req, res) => {
+  const userId = req.user.id;
+  
+  // Fetch software with threat counts
+  const software = await db
+    .select({
+      id: usersSoftware.softwareId,
+      name: softwareTable.name,
+      version: usersSoftware.version,
+      threatCount: sql<number>`COUNT(DISTINCT ga.id)`,
+      highestLevel: sql<string>`
+        CASE 
+          WHEN COUNT(*) FILTER (WHERE ga.threat_level = 'critical') > 0 THEN 'critical'
+          WHEN COUNT(*) FILTER (WHERE ga.threat_level = 'high') > 0 THEN 'high'
+          WHEN COUNT(*) FILTER (WHERE ga.threat_level = 'medium') > 0 THEN 'medium'
+          WHEN COUNT(*) FILTER (WHERE ga.threat_level = 'low') > 0 THEN 'low'
+          ELSE NULL
+        END
+      `
+    })
+    .from(usersSoftware)
+    .innerJoin(softwareTable, eq(usersSoftware.softwareId, softwareTable.id))
+    .leftJoin(articleSoftware, eq(articleSoftware.softwareId, usersSoftware.softwareId))
+    .leftJoin(globalArticles, eq(globalArticles.id, articleSoftware.articleId))
+    .where(and(
+      eq(usersSoftware.userId, userId),
+      eq(usersSoftware.isActive, true)
+    ))
+    .groupBy(usersSoftware.softwareId, softwareTable.name, usersSoftware.version);
+
+  // Similar queries for hardware, vendors, clients...
+
+  res.json({
+    software: software.map(s => ({
+      id: s.id,
+      name: s.name,
+      version: s.version,
+      threats: s.threatCount > 0 ? {
+        count: s.threatCount,
+        highestLevel: s.highestLevel
+      } : null
+    })),
+    hardware: [...],
+    vendors: [...],
+    clients: [...]
+  });
+});
+
+// POST /api/tech-stack/add - Add item to tech stack
+router.post('/tech-stack/add', async (req, res) => {
+  const { type, itemId, version, priority } = req.body;
+  const userId = req.user.id;
+  
+  // Add to appropriate junction table based on type
+  // Trigger relevance score recalculation
+});
+
+// DELETE /api/tech-stack/:itemId - Remove item from tech stack
+router.delete('/tech-stack/:itemId', async (req, res) => {
+  // Remove from junction table
+  // Trigger relevance score recalculation
+});
+```
+
+---
+
+#### D. Navigation Updates
+
+Update the Threat Tracker navigation to include the new Technology Stack page:
+
+```tsx
+// In threat-tracker layout/navigation
+const tabs = [
+  { name: 'Detected Threats', href: '/dashboard/threat-tracker' },
+  { name: 'Technology Stack', href: '/dashboard/threat-tracker/tech-stack' }, // NEW
+  { name: 'Keywords', href: '/dashboard/threat-tracker/keywords' },
+  { name: 'Sources', href: '/dashboard/threat-tracker/sources' }
+];
+```
+
+---
+
+#### E. Type Definitions
+
+**File:** `shared/types/tech-stack.ts`
+
+```typescript
+export interface TechStackItemType {
+  id: string;
+  name: string;
+  version?: string;
+  threats?: {
+    count: number;
+    highestLevel: 'critical' | 'high' | 'medium' | 'low';
+  } | null;
+}
+
+export interface TechStackResponse {
+  software: TechStackItemType[];
+  hardware: TechStackItemType[];
+  vendors: TechStackItemType[];
+  clients: TechStackItemType[];
+}
+```
+
+---
+
 ## Summary of Key Decisions
 
 1. **Threat Actors**: Separate table, AI-discovered only, linked via junction table
 2. **Relevance Scoring**: Pre-calculated in batches per user, stored in article_relevance_score table
 3. **Severity Scoring**: User-independent, based purely on threat characteristics, stored in DB
+4. **Keywords Page**: Simplified to only threat keywords and threat actors (read-only)
+5. **Technology Stack Page**: Unified configuration with inline threat indicators for software/hardware/vendors/clients
 
 This architecture ensures:
 - Accurate, up-to-date relevance scores
 - Fast query performance through strategic caching
 - Clear separation between universal threat severity and user-specific relevance
+- Intuitive UI for managing technology stack and monitoring threats
 - Scalability as user and article counts grow
