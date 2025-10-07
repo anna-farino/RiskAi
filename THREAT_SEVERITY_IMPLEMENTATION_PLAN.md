@@ -1988,105 +1988,90 @@ async function processArticle(
 }
 ```
 
-### Step 8: Frontend Display with Real-time Relevance
+### Step 8: Frontend Display Updates
 
-**File:** `frontend/src/pages/dashboard/threat-tracker/components/threat-article-list.tsx`
+**File:** `frontend/src/pages/dashboard/threat-tracker/components/threat-article-card.tsx`
+
+Update the existing threat-article-card component to display the new scoring system:
+
+#### 1. Threat Level Badge Color Function
 
 ```tsx
-function ThreatArticleList({ userId }) {
-  const [articles, setArticles] = useState<ArticleWithRelevance[]>([]);
-  const [sortBy, setSortBy] = useState<'relevance' | 'severity' | 'date'>('relevance');
-  const [loading, setLoading] = useState(true);
-  
-  useEffect(() => {
-    async function loadArticles() {
-      setLoading(true);
+const getThreatLevelColor = (level: string) => {
+  switch(level) {
+    case 'critical': return 'bg-red-500 text-white';
+    case 'high': return 'bg-orange-500 text-white';
+    case 'medium': return 'bg-yellow-500 text-black';
+    case 'low': return 'bg-green-500 text-white';
+    default: return 'bg-gray-500 text-white';
+  }
+};
+```
+
+#### 2. Threat Score Display
+
+Repurpose the existing threat severity and relevance scales on the card:
+
+```tsx
+<div className="flex items-center gap-2">
+  <span className={`px-2 py-1 rounded ${getThreatLevelColor(article.threatLevel)}`}>
+    {article.threatLevel?.toUpperCase()}
+  </span>
+  <span className="text-sm text-gray-600">
+    Severity: {article.threatSeverityScore?.toFixed(1)}/10
+  </span>
+</div>
+```
+
+#### 3. Detailed Threat Information
+
+Add an expandable section showing extracted metadata:
+
+```tsx
+// Expandable section showing:
+<Collapsible>
+  <CollapsibleTrigger>
+    View Threat Details
+  </CollapsibleTrigger>
+  <CollapsibleContent>
+    <div className="space-y-2 mt-2">
+      {/* CVEs list */}
+      {article.cves?.length > 0 && (
+        <div>
+          <strong>CVEs:</strong> {article.cves.join(', ')}
+        </div>
+      )}
       
-      // Fetch articles with relevance scores calculated server-side
-      const response = await fetch(`/api/threat-tracker/articles?` + 
-        `sortBy=${sortBy}&userId=${userId}`);
-      const data = await response.json();
+      {/* Affected software/vendors */}
+      {article.affectedSoftware?.length > 0 && (
+        <div>
+          <strong>Affected Software:</strong> {article.affectedSoftware.join(', ')}
+        </div>
+      )}
       
-      setArticles(data);
-      setLoading(false);
-    }
-    
-    loadArticles();
-  }, [sortBy, userId]);
-  
-  return (
-    <div>
-      <div className="mb-4 flex justify-between items-center">
-        <h2 className="text-2xl font-bold">Threat Intelligence</h2>
-        <Select value={sortBy} onValueChange={setSortBy}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="relevance">Most Relevant</SelectItem>
-            <SelectItem value="severity">Highest Severity</SelectItem>
-            <SelectItem value="date">Most Recent</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
+      {/* Attack vectors */}
+      {article.attackVectors?.length > 0 && (
+        <div>
+          <strong>Attack Vectors:</strong> {article.attackVectors.join(', ')}
+        </div>
+      )}
       
-      {loading ? (
-        <LoadingSpinner />
-      ) : (
-        <div className="space-y-4">
-          {articles.map(article => (
-            <ThreatArticleCard
-              key={article.id}
-              article={article}
-              severityScore={article.threatSeverityScore}
-              relevanceScore={article.relevanceScore}
-              threatLevel={article.threatLevel}
-            />
-          ))}
+      {/* Threat actors */}
+      {article.threatActors?.length > 0 && (
+        <div>
+          <strong>Threat Actors:</strong> {article.threatActors.join(', ')}
+        </div>
+      )}
+      
+      {/* Mitigation status */}
+      {article.patchAvailable && (
+        <div className="text-green-600">
+          <strong>Status:</strong> Patch Available
         </div>
       )}
     </div>
-  );
-}
-
-function ThreatArticleCard({ article, severityScore, relevanceScore, threatLevel }) {
-  return (
-    <Card className="border-l-4" style={{
-      borderLeftColor: getThreatLevelColor(threatLevel)
-    }}>
-      <CardHeader>
-        <div className="flex justify-between items-start">
-          <h3 className="text-lg font-semibold">{article.title}</h3>
-          <div className="flex flex-col items-end gap-1">
-            <ThreatLevelBadge level={threatLevel} />
-            <div className="text-xs text-gray-600">
-              Severity: {severityScore?.toFixed(1)}/10
-            </div>
-            {relevanceScore > 0 && (
-              <div className="text-xs text-blue-600">
-                Relevance: {relevanceScore.toFixed(1)}/10
-              </div>
-            )}
-          </div>
-        </div>
-      </CardHeader>
-      
-      <CardContent>
-        {/* Show why this is relevant to the user */}
-        {relevanceScore > 5 && (
-          <Alert className="mb-4">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>
-              This threat is highly relevant to your environment
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <p className="text-gray-600">{article.summary}</p>
-      </CardContent>
-    </Card>
-  );
-}
+  </CollapsibleContent>
+</Collapsible>
 ```
 
 ### Step 9: Performance Optimization Strategies
