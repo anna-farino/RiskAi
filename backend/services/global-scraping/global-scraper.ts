@@ -14,8 +14,11 @@ import { detectHtmlStructure } from "backend/services/scraping/extractors/struct
 // Global strategy
 import { GlobalStrategy } from "backend/services/scraping/strategies/global-strategy";
 // AI services
-import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai";
+import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities } from "backend/services/openai";
 import { analyzeContent } from "../../apps/news-radar/services/openai";
+// Threat analysis services
+import { ThreatAnalyzer } from "../threat-analysis";
+import { EntityManager } from "../entity-manager";
 // Content validation
 import { isValidArticleContent, isValidTitle, extractTitleFromUrl } from "../scraping/validators/content-validator";
 // Error logging
@@ -219,7 +222,59 @@ async function scrapeGlobalSource(
           detectedKeywords.push('_cyber:true');
         }
 
-        // Step 5: Save article to globalArticles table
+        // CRITICAL: Extract threat metadata for cybersecurity articles BEFORE saving
+        let threatMetadata = null;
+        let threatSeverityScore = "0";
+        let threatLevel: "critical" | "high" | "medium" | "low" = "low";
+        let entitiesExtracted = false;
+        let extractedEntities: any = null; // Store entities for reuse
+        
+        log(`[Global Scraping] Article cybersecurity status: ${isCybersecurity} for ${finalTitle}`, "scraper");
+        
+        if (isCybersecurity) {
+          log(`[Global Scraping] Starting threat metadata extraction for: ${finalTitle}`, "scraper");
+          try {
+            log(`[Global Scraping] Extracting threat metadata for cybersecurity article: ${finalTitle}`, "scraper");
+            
+            // Initialize threat analyzer and entity manager
+            const threatAnalyzer = new ThreatAnalyzer();
+            const entityManager = new EntityManager();
+            
+            // Extract entities from article
+            extractedEntities = await extractArticleEntities({
+              title: finalTitle || "",
+              content: articleContent.content || "",
+              url: link || ""
+            });
+            
+            log(`[Global Scraping] Extracted entities - Software: ${extractedEntities.software.length}, Hardware: ${extractedEntities.hardware.length}, Companies: ${extractedEntities.companies.length}, CVEs: ${extractedEntities.cves.length}, Threat Actors: ${extractedEntities.threatActors.length}`, "scraper");
+            
+            // Calculate threat severity score with all the metadata
+            const severityAnalysis = await threatAnalyzer.calculateSeverityScore(
+              {
+                id: "", // Will be filled after saving
+                title: finalTitle,
+                content: articleContent.content,
+                url: link
+              },
+              extractedEntities
+            );
+            
+            threatMetadata = severityAnalysis.metadata;
+            threatSeverityScore = severityAnalysis.severityScore.toString();
+            threatLevel = severityAnalysis.threatLevel;
+            entitiesExtracted = true;
+            
+            log(`[Global Scraping] Threat severity calculated: ${threatSeverityScore} (${threatLevel})`, "scraper");
+          } catch (error) {
+            log(`[Global Scraping] Error extracting threat metadata: ${error instanceof Error ? error.message : 'Unknown error'}`, "scraper");
+            // Don't save the article if threat metadata extraction fails for cybersecurity content
+            errors.push(`Article ${link}: Failed to extract threat metadata - ${error instanceof Error ? error.message : 'Unknown error'}`);
+            continue; // Skip saving this article
+          }
+        }
+
+        // Step 5: Save article to globalArticles table WITH threat metadata
         const [savedArticle] = await db
           .insert(globalArticles)
           .values({
@@ -231,12 +286,31 @@ async function scrapeGlobalSource(
             publishDate: articleContent.publishDate || new Date(),
             summary: analysis.summary || "",
             detectedKeywords: detectedKeywords,
-            isCybersecurity: isCybersecurity, // Mark if it's a cybersecurity article
-            securityScore: securityScore, // Add security score if it's a cybersecurity article
+            isCybersecurity: isCybersecurity,
+            securityScore: securityScore,
+            // Add threat metadata fields
+            threatMetadata: threatMetadata,
+            threatSeverityScore: threatSeverityScore,
+            threatLevel: threatLevel,
+            entitiesExtracted: entitiesExtracted,
+            lastThreatAnalysis: isCybersecurity ? new Date() : null,
+            threatAnalysisVersion: isCybersecurity ? "2.0" : null,
           })
           .returning();
 
         log(`[Global Scraping] Saved article: ${savedArticle.title} - ${articleContent.content.length} chars (Cyber: ${isCybersecurity}, Risk: ${securityScore || 'N/A'})`, "scraper");
+        
+        // Link entities to the saved article if it's a cybersecurity article
+        if (isCybersecurity && entitiesExtracted && extractedEntities) {
+          try {
+            const entityManager = new EntityManager();
+            await entityManager.linkArticleToEntities(savedArticle.id, extractedEntities);
+            log(`[Global Scraping] Linked entities to article ${savedArticle.id}`, "scraper");
+          } catch (error) {
+            log(`[Global Scraping] Error linking entities to article: ${error instanceof Error ? error.message : 'Unknown error'}`, "scraper");
+          }
+        }
+        
         savedCount++;
         newArticleIds.push(savedArticle.id);
       } catch (error) {

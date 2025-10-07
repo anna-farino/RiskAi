@@ -4,16 +4,32 @@
  * This forces an immediate global scrape instead of waiting for the scheduled time
  */
 
-import { executeUnifiedGlobalScrape } from '../../../services/global-scheduler';
+import { runUnifiedGlobalScraping } from '../../../services/global-scraping/global-scraper';
 
 async function forceGlobalScrape() {
   try {
     console.log('🚀 Manually triggering global scraper...');
     console.log('⏰ This will scrape all sources for both News Radar and Threat Tracker\n');
     
-    await executeUnifiedGlobalScrape();
+    const result = await runUnifiedGlobalScraping();
     
-    console.log('\n✅ Global scraping completed successfully!');
+    console.log('\n📊 Global scraping results:');
+    console.log(`  - Success: ${result.success}`);
+    console.log(`  - Total processed: ${result.totalProcessed}`);
+    console.log(`  - Total saved: ${result.totalSaved}`);
+    console.log(`  - Message: ${result.message}`);
+    
+    if (result.sourceResults.length > 0) {
+      console.log('\n📋 Source details:');
+      for (const source of result.sourceResults) {
+        console.log(`  - ${source.sourceName}: ${source.savedCount} saved, ${source.processedCount} processed`);
+        if (source.errors.length > 0) {
+          console.log(`    Errors: ${source.errors.length}`);
+        }
+      }
+    }
+    
+    console.log('\n✅ Global scraping completed!');
     
   } catch (error: any) {
     console.error('❌ Error during manual scraping:', error.message);
