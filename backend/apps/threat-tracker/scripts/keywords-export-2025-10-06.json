@@ -1,0 +1,610 @@
+[
+  {
+    "id": "4ed4b2c0-ae46-4e4f-bb00-ae5cc9d9177f",
+    "term": "APT",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "4a6c0774-3075-435d-bb9e-1da0b5c2f55e",
+    "term": "ARP spoofing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "c059d531-d688-49d0-9ab3-dc242e316f2c",
+    "term": "Brute force attack",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "60a4712b-4dcf-47ec-8b3d-99d7bc838ed1",
+    "term": "CVE",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "1dfecea9-a201-43f0-85a8-dda2b2bbcfa8",
+    "term": "Clickjacking",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "46abd78d-6d58-4443-a66e-185ec71481ee",
+    "term": "Credential stuffing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "b23b8b4a-ec16-428c-8a41-f6599e650c0c",
+    "term": "Cross-Site Scripting",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "b39368bd-515a-45ca-a939-d3685e057fd6",
+    "term": "Cross-site request forgery (CSRF)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "5160870a-95b1-4607-bed5-1fd3abfbb230",
+    "term": "Cryptojacking",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "b9072094-6f94-4e78-b7b3-709861afeaf0",
+    "term": "DDoS",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "c4c447b7-d868-488d-8cee-de81f262026f",
+    "term": "DDoS (Distributed Denial of Service)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "9564c8b3-ae39-410b-93ee-ca96d82e81da",
+    "term": "DNS hijacking",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "def721de-2695-462c-a728-257655ff791a",
+    "term": "DNS poisoning",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "c4857d64-7cf9-41d1-9a11-091473e7448e",
+    "term": "Directory traversal",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "f98eb465-7016-4b83-9eac-89d3de6e826c",
+    "term": "DoS (Denial of Service)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "fada0da3-5e83-4697-b997-ef2fe337706a",
+    "term": "Drive-by download",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "a48f8a5e-4c94-46db-91f9-c052c2bac50a",
+    "term": "HTTP security headers",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "e8957981-5507-4dd2-a605-01ef3275d899",
+    "term": "IoT exploits",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "84757f66-4cd3-43e8-a2ba-aaa420b221ca",
+    "term": "JWT (JSON Web Token)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "1a34aee1-4505-4f41-a70a-17e5b09f323e",
+    "term": "Local file inclusion (LFI)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "20284fd2-8441-46a3-9d39-9c17dd00e359",
+    "term": "Malvertising",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "f57d0365-db48-440a-9bdf-a96da2e87fae",
+    "term": "Man-in-the-Middle",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "de76f0ab-80c5-4f40-a165-41cc0b47fbc1",
+    "term": "Man-in-the-middle attack (MITM)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "aaaa88cc-fbb2-4e49-b7f8-962dd7c51541",
+    "term": "Misconfiguration",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "3b88b4b5-4bf5-43ba-970c-3e67964121d3",
+    "term": "OAuth",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "cad16c21-9749-45bf-ac1d-c80f0ce50cb5",
+    "term": "OpenID Connect",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "70e7ff82-f4ac-4786-95b7-a390f45464e2",
+    "term": "Phishing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "5cffcc29-2b4f-45f5-8d54-84db19457595",
+    "term": "Public Key Infrastructure (PKI)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "976d650d-392d-4ec5-bf35-37755202f706",
+    "term": "Ransomware",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "1f7c0b35-fd4e-40af-ab43-d8b0fd41c45e",
+    "term": "Remote Access Trojan",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "eb3876ae-a370-4d8b-9478-50e19dde6cd2",
+    "term": "Remote code execution (RCE)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "3dee586e-18f9-4bef-89f8-a7c95820f1f3",
+    "term": "Remote file inclusion (RFI)",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "187cd235-8e3f-457e-88c0-47ee2e82d445",
+    "term": "Reverse proxy",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "f560278e-4fd8-4fea-9ded-76682e01cb1e",
+    "term": "SQL injection",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "c9172c80-af5d-421d-8af1-b770470de235",
+    "term": "SSL stripping",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "0f31d472-d5d4-4945-b57d-fc8aa2d8ca60",
+    "term": "SameSite cookies",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "d54db5fa-bc24-4581-ae2c-0a2e6a3672d3",
+    "term": "Sandboxing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "62b2948f-ab7d-4cf6-af1e-ed8063656410",
+    "term": "Secure cookie attributes",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "af004a50-526c-411d-a5ba-b7632a544410",
+    "term": "Session hijacking",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "e8e5f514-1a56-4f6e-8618-5c3de99ac553",
+    "term": "Trojan",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "3caf4b25-1028-4e6b-8af0-3a130c6f84ad",
+    "term": "Wi-Fi eavesdropping",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "69c1b022-42b5-4370-95ec-8b5e5a7e11d9",
+    "term": "adware",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "2d070140-880a-43be-af7b-c4085f158713",
+    "term": "botnet",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "54ece67e-ee98-4de9-996f-382c4d958188",
+    "term": "brute force attack",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "2682988c-80ce-44f1-bcde-ddd52483f6cc",
+    "term": "buffer overflow",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "957a452d-b2be-4c83-b939-3b8a40670541",
+    "term": "business email compromise",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "28f9db6f-5956-4a1a-861f-b79fa88dfc01",
+    "term": "command and control",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "f5ea2d33-6518-49d1-995b-b5be1c52df72",
+    "term": "credential stuffing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "6344c7b4-9c30-4b60-829b-dbd6bfa9a3f1",
+    "term": "cyber espionage",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "ce49c392-e79e-4e9d-991a-d6dc89e4b270",
+    "term": "data exfiltration",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "36aa5b2f-304a-455f-8e93-02689cf3131c",
+    "term": "deepfake attack",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "8218aaa6-df3e-45de-bdab-1fbab23c7b5d",
+    "term": "directory traversal",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "c68acd76-b51c-4035-b6a3-b524d4fdd15c",
+    "term": "exploit",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "cee68bd6-4552-4bbb-a509-074ed0c52a2c",
+    "term": "fileless malware",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "a0385fdc-2434-4272-bf5c-eb1eff4de700",
+    "term": "hacktivism",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "848490bc-d2e4-45fc-9c07-4fc4968bd7af",
+    "term": "information disclosure",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "e523dfe4-3035-4bbd-ba1d-65f57a2bd79e",
+    "term": "injection flaw",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "959e645b-eef8-499b-8512-05a3c79f0db3",
+    "term": "insider threat",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "87bdbe0d-0f04-42ed-a8b8-bbded4453f61",
+    "term": "keylogger",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "e2b6051d-4ed4-42ab-8e67-485c27f9c4c7",
+    "term": "lateral movement",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "db8a7051-4d3d-4c15-9075-29bd15d987d9",
+    "term": "loader malware",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "4b7d37ee-8668-4123-9674-5c9ff3c01b77",
+    "term": "network reconnaissance",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "135f8b9f-8ebc-4054-8da0-591c032765ad",
+    "term": "open redirect",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "8b3d6c9e-2ceb-4c77-a9fa-831d3df1757b",
+    "term": "packet sniffing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "12c1c2b3-ec62-4e42-bc3c-d5c1d570bcb2",
+    "term": "phishing",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "6581aefd-2a95-4fa6-8fe2-1f11741b86fc",
+    "term": "privilege escalation",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "1442461e-ca65-455f-a042-ecdcdc09bf89",
+    "term": "race condition",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "78ac2e18-0a59-46ab-ad88-6670afd36780",
+    "term": "rootkit",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "0e642296-832c-4f97-853d-811c6d5493d3",
+    "term": "scareware",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "80994389-f0f7-4175-8137-1f50eb1b6e19",
+    "term": "session hijacking",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "10ffd97c-fce3-494b-9344-1ad2ae10aa15",
+    "term": "social engineering",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "f0bce5a2-4873-4cef-b719-706331ca6d70",
+    "term": "spyware",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "d7ee579a-dfe9-4bed-bd83-c66ed88e49fd",
+    "term": "supply chain attack",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "2a4eb110-682e-4a64-895a-0228c1ed7658",
+    "term": "unpatched software",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "d249718c-06c8-41eb-a417-3419fd6dfe51",
+    "term": "worm",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  },
+  {
+    "id": "1f9a53f0-13a7-46aa-a345-01fa09ca5d8c",
+    "term": "zero-day",
+    "category": "threat",
+    "active": true,
+    "userId": null,
+    "isDefault": true
+  }
+]
