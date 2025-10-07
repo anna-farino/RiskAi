@@ -383,7 +383,7 @@ This enhanced threat severity scoring system will:
 1. Extract entities (software, hardware, companies, CVEs, threat actors) into normalized tables
 2. Calculate **severity scores** based on threat characteristics (stored in DB)
 3. Calculate **relevance scores** per user in batches (stored in DB):
-   - On user login for new articles
+   - When a user loads application frontend, on per user basis
    - When user changes technology stack
    - On-demand for older articles
 4. Display combined threat assessment to users
@@ -1900,6 +1900,72 @@ export class ThreatAnalyzer {
 ```
 
 ### Step 7: Article Processing Pipeline Update
+
+---
+
+## 🔄 INTEGRATION POINT: When & Where Entity Extraction and Scoring Happens
+
+**CRITICAL TIMING:** All entity extraction and severity scoring happens **synchronously during the article scraping/saving process**. This ensures every cybersecurity article is immediately analyzed and scored before being shown to users.
+
+### **Execution Flow in the Scraper:**
+
+```
+1. Article Scraped from RSS Feed
+   ↓
+2. AI determines is_cybersecurity = true
+   ↓
+3. Article saved to global_articles table (initial save)
+   ↓
+4. [IMMEDIATE] Extract entities using AI
+   - Software (with version ranges)
+   - Hardware
+   - Companies (vendors/clients)
+   - CVEs
+   - Threat Actors
+   - Attack Vectors
+   ↓
+5. [IMMEDIATE] Resolve entities (find or create in database)
+   - Check entity_resolution_cache for known variations
+   - Create new entities if needed
+   - Link to article via junction tables
+   ↓
+6. [IMMEDIATE] Calculate severity score (user-independent)
+   - Analyze CVE scores
+   - Check exploitability
+   - Assess impact
+   - Evaluate threat actors
+   - Calculate weighted score
+   ↓
+7. [IMMEDIATE] Update article with severity data
+   - threatSeverityScore (0-100)
+   - threatLevel (low/medium/high/critical)
+   - threatMetadata (detailed breakdown)
+   - entitiesExtracted = true
+   ↓
+8. Article now complete and ready for users
+
+[LATER] Relevance scoring happens separately:
+   - When user logs in (batch process for new articles)
+   - When user modifies tech stack
+   - On-demand for older articles
+```
+
+### **Performance Considerations:**
+
+- **Parallel processing**: Entity types processed concurrently
+- **Cached AI decisions**: Entity resolution uses 30-day cache
+- **Batch operations**: Database inserts batched where possible
+- **Non-blocking**: Scraper can continue with next article
+
+### **Error Handling:**
+
+If entity extraction fails:
+- Article still saved with is_cybersecurity=true
+- entitiesExtracted remains false
+- Background job can retry later
+- Severity score defaults to null
+
+---
 
 **File:** `backend/apps/threat-tracker/services/background-jobs.ts`
 
