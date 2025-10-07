@@ -183,16 +183,45 @@ export class EntityManager {
     isVerified?: boolean;
     metadata?: any;
   }): Promise<string> {
-    // Check cache first
+    // FIRST: Check if software already exists by normalized name and company
+    const existingByName = await db.select()
+      .from(software)
+      .where(and(
+        eq(software.normalizedName, data.normalizedName),
+        data.companyId ? eq(software.companyId, data.companyId) : isNull(software.companyId)
+      ))
+      .limit(1);
+    
+    if (existingByName.length > 0) {
+      // Software already exists, return its ID
+      return existingByName[0].id;
+    }
+    
+    // Check cache for AI resolution
     const cacheKey = data.companyId ? `${data.name}:${data.companyId}` : data.name;
     const cached = await this.getCachedResolution(cacheKey, 'software');
     if (cached) {
       if (cached.resolvedId) return cached.resolvedId;
-      // Cached as new entity, create with canonical name
+      
+      // Check if cached canonical name already exists
+      const canonicalNormalized = this.normalizeEntityName(cached.canonicalName);
+      const existingCanonical = await db.select()
+        .from(software)
+        .where(and(
+          eq(software.normalizedName, canonicalNormalized),
+          data.companyId ? eq(software.companyId, data.companyId) : isNull(software.companyId)
+        ))
+        .limit(1);
+      
+      if (existingCanonical.length > 0) {
+        return existingCanonical[0].id;
+      }
+      
+      // Create with canonical name (checked it doesn't exist)
       const [newSoftware] = await db.insert(software)
         .values({
           name: cached.canonicalName,
-          normalizedName: this.normalizeEntityName(cached.canonicalName),
+          normalizedName: canonicalNormalized,
           companyId: data.companyId,
           category: data.category,
           description: data.description,
@@ -205,7 +234,7 @@ export class EntityManager {
       return newSoftware.id;
     }
     
-    // Get existing software for comparison
+    // Get existing software for AI comparison
     const existingSoftware = await db.select({
       id: software.id,
       name: software.name
@@ -229,11 +258,25 @@ export class EntityManager {
       return resolution.matchedId;
     }
     
-    // Create new software with canonical name
+    // Check if resolved canonical name already exists
+    const resolvedNormalized = this.normalizeEntityName(resolution.canonicalName);
+    const existingResolved = await db.select()
+      .from(software)
+      .where(and(
+        eq(software.normalizedName, resolvedNormalized),
+        data.companyId ? eq(software.companyId, data.companyId) : isNull(software.companyId)
+      ))
+      .limit(1);
+    
+    if (existingResolved.length > 0) {
+      return existingResolved[0].id;
+    }
+    
+    // Create new software with canonical name (checked it doesn't exist)
     const [newSoftware] = await db.insert(software)
       .values({
         name: resolution.canonicalName,
-        normalizedName: this.normalizeEntityName(resolution.canonicalName),
+        normalizedName: resolvedNormalized,
         companyId: data.companyId,
         category: data.category,
         description: data.description,
@@ -259,15 +302,38 @@ export class EntityManager {
     isVerified?: boolean;
     metadata?: any;
   }): Promise<string> {
-    // Check cache first
+    // FIRST: Check if company already exists by normalized name
+    const existingByName = await db.select()
+      .from(companies)
+      .where(eq(companies.normalizedName, data.normalizedName))
+      .limit(1);
+    
+    if (existingByName.length > 0) {
+      // Company already exists, return its ID
+      return existingByName[0].id;
+    }
+    
+    // Check cache for AI resolution
     const cached = await this.getCachedResolution(data.name, 'company');
     if (cached) {
       if (cached.resolvedId) return cached.resolvedId;
-      // Cached as new entity, create with canonical name
+      
+      // Check if cached canonical name already exists
+      const canonicalNormalized = this.normalizeEntityName(cached.canonicalName);
+      const existingCanonical = await db.select()
+        .from(companies)
+        .where(eq(companies.normalizedName, canonicalNormalized))
+        .limit(1);
+      
+      if (existingCanonical.length > 0) {
+        return existingCanonical[0].id;
+      }
+      
+      // Create with canonical name (checked it doesn't exist)
       const [newCompany] = await db.insert(companies)
         .values({
           name: cached.canonicalName,
-          normalizedName: this.normalizeEntityName(cached.canonicalName),
+          normalizedName: canonicalNormalized,
           type: data.type,
           industry: data.industry,
           description: data.description,
@@ -281,7 +347,7 @@ export class EntityManager {
       return newCompany.id;
     }
     
-    // Get existing companies for comparison
+    // Get existing companies for AI comparison
     const existingCompanies = await db.select({
       id: companies.id,
       name: companies.name
@@ -304,11 +370,22 @@ export class EntityManager {
       return resolution.matchedId;
     }
     
-    // Create new company with canonical name
+    // Check if resolved canonical name already exists
+    const resolvedNormalized = this.normalizeEntityName(resolution.canonicalName);
+    const existingResolved = await db.select()
+      .from(companies)
+      .where(eq(companies.normalizedName, resolvedNormalized))
+      .limit(1);
+    
+    if (existingResolved.length > 0) {
+      return existingResolved[0].id;
+    }
+    
+    // Create new company with canonical name (checked it doesn't exist)
     const [newCompany] = await db.insert(companies)
       .values({
         name: resolution.canonicalName,
-        normalizedName: this.normalizeEntityName(resolution.canonicalName),
+        normalizedName: resolvedNormalized,
         type: data.type,
         industry: data.industry,
         description: data.description,
@@ -377,7 +454,27 @@ export class EntityManager {
     articleId?: string;
     metadata?: any;
   }): Promise<string> {
-    // Check cache first
+    // FIRST: Check if threat actor already exists by normalized name
+    const existingByName = await db.select()
+      .from(threatActors)
+      .where(eq(threatActors.normalizedName, data.normalizedName))
+      .limit(1);
+    
+    if (existingByName.length > 0) {
+      // Threat actor already exists - update aliases if we have new ones
+      if (data.aliases && data.aliases.length > 0) {
+        const currentAliases = existingByName[0].aliases || [];
+        const newAliases = [...new Set([...currentAliases, ...data.aliases])];
+        if (newAliases.length > currentAliases.length) {
+          await db.update(threatActors)
+            .set({ aliases: newAliases })
+            .where(eq(threatActors.id, existingByName[0].id));
+        }
+      }
+      return existingByName[0].id;
+    }
+    
+    // Check cache for AI resolution
     const cached = await this.getCachedResolution(data.name, 'threat_actor');
     if (cached) {
       if (cached.resolvedId) {
@@ -401,11 +498,32 @@ export class EntityManager {
         return cached.resolvedId;
       }
       
-      // Cached as new entity, create with canonical name
+      // Check if cached canonical name already exists
+      const canonicalNormalized = this.normalizeEntityName(cached.canonicalName);
+      const existingCanonical = await db.select()
+        .from(threatActors)
+        .where(eq(threatActors.normalizedName, canonicalNormalized))
+        .limit(1);
+      
+      if (existingCanonical.length > 0) {
+        // Update aliases if needed
+        if (data.aliases && data.aliases.length > 0) {
+          const currentAliases = existingCanonical[0].aliases || [];
+          const newAliases = [...new Set([...currentAliases, ...data.aliases, ...cached.aliases])];
+          if (newAliases.length > currentAliases.length) {
+            await db.update(threatActors)
+              .set({ aliases: newAliases })
+              .where(eq(threatActors.id, existingCanonical[0].id));
+          }
+        }
+        return existingCanonical[0].id;
+      }
+      
+      // Create with canonical name (checked it doesn't exist)
       const [newActor] = await db.insert(threatActors)
         .values({
           name: cached.canonicalName,
-          normalizedName: this.normalizeEntityName(cached.canonicalName),
+          normalizedName: canonicalNormalized,
           aliases: [...(data.aliases || []), ...cached.aliases],
           type: data.type,
           origin: data.origin,
@@ -458,11 +576,32 @@ export class EntityManager {
       return resolution.matchedId;
     }
     
-    // Create new threat actor with canonical name
+    // Check if resolved canonical name already exists
+    const resolvedNormalized = this.normalizeEntityName(resolution.canonicalName);
+    const existingResolved = await db.select()
+      .from(threatActors)
+      .where(eq(threatActors.normalizedName, resolvedNormalized))
+      .limit(1);
+    
+    if (existingResolved.length > 0) {
+      // Update aliases if needed
+      if (data.aliases && data.aliases.length > 0) {
+        const currentAliases = existingResolved[0].aliases || [];
+        const newAliases = [...new Set([...currentAliases, ...data.aliases, ...resolution.aliases])];
+        if (newAliases.length > currentAliases.length) {
+          await db.update(threatActors)
+            .set({ aliases: newAliases })
+            .where(eq(threatActors.id, existingResolved[0].id));
+        }
+      }
+      return existingResolved[0].id;
+    }
+    
+    // Create new threat actor with canonical name (checked it doesn't exist)
     const [newActor] = await db.insert(threatActors)
       .values({
         name: resolution.canonicalName,
-        normalizedName: this.normalizeEntityName(resolution.canonicalName),
+        normalizedName: resolvedNormalized,
         aliases: [...(data.aliases || []), ...resolution.aliases],
         type: data.type,
         origin: data.origin,
