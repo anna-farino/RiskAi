@@ -44,6 +44,7 @@ export default function NewsHome() {
     startDate?: Date;
     endDate?: Date;
   }>({});
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [relevanceFilter, setRelevanceFilter] = useState<"all" | "high" | "medium" | "low">("all");
   
@@ -60,21 +61,10 @@ export default function NewsHome() {
   // Track selected article from dashboard
   const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
   
-  // Three-tier toolbar state with localStorage persistence
+  // Collapsible toolbar state with localStorage persistence
   const [isToolbarExpanded, setIsToolbarExpanded] = useState<boolean>(() => {
     const saved = localStorage.getItem('news-radar-toolbar-expanded');
     return saved !== null ? JSON.parse(saved) : true;
-  });
-  
-  // Tier-specific expansion states
-  const [isTier2Expanded, setIsTier2Expanded] = useState<boolean>(() => {
-    const saved = localStorage.getItem('news-radar-tier2-expanded');
-    return saved !== null ? JSON.parse(saved) : false;
-  });
-  
-  const [isTier3Expanded, setIsTier3Expanded] = useState<boolean>(() => {
-    const saved = localStorage.getItem('news-radar-tier3-expanded');
-    return saved !== null ? JSON.parse(saved) : false;
   });
   
   // Available keywords display state
@@ -205,6 +195,7 @@ export default function NewsHome() {
     setDateRange({});
     setSortOrder("newest");
     setRelevanceFilter("all");
+    setIsFilterOpen(false);
   };
   
   // Handle keyword click from article card
@@ -260,15 +251,6 @@ export default function NewsHome() {
   useEffect(() => {
     localStorage.setItem('news-radar-toolbar-expanded', JSON.stringify(isToolbarExpanded));
   }, [isToolbarExpanded]);
-  
-  // Save tier expansion states to localStorage
-  useEffect(() => {
-    localStorage.setItem('news-radar-tier2-expanded', JSON.stringify(isTier2Expanded));
-  }, [isTier2Expanded]);
-  
-  useEffect(() => {
-    localStorage.setItem('news-radar-tier3-expanded', JSON.stringify(isTier3Expanded));
-  }, [isTier3Expanded]);
 
   // Toggle toolbar expanded state
   const toggleToolbar = () => {
@@ -287,7 +269,6 @@ export default function NewsHome() {
           return articleRelevance === relevanceFilter;
         });
       }
-
       
       // Apply chronological sorting
       filteredArticles.sort((a, b) => {
@@ -381,7 +362,6 @@ export default function NewsHome() {
     const publishDate = new Date(article.publishDate);
     return publishDate > lastVisit;
   };
-
 
   // Send article to News Capsule
   const sendToCapsule = async (url: string) => {
@@ -510,16 +490,16 @@ export default function NewsHome() {
 
   return (
     <>
-      {/* Three-Tier Unified Toolbar Container */}
+      {/* Unified Toolbar Container */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
         {!isToolbarExpanded ? (
-          /* Completely Collapsed State */
+          /* Collapsed State */
           <div className="p-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <Newspaper className="h-5 w-5 text-[#A855F7]" />
-                  <span className="text-base font-medium text-slate-200">News Radar Controls</span>
+                  <Newspaper className="h-5 w-5 text-blue-400" />
+                  <span className="text-base font-medium text-slate-200">Scan and Filter Controls</span>
                 </div>
                 <div className="flex items-center gap-4 text-sm text-slate-400">
                   <div className="flex items-center gap-1">
@@ -534,7 +514,7 @@ export default function NewsHome() {
                   onClick={toggleToolbar}
                   variant="ghost"
                   size="sm"
-                  className="text-[#A855F7] hover:text-white hover:bg-[#9333EA]/20 border border-[#9333EA]/30 hover:border-[#9333EA]/50 transition-all duration-200"
+                  className="text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30 hover:border-[#00FFFF]/50 transition-all duration-200"
                 >
                   <ChevronDown className="h-4 w-4" />
                 </Button>
@@ -542,302 +522,365 @@ export default function NewsHome() {
             </div>
           </div>
         ) : (
-          /* Three-Tier Progressive Layout */
-          <div className="p-4 space-y-4">
-            {/* Tier 1: Quick Actions Bar (Always Visible) */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/20 rounded-md p-4">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Search className="h-5 w-5 text-[#A855F7]" />
-                  <span className="text-base font-medium text-slate-200">Search and Filter Controls</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Badge className="bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30 text-xs px-2 py-0.5">
-                    {localArticles.length}
-                  </Badge>
-                  <span>Found Articles</span>
-                </div>
+          /* Expanded State */
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Newspaper className="h-5 w-5 text-blue-400" />
+                <span className="text-base font-medium text-slate-200">Scan and Filter Controls</span>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                {/* Smart Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search"
-                    className="pl-10 h-10 text-sm bg-slate-800/85 border border-slate-700 text-white placeholder:text-slate-400 hover:border-[#9333EA]/50 hover:text-white focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-200"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
-                </div>
-
-                {/* Quick Date Filter */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-10 px-4 text-sm border transition-all duration-200 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30 hover:bg-transparent",
-                    (dateRange.startDate || dateRange.endDate)
-                      ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                      : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                  )}
-                  onClick={() => {
-                    if (dateRange.startDate || dateRange.endDate) {
-                      handleDateRangeChange({});
-                    } else {
-                      const now = new Date();
-                      const twentyFourHoursAgo = new Date();
-                      twentyFourHoursAgo.setHours(now.getHours() - 24);
-                      handleDateRangeChange({ startDate: twentyFourHoursAgo, endDate: now });
-                    }
-                  }}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  {(dateRange.startDate || dateRange.endDate) ? "Reset" : "Past 24hrs"}
-                </Button>
-
-                {/* More Filters Toggle */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsTier2Expanded(!isTier2Expanded)}
-                  className={cn(
-                    "h-10 px-4 text-sm border transition-all duration-200 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30 hover:bg-transparent",
-                    isTier2Expanded
-                      ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                      : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                  )}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  More Filters
-                  {isTier2Expanded ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-                </Button>
-
-              </div>
+              <Button
+                onClick={toggleToolbar}
+                variant="ghost"
+                size="sm"
+                className="text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30 hover:border-[#00FFFF]/50 transition-all duration-200"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
             </div>
+            <div className="flex flex-col gap-6">
 
-            {/* Tier 2: Enhanced Filters (Expandable) */}
-            {isTier2Expanded && (
-              <div className="bg-[#9333EA]/5 border border-[#9333EA]/20 rounded-md p-4 space-y-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="h-4 w-4 text-[#A855F7]" />
-                  <span className="text-sm font-medium text-slate-400">Advanced Filters</span>
+          {/* Dedicated Full-Width Search & Filter Bar */}
+          <div className="bg-green-500/10 border border-green-500/20 rounded-md p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <Search className="h-5 w-5 text-green-400" />
+                <span className="text-base font-medium text-green-400">Search & Filter</span>
+                <div className="flex items-center gap-2 ml-4">
+                  <div className="h-4 w-px bg-slate-600"></div>
+                  <span className="text-sm text-slate-400">
+                    {localArticles.length} {localArticles.length === 1 ? 'result' : 'results'}
+                  </span>
                 </div>
+              </div>
 
-                <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
-
-                  {/* Sort Options & Time Period */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Time Range</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        { key: "newest", label: "Newest First" },
-                        { key: "oldest", label: "Oldest First" }
-                      ].map(({ key, label }) => (
-                        <Badge
-                          key={key}
-                          variant="outline"
-                          className={cn(
-                            "cursor-pointer text-xs px-3 py-2 transition-all duration-200 flex-1",
-                            sortOrder === key
-                              ? "bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30"
-                              : "bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7]"
-                          )}
-                          onClick={() => setSortOrder(key as any)}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        { label: "Today", days: 1 },
-                        { label: "Week", days: 7 },
-                        { label: "Month", days: 30 }
-                      ].map(({ label, days }) => (
-                        <Badge
-                          key={label}
-                          variant="outline"
-                          className="cursor-pointer text-xs px-3 py-2 bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7] transition-all duration-200 whitespace-nowrap flex-1"
-                          onClick={() => {
-                            const now = new Date();
-                            const pastDate = new Date();
-                            pastDate.setDate(now.getDate() - days);
-                            handleDateRangeChange({ startDate: pastDate, endDate: now });
-                          }}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
+            </div>
+            
+            <div className="grid gap-4 lg:grid-cols-4 mt-2">
+              {/* Search Input */}
+              <div className="lg:col-span-1">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-green-300">Search Articles</h4>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="word search"
+                      className="pl-10 h-8 text-xs bg-slate-800/70 border border-slate-700 text-white placeholder:text-slate-500"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                    />
                   </div>
+                </div>
+              </div>
 
-
-                  {/* Custom Date Range */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Custom Range</h4>
-                    <div className="grid grid-cols-2 gap-1">
-                      <Input
-                        type="date"
-                        value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
-                        onChange={(e) => {
-                          const date = e.target.value ? new Date(e.target.value) : undefined;
-                          handleDateRangeChange({...dateRange, startDate: date});
-                        }}
-                        className="h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 hover:border-[#9333EA]/30 hover:text-[#A855F7] transition-all duration-200 rounded-full [&::-webkit-calendar-picker-indicator]:filter-[invert(100%)] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator:hover]:opacity-100"
-                        placeholder="From Date"
-                      />
-                      <Input
-                        type="date"
-                        value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
-                        onChange={(e) => {
-                          const date = e.target.value ? new Date(e.target.value) : undefined;
-                          handleDateRangeChange({...dateRange, endDate: date});
-                        }}
-                        className="h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 hover:border-[#9333EA]/30 hover:text-[#A855F7] transition-all duration-200 rounded-full [&::-webkit-calendar-picker-indicator]:filter-[invert(100%)] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator:hover]:opacity-100"
-                        placeholder="To Date"
-                      />
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "cursor-pointer text-xs px-3 py-2 transition-all duration-200 whitespace-nowrap w-full",
-                        (() => {
-                          const now = new Date();
-                          const yearStart = new Date(now.getFullYear(), 0, 1);
-                          const isYearToDate = dateRange.startDate && dateRange.endDate &&
-                            new Date(dateRange.startDate).toDateString() === yearStart.toDateString() &&
-                            new Date(dateRange.endDate).toDateString() === now.toDateString();
-                          return isYearToDate
-                            ? "bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30 hover:bg-[#9333EA]/30"
-                            : "bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7]";
-                        })()
-                      )}
-                      onClick={() => {
-                        const now = new Date();
-                        const yearStart = new Date(now.getFullYear(), 0, 1); // January 1st of current year
-                        handleDateRangeChange({ startDate: yearStart, endDate: now });
-                      }}
-                    >
-                      Year to Date
-                    </Badge>
+              {/* Relevance Filter */}
+              <div className="lg:col-span-1">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-sm font-medium text-green-300">Relevance Score</h4>
                   </div>
-
-                  {/* Keywords Toggle */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Keywords</h4>
+                  <div className="grid grid-cols-1 gap-1">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => setIsTier3Expanded(!isTier3Expanded)}
                       className={cn(
-                        "w-full h-10 px-4 text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                        isTier3Expanded || selectedKeywordIds.length > 0
-                          ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30"
-                          : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white"
+                        "h-8 px-3 text-xs justify-start hover:bg-transparent",
+                        relevanceFilter === "high"
+                          ? "border border-emerald-500 bg-emerald-500 bg-opacity-20 text-emerald-400"
+                          : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
                       )}
+                      onClick={() => setRelevanceFilter(relevanceFilter === "high" ? "all" : "high")}
                     >
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Keywords ({selectedKeywordIds.length})
-                      {isTier3Expanded ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
+                      High Priority (80-100)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 px-3 text-xs justify-start hover:bg-transparent",
+                        relevanceFilter === "medium"
+                          ? "border border-yellow-500 bg-yellow-500 bg-opacity-20 text-yellow-400"
+                          : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                      )}
+                      onClick={() => setRelevanceFilter(relevanceFilter === "medium" ? "all" : "medium")}
+                    >
+                      Medium Priority (50-79)
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 px-3 text-xs justify-start hover:bg-transparent",
+                        relevanceFilter === "low"
+                          ? "border border-orange-500 bg-orange-500 bg-opacity-20 text-orange-400"
+                          : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                      )}
+                      onClick={() => setRelevanceFilter(relevanceFilter === "low" ? "all" : "low")}
+                    >
+                      Low Priority (1-49)
                     </Button>
                   </div>
                 </div>
+              </div>
 
+              {/* Date Range Filter */}
+              <div className="lg:col-span-1">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-white" />
+                    <h4 className="text-sm font-medium text-green-300">Date Range</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="grid grid-cols-1 gap-1">
+                      <div className="relative">
+                        <Input 
+                          type="date"
+                          placeholder="From Date"
+                          value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value) : undefined;
+                            handleDateRangeChange({...dateRange, startDate: date});
+                          }}
+                          className="h-9 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        />
+                        <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white pointer-events-none" />
+                      </div>
+                      <div className="relative">
+                        <Input 
+                          type="date"
+                          placeholder="To Date"
+                          value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
+                          onChange={(e) => {
+                            const date = e.target.value ? new Date(e.target.value) : undefined;
+                            handleDateRangeChange({...dateRange, endDate: date});
+                          }}
+                          className="h-9 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                        />
+                        <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white pointer-events-none" />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs transition-colors justify-start border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        onClick={() => {
+                          const now = new Date();
+                          const twentyFourHoursAgo = new Date();
+                          twentyFourHoursAgo.setHours(now.getHours() - 24);
+                          handleDateRangeChange({ startDate: twentyFourHoursAgo, endDate: now });
+                        }}
+                      >
+                        Past 24hrs
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-8 px-3 text-xs transition-colors justify-start border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        onClick={() => {
+                          const today = new Date();
+                          const sevenDaysAgo = new Date();
+                          sevenDaysAgo.setDate(today.getDate() - 7);
+                          handleDateRangeChange({ startDate: sevenDaysAgo, endDate: today });
+                        }}
+                      >
+                        Past 7 Days
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sort Order Filter */}
+              <div className="lg:col-span-1">
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-green-300">Sort Order</h4>
+                  <div className="grid grid-cols-1 gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 px-3 text-xs justify-start hover:bg-transparent",
+                        sortOrder === "newest"
+                          ? "border border-green-500 bg-green-500 bg-opacity-20 text-green-400"
+                          : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                      )}
+                      onClick={() => setSortOrder("newest")}
+                    >
+                      Newest First
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={cn(
+                        "h-8 px-3 text-xs justify-start hover:bg-transparent",
+                        sortOrder === "oldest"
+                          ? "border border-green-500 bg-green-500 bg-opacity-20 text-green-400"
+                          : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                      )}
+                      onClick={() => setSortOrder("oldest")}
+                    >
+                      Oldest First
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Filter Status and Reset Button */}
+            {(selectedKeywordIds.length > 0 || dateRange.startDate || dateRange.endDate || sortOrder !== "newest" || relevanceFilter !== "all") && (
+              <div className="mt-4 pt-3 border-t border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <span>Active filters:</span>
+                    {selectedKeywordIds.length > 0 && (
+                      <Badge variant="secondary" className="bg-[#BF00FF]/20 text-[#BF00FF] border-[#BF00FF]/30">
+                        {selectedKeywordIds.length} keywords
+                      </Badge>
+                    )}
+                    {relevanceFilter !== "all" && (
+                      <Badge variant="secondary" className={cn(
+                        relevanceFilter === "high" ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" :
+                        relevanceFilter === "medium" ? "bg-yellow-500/20 text-yellow-400 border-yellow-500/30" :
+                        "bg-orange-500/20 text-orange-400 border-orange-500/30"
+                      )}>
+                        {relevanceFilter === "high" ? "high priority" : 
+                         relevanceFilter === "medium" ? "medium priority" : 
+                         "low priority"}
+                      </Badge>
+                    )}
+                    {(dateRange.startDate || dateRange.endDate) && (
+                      <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+                        date range
+                      </Badge>
+                    )}
+                    {sortOrder !== "newest" && (
+                      <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+                        {sortOrder} first
+                      </Badge>
+                    )}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetFilters}
+                    className="h-8 px-3 text-xs border-slate-600 hover:bg-white/10 text-slate-400 hover:text-white transition-all duration-200"
+                  >
+                    Reset All
+                  </Button>
+                </div>
               </div>
             )}
+          </div>
 
-            {/* Tier 3: Keyword Management (Expandable) */}
-            {isTier3Expanded && (
-              <div className="bg-[#9333EA]/5 border border-[#9333EA]/20 rounded-md p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-[#A855F7]" />
-                    <span className="text-sm font-medium text-slate-400">Keyword Management</span>
-                    <Badge variant="outline" className="text-xs px-2 py-0.5 text-slate-400 border-slate-600">
+          {/* Keywords Filter Bar - Third Row */}
+          <div className="bg-[#BF00FF]/10 border border-[#BF00FF]/20 rounded-md p-6">
+            <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+              {/* Left Section: Status & Actions */}
+              <div className="flex items-center gap-3 lg:min-w-0 lg:flex-shrink-0">
+                <AlertTriangle className="h-5 w-5 text-[#BF00FF]" />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                  <span className="text-base font-medium text-[#BF00FF]">Keywords</span>
+                  <div className="flex items-center gap-2 text-sm text-slate-400">
+                    <span>
                       {selectedKeywordIds.length} of {keywords.data?.length || 0} selected
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
+                    </span>
                     {selectedKeywordIds.length > 0 && (
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedKeywordIds([])}
-                        className="h-7 px-2 text-xs text-slate-400 hover:text-white hover:bg-white/10"
+                        className="h-6 px-2 text-xs text-slate-400 hover:text-white hover:bg-white/10"
                       >
-                        Clear All
+                        Clear
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      asChild
-                      className="h-7 px-3 text-xs border-slate-600 hover:bg-white/10 text-slate-400 hover:text-white transition-all duration-200"
-                    >
-                      <Link to="/dashboard/news/keywords">
-                        Manage
-                      </Link>
-                    </Button>
                   </div>
                 </div>
+              </div>
 
-                {/* Selected Keywords */}
-                {selectedKeywordIds.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Selected Keywords</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedKeywordIds.map((keywordId) => {
-                        const keyword = keywords.data?.find(k => k.id === keywordId);
-                        return keyword ? (
-                          <Badge 
-                            key={keyword.id}
-                            className="bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30 text-xs px-2 py-1 cursor-pointer group hover:bg-[#9333EA]/30 transition-all duration-200"
-                            onClick={() => toggleKeywordSelection(keyword.id)}
-                          >
-                            {keyword.term}
-                            <X className="ml-1 h-2.5 w-2.5 group-hover:text-red-300" />
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Available Keywords */}
-                {keywords.data && keywords.data.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Available Keywords</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {keywords.data
-                        .filter(keyword => !selectedKeywordIds.includes(keyword.id))
-                        .slice(0, showAllAvailableKeywords ? undefined : 20)
-                        .map((keyword: Keyword) => (
-                          <Badge 
-                            key={keyword.id}
-                            variant="outline"
-                            className="cursor-pointer hover:bg-[#9333EA]/10 text-xs px-2 py-1 transition-colors bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7]"
-                            onClick={() => toggleKeywordSelection(keyword.id)}
-                          >
-                            {keyword.term}
-                          </Badge>
-                        ))}
-                      {keywords.data.filter(k => !selectedKeywordIds.includes(k.id)).length > 20 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowAllAvailableKeywords(!showAllAvailableKeywords)}
-                          className="h-7 px-2 text-xs text-slate-400 hover:text-[#A855F7] transition-colors"
+              {/* Center Section: Selected Keywords Display */}
+              <div className="flex-1 min-w-0">
+                {selectedKeywordIds.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 overflow-hidden">
+                    {selectedKeywordIds.slice(0, 10).map((keywordId) => {
+                      const keyword = keywords.data?.find(k => k.id === keywordId);
+                      return keyword ? (
+                        <Badge 
+                          key={keyword.id}
+                          className="bg-[#BF00FF] text-white hover:bg-[#BF00FF]/80 border-[#BF00FF] text-xs px-2 py-1 cursor-pointer group"
+                          onClick={() => toggleKeywordSelection(keyword.id)}
                         >
-                          {showAllAvailableKeywords ? 'Show Less' : `+${keywords.data.filter(k => !selectedKeywordIds.includes(k.id)).length - 20} more`}
-                        </Button>
-                      )}
-                    </div>
+                          {keyword.term}
+                          <X className="ml-1 h-2.5 w-2.5 group-hover:text-red-300" />
+                        </Badge>
+                      ) : null;
+                    })}
+                    {selectedKeywordIds.length > 10 && (
+                      <Badge variant="outline" className="text-xs px-2 py-1 text-slate-400 border-slate-600">
+                        +{selectedKeywordIds.length - 10} more
+                      </Badge>
+                    )}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-400 italic">
+                    No keywords selected - showing all articles
                   </div>
                 )}
               </div>
+
+              {/* Right Section: Management Actions */}
+              <div className="flex items-center gap-2 lg:flex-shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    // Toggle between showing all available keywords for selection
+                    const availableKeywords = keywords.data?.filter(k => !selectedKeywordIds.includes(k.id)) || [];
+                    if (availableKeywords.length > 0) {
+                      // For now, just show a simple way to add keywords - in a real implementation this could be a modal
+                      const firstFive = availableKeywords.slice(0, 5);
+                      firstFive.forEach(keyword => toggleKeywordSelection(keyword.id));
+                    }
+                  }}
+                  disabled={!keywords.data || keywords.data.length === 0 || selectedKeywordIds.length === keywords.data.length}
+                  className="h-8 px-3 text-xs border-[#BF00FF]/30 hover:bg-[#BF00FF]/10 text-[#BF00FF] hover:text-white transition-all duration-200"
+                >
+                  <span className="mr-1">+</span>
+                  Add
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="h-8 px-3 text-xs border-slate-600 hover:bg-white/10 text-slate-400 hover:text-white transition-all duration-200"
+                >
+                  <Link to="/dashboard/news/keywords">
+                    Manage Keywords
+                  </Link>
+                </Button>
+              </div>
+            </div>
+
+            {/* Available Keywords Section (when no keywords selected) */}
+            {selectedKeywordIds.length === 0 && keywords.data && keywords.data.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-[#BF00FF]/20">
+                <div className="flex flex-wrap gap-1.5">
+                  {keywords.data.map((keyword: Keyword) => (
+                    <Badge 
+                      key={keyword.id}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-[#BF00FF]/10 text-xs px-2 py-1 transition-colors bg-transparent text-slate-300 border-slate-600 hover:border-[#BF00FF]/30 hover:text-[#BF00FF]"
+                      onClick={() => toggleKeywordSelection(keyword.id)}
+                    >
+                      {keyword.term}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
             )}
+          </div>
+            </div>
           </div>
         )}
       </div>

@@ -21,8 +21,7 @@ export async function setMfa({ userId, newStatus, token }: Args): Promise<boolea
       }),
     });
     if (!response.ok) {
-      const errorData = await response.json()
-      console.log("Error while updating MFA: ", errorData)
+      console.log("Error while updating MFA: ", response)
       throw new Error('Failed to update MFA');
     }
     return true

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCircle, TrendingUp, Activity, Archive, Filter, BarChart3 } from "lucide-react";
+import { Loader2, Trash2, Plus, Tag, Search, Info, CheckCircle, XCircle, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useFetch } from "@/hooks/use-fetch";
 import { useState, useEffect } from "react";
@@ -415,22 +415,12 @@ export default function Keywords() {
 
   // Search functionality for the unified toolbar
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Active status filter states
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
-
+  const [showActiveOnly, setShowActiveOnly] = useState(false);
 
   // Filter keywords based on search term and active status
   const filteredKeywords = keywords.data?.filter(keyword => {
     const matchesSearch = keyword.term.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchesStatus = true;
-    if (statusFilter === 'active') {
-      matchesStatus = keyword.active === true;
-    } else if (statusFilter === 'inactive') {
-      matchesStatus = keyword.active === false;
-    }
-    
+    const matchesStatus = !showActiveOnly || keyword.active;
     return matchesSearch && matchesStatus;
   }) || [];
 
@@ -449,102 +439,68 @@ export default function Keywords() {
           {/* Header Section */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <div className="flex flex-col gap-1">
-              <h1 className="text-xl md:text-2xl lg:text-2xl [letter-spacing:1px] text-white">
+              <h1 className="text-xl md:text-2xl lg:text-3xl font-bold tracking-tight text-white">
                 Keyword Management
               </h1>
-              <p className="text-base text-slate-400">
+              <p className="text-sm text-slate-300">
                 Manage keywords to categorize and filter article content
               </p>
             </div>
           </div>
 
           {/* Toolbar Content */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-            {/* Search Section */}
-            <div className="col-span-1">
-              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Search & Filter Section */}
+            <div className="lg:col-span-1">
+              <div className="bg-green-500/10 border border-green-500/20 rounded-md p-3">
                 <div className="flex items-center gap-2 mb-3">
-                  <Search className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Search Keywords</span>
+                  <Search className="h-4 w-4 text-green-400" />
+                  <span className="text-sm font-medium text-green-400">Search & Filter Keywords</span>
                 </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search keywords..."
-                    className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Section */}
-            <div className="col-span-1">
-              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Status Filters</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <button
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search keywords..."
+                      className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                    />
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     className={cn(
-                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      statusFilter === 'all'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                      "h-8 text-xs px-3 transition-colors whitespace-nowrap",
+                      showActiveOnly
+                        ? "border border-green-500 bg-green-500 bg-opacity-20 hover:bg-opacity-30 text-green-500"
+                        : "border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
                     )}
-                    onClick={() => setStatusFilter('all')}
-                    title="Show All Keywords"
-                  >
-                    <Filter className="h-3 w-3 mr-1" />
-                    All
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      statusFilter === 'active'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setStatusFilter('active')}
-                    title="Active Keywords"
+                    onClick={() => setShowActiveOnly(!showActiveOnly)}
+                    title={showActiveOnly ? "Show All Keywords" : "Show Active Only"}
                   >
                     <CheckCircle className="h-3 w-3 mr-1" />
-                    Active
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      statusFilter === 'inactive'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setStatusFilter('inactive')}
-                    title="Inactive Keywords"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Inactive
-                  </button>
+                    Active Only
+                  </Button>
                 </div>
               </div>
             </div>
 
-            {/* Add Keyword Section */}
-            <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+            {/* Actions Section */}
+            <div className="lg:col-span-1">
               <form onSubmit={onSubmit}>
                 <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
                   <div className="flex items-center gap-2 mb-3">
                     <Plus className="h-4 w-4 text-purple-400" />
                     <span className="text-sm font-medium text-purple-400">Add New Keyword</span>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <div className="relative flex-1">
                       <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
                         placeholder="Enter keyword term..."
                         {...form.register("term")}
-                        className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
+                        className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                       />
                     </div>
                     <Button
@@ -557,8 +513,53 @@ export default function Keywords() {
                       ) : (
                         <Plus className="h-3 w-3 mr-1" />
                       )}
-                      Add
+                      Add Keyword
                     </Button>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Actions Section */}
+            <div className="lg:col-span-4">
+              <form onSubmit={onSubmit} className="space-y-3">
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-lg p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Plus className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm font-medium text-purple-400">Add New Keyword</span>
+                  </div>
+                  <div className="text-xs text-slate-300 mb-3 space-y-2">
+                    <p>
+                      Enter specific terms to track in news articles. Keywords are automatically activated when added.
+                    </p>
+                    <p className="text-slate-400">
+                      Examples: "cybersecurity", "AI technology", "blockchain"
+                    </p>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="relative">
+                      <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Input
+                        placeholder="Enter keyword term..."
+                        {...form.register("term")}
+                        className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                      />
+                    </div>
+                    <Button
+                      type="submit"
+                      disabled={addKeyword.isPending || !form.watch("term")?.trim()}
+                      className="w-full bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] h-8 text-xs px-2"
+                    >
+                      {addKeyword.isPending ? (
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                      ) : (
+                        <Plus className="h-3 w-3" />
+                      )}
+                      Add Keyword
+                    </Button>
+                    <div className="text-xs text-slate-400">
+                      {filteredKeywords.length} keywords ({keywords.data?.filter(k => k.active).length || 0} active)
+                    </div>
                   </div>
                 </div>
               </form>
@@ -616,8 +617,8 @@ export default function Keywords() {
             {searchTerm && (
               <span>Searching: "{searchTerm}"</span>
             )}
-            {statusFilter !== 'all' && (
-              <span>Filter: {statusFilter === 'active' ? 'Active' : 'Inactive'}</span>
+            {showActiveOnly && (
+              <span>Active keywords only</span>
             )}
           </div>
         </div>
@@ -645,17 +646,17 @@ export default function Keywords() {
             <p className="text-slate-400 max-w-md mb-6">
               {searchTerm 
                 ? `No keywords match "${searchTerm}". Try adjusting your search terms.`
-                : statusFilter !== 'all'
-                  ? `No ${statusFilter === 'active' ? 'active' : 'inactive'} keywords found. Try selecting a different status filter.`
+                : showActiveOnly 
+                  ? "No active keywords found. Try toggling the Active Only filter."
                   : "No keywords to display."
               }
             </p>
-            {(searchTerm || statusFilter !== 'all') && (
+            {(searchTerm || showActiveOnly) && (
               <Button 
                 variant="outline" 
                 onClick={() => {
                   setSearchTerm("");
-                  setStatusFilter('all');
+                  setShowActiveOnly(false);
                 }}
                 className="border-slate-600/50 hover:border-slate-500/70 hover:bg-white/10 text-white"
               >

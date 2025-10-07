@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ChevronUp, ChevronDown, Menu, X, Link2, Play, FileText, Settings2, Trash2, Globe, Search, BarChart3, FolderOpen } from "lucide-react";
+import { ChevronUp, ChevronDown, Menu, X, Link2, Play, FileText, Settings2, Trash2 } from "lucide-react";
 
 interface ArticleSummary {
   id: string;
@@ -102,6 +102,8 @@ export default function Research() {
   const [isViewportMobile, setIsViewportMobile] = useState(false);
   const [showSelectedArticlesOverlay, setShowSelectedArticlesOverlay] = useState(false);
   
+  // Unified Toolbar State
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
   
   // Dialog state
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -505,240 +507,211 @@ export default function Research() {
     <>
       {/* Unified Toolbar Container */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <FileText className="h-6 w-6 text-purple-400" />
-            <span className="text-xl font-semibold text-white">Research Tools and Processing</span>
-          </div>
-
-          {/* 3-Column Compact Layout */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            
-            {/* Column 1: URL Processing */}
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Globe className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-400">URL Processing</span>
-              </div>
-              
-              <div className="space-y-2">
-                {/* Process URLs Button - Row 1 */}
-                <button
-                  onClick={processUrl}
-                  disabled={isLoading}
-                  className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
-                >
-                  {isLoading ? "Processing..." : "Process URLs"}
-                </button>
-
-                {/* URL Input */}
-                <div className="relative">
-                  <textarea
-                    value={url}
-                    onChange={(e) => setUrl(e.target.value)}
-                    onFocus={() => setShowUrlDropdown(true)}
-                    onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                    placeholder="Enter single URL or multiple URLs (one per line)&#10;https://example.com/article1&#10;https://example.com/article2"
-                    rows={3}
-                    className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 text-slate-200"
-                  />
-                  
-                  {/* URL Dropdown */}
-                  {showUrlDropdown && savedUrls.length > 0 && (
-                    <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-md overflow-hidden z-20 max-h-32 overflow-y-auto shadow-xl">
-                      {savedUrls.map((savedUrl, index) => (
-                        <button
-                          key={index}
-                          onClick={() => selectSavedUrl(savedUrl)}
-                          className="w-full text-left px-3 py-2 text-xs hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
-                        >
-                          {savedUrl}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {/* Clear Button */}
-                {url && (
-                  <button
-                    onClick={() => setUrl("")}
-                    className="w-full h-8 px-3 text-xs font-medium bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded border border-slate-600/50 transition-colors flex items-center justify-center"
-                  >
-                    Clear
-                  </button>
+        {!isToolbarExpanded ? (
+          /* Collapsed State */
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <FileText className="h-5 w-5 text-orange-400" />
+                <span className="text-lg font-medium text-white">Capsule Research</span>
+                {selectedArticles.length > 0 && (
+                  <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-xs text-orange-400">
+                    {selectedArticles.length} selected
+                  </span>
+                )}
+                {isLoading && (
+                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs text-blue-400">
+                    Processing...
+                  </span>
                 )}
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsToolbarExpanded(true)}
+                  className="px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/50 rounded-md text-sm text-slate-300 hover:text-white transition-all duration-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Expanded State */
+          <div className="p-6">
+            {/* Header with collapse button */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <FileText className="h-6 w-6 text-orange-400" />
+                <span className="text-xl font-semibold text-white">Capsule Research</span>
+                {selectedArticles.length > 0 && (
+                  <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-sm text-orange-400">
+                    {selectedArticles.length} selected
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={() => setIsToolbarExpanded(false)}
+                className="p-2 hover:bg-slate-800/50 rounded-md transition-colors duration-200 text-slate-400 hover:text-white"
+              >
+                <ChevronUp className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Column 2: Research Tools */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Search className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Research Tools</span>
-              </div>
-              
-              <div className="space-y-2">
-                {/* Report Topic Input */}
-                <input
-                  type="text"
-                  value={reportTopic}
-                  onChange={(e) => setReportTopic(e.target.value)}
-                  placeholder="Enter report topic (optional)"
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-md text-xs text-slate-200 focus:ring-1 focus:ring-purple-500/50"
-                />
+            {/* URL Processing Section */}
+            <div className="grid gap-6 lg:grid-cols-3">
+              {/* URL Input & Controls */}
+              <div className="lg:col-span-2">
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Link2 className="h-5 w-5 text-blue-400" />
+                    <span className="text-base font-medium text-blue-400">URL Processing</span>
+                  </div>
+                  
+                  {/* Mode Toggle */}
+                  <div className="flex gap-2 mb-4">
+                    <button
+                      onClick={() => setBulkMode(false)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        !bulkMode 
+                          ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50' 
+                          : 'bg-slate-800/50 text-slate-400 hover:text-slate-300'
+                      }`}
+                    >
+                      Single URL
+                    </button>
+                    <button
+                      onClick={() => setBulkMode(true)}
+                      className={`px-3 py-2 rounded-md text-sm transition-colors ${
+                        bulkMode 
+                          ? 'bg-blue-500/30 text-blue-300 border border-blue-500/50' 
+                          : 'bg-slate-800/50 text-slate-400 hover:text-slate-300'
+                      }`}
+                    >
+                      Bulk URLs
+                    </button>
+                  </div>
 
-                {/* Analysis Tools Row */}
-                <div className="grid grid-cols-2 gap-1">
-                  <button
-                    onClick={() => {
-                      toast({
-                        title: "Analysis Tool",
-                        description: "Keyword analysis feature coming soon...",
-                      });
-                    }}
-                    className="h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                  >
-                    Keywords
-                  </button>
-                  <button
-                    onClick={() => {
-                      toast({
-                        title: "Analysis Tool", 
-                        description: "Summary analysis feature coming soon...",
-                      });
-                    }}
-                    className="h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                  >
-                    Summary
-                  </button>
-                </div>
+                  {/* URL Input */}
+                  <div className="relative mb-4">
+                    {bulkMode ? (
+                      <textarea
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        placeholder="https://example.com/article1&#10;https://example.com/article2&#10;https://example.com/article3"
+                        rows={3}
+                        className="w-full px-4 py-3 text-sm bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-slate-200"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={url}
+                        onChange={(e) => setUrl(e.target.value)}
+                        onFocus={() => setShowUrlDropdown(true)}
+                        onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
+                        placeholder="https://example.com/article"
+                        className="w-full px-4 py-3 text-sm bg-slate-800/50 border border-slate-600/50 rounded-md focus:ring-2 focus:ring-orange-500/50 focus:border-orange-500/50 text-slate-200"
+                      />
+                    )}
+                    
+                    {/* URL Dropdown */}
+                    {showUrlDropdown && savedUrls.length > 0 && !bulkMode && (
+                      <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border border-slate-700 rounded-md overflow-hidden z-20 max-h-48 overflow-y-auto shadow-xl">
+                        {savedUrls.map((savedUrl, index) => (
+                          <button
+                            key={index}
+                            onClick={() => selectSavedUrl(savedUrl)}
+                            className="w-full text-left px-4 py-3 text-sm hover:bg-slate-700 truncate border-b border-slate-700/50 last:border-b-0"
+                          >
+                            {savedUrl}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                {/* Report Actions Row */}
-                <div className="grid grid-cols-1 gap-1">
-                  <button
-                    onClick={sendToExecutiveReport}
-                    disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="h-8 px-3 text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-white rounded border border-green-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
-                  >
-                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
-                  </button>
-                </div>
-
-                {/* Clear Selection */}
-                {selectedArticles.length > 0 && (
-                  <div className="pt-1 border-t border-purple-500/20">
-                    <div className="flex items-center justify-between text-xs text-purple-300">
-                      <span>{selectedArticles.length} selected</span>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    {url && (
                       <button
-                        onClick={() => {
-                          setSelectedArticles([]);
-                          localStorage.removeItem('news-capsule-selected-articles');
-                        }}
-                        className="text-slate-400 hover:text-red-400 transition-colors"
+                        onClick={() => setUrl("")}
+                        className="px-4 py-2 bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded-md text-sm transition-colors"
                       >
                         Clear
                       </button>
-                    </div>
+                    )}
+                    <button
+                      onClick={processUrl}
+                      disabled={isLoading}
+                      className="flex-1 px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white rounded-md disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      {isLoading ? "Processing..." : "Process URLs"}
+                    </button>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Report Management */}
+              <div className="lg:col-span-1">
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Play className="h-5 w-5 text-purple-400" />
+                    <span className="text-base font-medium text-purple-400">Report Actions</span>
+                  </div>
+                  
+                  {/* Report Topic */}
+                  <div className="mb-4">
+                    <label className="block text-sm text-slate-300 mb-2">Report Topic</label>
+                    <input
+                      type="text"
+                      value={reportTopic}
+                      onChange={(e) => setReportTopic(e.target.value)}
+                      placeholder="Enter topic (optional)"
+                      className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-md text-sm text-slate-200 focus:ring-2 focus:ring-purple-500/50"
+                    />
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    <button
+                      onClick={sendToExecutiveReport}
+                      disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                      className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-md disabled:opacity-50 text-sm font-medium transition-colors"
+                    >
+                      {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
+                    </button>
+                    
+                    <button
+                      onClick={() => {
+                        const articleIds = selectedArticles.map(article => article.id);
+                        const topic = reportTopic.trim() || undefined;
+                        createReportMutation.mutate({ articleIds, topic });
+                      }}
+                      disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                      className="w-full px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md disabled:opacity-50 text-sm transition-colors"
+                    >
+                      Create New Report
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
-            {/* Column 3: Export Research */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <FileText className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Export Research</span>
-              </div>
-              
-              <div className="space-y-2">
-                {selectedArticles.length > 0 ? (
-                  <>
-                    {/* Export Options Row 1 */}
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "Export to PDF",
-                            description: "PDF export of selected articles coming soon...",
-                          });
-                        }}
-                        className="flex-1 h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        PDF
-                      </button>
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "Export to Word",
-                            description: "Word export of selected articles coming soon...",
-                          });
-                        }}
-                        className="flex-1 h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        Word
-                      </button>
-                    </div>
-
-                    {/* Export Options Row 2 */}
-                    <button
-                      onClick={() => {
-                        const exportData = {
-                          timestamp: new Date().toISOString(),
-                          selectedArticles: selectedArticles.length,
-                          articles: selectedArticles.map(article => ({
-                            title: article.title,
-                            threatName: article.threatName,
-                            vulnerabilityId: article.vulnerabilityId,
-                            summary: article.summary,
-                            impacts: article.impacts,
-                            attackVector: article.attackVector,
-                            sourcePublication: article.sourcePublication,
-                            originalUrl: article.originalUrl,
-                            createdAt: article.createdAt
-                          }))
-                        };
-                        
-                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = `Research_Export_${new Date().toISOString().split('T')[0]}.json`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(url);
-                        
-                        toast({
-                          title: "Export Complete",
-                          description: `${selectedArticles.length} articles exported to JSON.`,
-                        });
-                      }}
-                      className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                    >
-                      JSON Export
-                    </button>
-
-                    {/* Statistics */}
-                    <div className="pt-1 border-t border-purple-500/20">
-                      <div className="flex items-center justify-between text-xs text-purple-300">
-                        <span>Total: {processedArticles?.length || 0}</span>
-                        <span>Selected: {selectedArticles.length}</span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4 text-slate-400">
-                    <FileText className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                    <p className="text-xs">Select articles to export</p>
-                  </div>
-                )}
+            {/* Article Management Section */}
+            <div className="bg-green-500/10 border border-green-500/20 rounded-md p-6 mt-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <Settings2 className="h-5 w-5 text-green-400" />
+                  <span className="text-base font-medium text-green-400">Article Management</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-slate-400">
+                    {processedArticles?.length || 0} processed | {selectedArticles.length} selected
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Mobile Floating Action Button - positioned next to back-to-top button */}
@@ -770,7 +743,7 @@ export default function Research() {
           </div>
           {articlesLoading ? (
             <div className="flex flex-col items-center justify-center py-12">
-              <div className="w-8 h-8 border-4 border-slate-600 border-t-purple-500 rounded-full animate-spin mb-4"></div>
+              <div className="w-8 h-8 border-4 border-slate-600 border-t-orange-500 rounded-full animate-spin mb-4"></div>
               <p className="text-slate-400">Loading articles...</p>
             </div>
           ) : processedArticles.length === 0 ? (
@@ -825,7 +798,7 @@ export default function Research() {
                                 onClick={() => setCurrentPage(page)}
                                 className={`px-2 py-1 rounded-md min-w-[28px] text-xs transition-colors ${
                                   currentPage === page
-                                    ? 'bg-purple-600 text-white'
+                                    ? 'bg-orange-600 text-white'
                                     : 'bg-slate-700 text-white hover:bg-slate-600'
                                 }`}
                               >
@@ -941,7 +914,7 @@ export default function Research() {
               >
                 {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
               </button>
-              <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/30 rounded-md text-sm text-purple-400 font-medium">
+              <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-sm text-orange-400 font-medium">
                 {selectedArticles.length}
               </span>
             </div>
@@ -1042,7 +1015,7 @@ export default function Research() {
                         onClick={() => setCurrentPage(page)}
                         className={`px-2 sm:px-3 py-2 sm:py-3 rounded-md min-w-[36px] sm:min-w-[44px] text-xs sm:text-sm touch-manipulation ${
                           currentPage === page
-                            ? 'bg-purple-600 text-white'
+                            ? 'bg-orange-600 text-white'
                             : 'bg-slate-700 text-white hover:bg-slate-600'
                         }`}
                       >

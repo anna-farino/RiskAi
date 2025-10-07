@@ -4,7 +4,7 @@ import { format } from "date-fns";
 import { formatDateOnly } from "@/utils/date-utils";
 
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType } from "docx";
-import { X as XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon, ChevronUp, ChevronDown, BarChart3, FolderOpen, FileText } from "lucide-react";
+import { X as XIcon, GripVerticalIcon, EditIcon, SaveIcon, PlusIcon, ChevronUp, ChevronDown, BarChart3, FolderOpen } from "lucide-react";
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -62,6 +62,8 @@ export default function Reports() {
   
   // Remove sidebar-related mobile responsive state
   
+  // Unified Toolbar State
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState(false);
 
   // Load reports query
   const { data: reports = [], isLoading: reportsLoading, error: reportsError } = useQuery<ReportWithArticles[]>({
@@ -419,431 +421,136 @@ export default function Reports() {
 
       {/* Unified Toolbar Container */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300 mx-4 lg:mx-0">
-        <div className="p-6">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-6">
-            <BarChart3 className="h-6 w-6 text-purple-400" />
-            <span className="text-xl font-semibold text-white">Reports Library and Tools</span>
-          </div>
+        {!isToolbarExpanded ? (
+          /* Collapsed State */
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-5 w-5 text-orange-400" />
+                <div className="flex flex-col">
+                  <span className="text-lg font-medium text-white">Reports Library and Tools</span>
+                  <span className="text-xs text-slate-400">View and manage compiled reports for executive review</span>
+                </div>
+                {reports.length > 0 && (
+                  <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-xs text-orange-400">
+                    {reports.length} reports
+                  </span>
+                )}
+                {selectedReport && (
+                  <span className="px-2 py-1 bg-blue-500/20 border border-blue-500/30 rounded-md text-xs text-blue-400">
+                    Report selected
+                  </span>
+                )}
 
-          {/* 3-Column Compact Layout */}
-          <div className="grid gap-4 lg:grid-cols-3">
-            
-            {/* Column 1: Report Selection */}
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <FolderOpen className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Library</span>
-                </div>
-                <div className="flex gap-3 text-xs text-purple-300">
-                  <span>{reports.length} reports</span>
-                  <span>{reports.reduce((sum, r) => sum + r.articles.length, 0)} articles</span>
-                </div>
               </div>
-              
-              {/* Recent Reports - Horizontal Grid */}
-              <div>
-                {reports.length === 0 ? (
-                  <div className="text-center py-3 text-slate-400">
-                    <p className="text-xs">No reports available</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {/* Show most recent 2 reports in row 1 */}
-                    <div className="space-y-1">
-                      <div className="grid grid-cols-2 gap-1">
-                        {[...reports]
-                          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-                          .slice(0, 2)
-                          .map((report) => (
-                            <button
-                              key={report.id}
-                              className={`h-8 px-3 text-xs font-medium rounded border transition-all duration-200 ${
-                                selectedReport?.id === report.id
-                                  ? 'bg-[#9333EA]/20 border-[#9333EA]/50 text-purple-300'
-                                  : 'bg-slate-800/50 border-slate-600/50 hover:bg-slate-700/50 text-slate-300 hover:text-white'
-                              }`}
-                              onClick={() => handleReportSelect(report)}
-                            >
-                              <div className="flex items-center justify-center h-full">
-                                <span className="truncate text-center text-xs">
-                                  {format(new Date(report.createdAt), 'MMM dd h:mm a')}
-                                </span>
-                              </div>
-                            </button>
-                          ))}
-                      </div>
-                      
-                      {/* Row 2: Delete and View buttons */}
-                      <div className="grid grid-cols-2 gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (selectedReport) {
-                              confirmDeleteReport(selectedReport);
-                            }
-                          }}
-                          disabled={!selectedReport}
-                          className="h-8 px-3 text-xs font-medium bg-red-900/20 hover:bg-red-900/40 text-red-400 rounded border border-red-900/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          Delete
-                        </button>
-                        <button
-                          onClick={() => {
-                            if (selectedReport) {
-                              // Navigate to view report details or open modal
-                              toast({
-                                title: "View Report",
-                                description: "Report details displayed in Column 2",
-                              });
-                            }
-                          }}
-                          disabled={!selectedReport}
-                          className="h-8 px-3 text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-300 rounded border border-green-500/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                          View
-                        </button>
-                      </div>
-                    </div>
-                    
-                  </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsToolbarExpanded(true)}
+                  className="px-3 py-2 bg-slate-800/50 hover:bg-slate-700/50 border border-slate-600/50 rounded-md text-sm text-slate-300 hover:text-white transition-all duration-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Expanded State */
+          <div className="p-6">
+            {/* Header with collapse button */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <BarChart3 className="h-6 w-6 text-orange-400" />
+                <div className="flex flex-col">
+                  <span className="text-xl font-semibold text-white">Reports Library and Tools</span>
+                  <span className="text-sm text-slate-400">View and manage compiled reports for executive review</span>
+                </div>
+                {reports.length > 0 && (
+                  <span className="px-3 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-sm text-orange-400">
+                    {reports.length} reports
+                  </span>
                 )}
               </div>
+              <button
+                onClick={() => setIsToolbarExpanded(false)}
+                className="p-2 hover:bg-slate-800/50 rounded-md transition-colors duration-200 text-slate-400 hover:text-white"
+              >
+                <ChevronUp className="h-5 w-5" />
+              </button>
             </div>
 
-            {/* Column 2: Executive Summary */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <BarChart3 className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Executive Summary</span>
+            {/* Report Library - Full Width */}
+            <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <FolderOpen className="h-5 w-5 text-orange-400" />
+                  <span className="text-base font-medium text-orange-400">Report Library</span>
+                  {reports.length > 0 && (
+                    <span className="px-2 py-1 bg-orange-500/20 border border-orange-500/30 rounded-md text-xs text-orange-400">
+                      {reports.length} reports
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-slate-400">
+                    {reports.length} total reports | {reports.reduce((sum, r) => sum + r.articles.length, 0)} total articles
+                  </span>
+                </div>
               </div>
               
-              {selectedReport ? (
-                <>
-                  {/* Report Info - Compact */}
-                  <div className="space-y-1 mb-3">
-                    {selectedReport.topic && (
-                      <div className="text-xs">
-                        <span className="text-slate-400">Topic:</span>
-                        <span className="text-purple-300 ml-1">{selectedReport.topic}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    {/* Row 1: View More Articles - Full Width */}
-                    {reports.length > 2 && (
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "More Reports Available",
-                            description: `${reports.length - 2} additional reports available. Scroll down to view the full report list.`,
-                          });
-                        }}
-                        className="w-full h-8 px-3 text-xs font-medium rounded border border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 text-purple-400 hover:text-purple-300 transition-all duration-200 flex items-center justify-center"
+              {/* Report List - Always Visible */}
+              <div className="max-h-48 overflow-y-auto mb-4">
+                <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  {reports.length === 0 ? (
+                    <div className="col-span-full text-center py-6 text-slate-400">
+                      <FolderOpen className="h-6 w-6 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No reports available</p>
+                    </div>
+                  ) : (
+                    reports.map((report) => (
+                      <div
+                        key={report.id}
+                        className={`relative group px-2 py-1.5 rounded-md border transition-all duration-200 ${
+                          selectedReport?.id === report.id
+                            ? 'bg-orange-500/20 border-orange-500/50 text-orange-300'
+                            : 'bg-slate-800/50 border-slate-600/50 hover:bg-slate-700/50 text-slate-300 hover:text-white'
+                        }`}
                       >
-                        <div className="flex items-center justify-center gap-1">
-                          <span>View More Articles</span>
-                          <span className="text-xs opacity-75">({reports.length - 2})</span>
+                        <div 
+                          onClick={() => handleReportSelect(report)}
+                          className="flex items-center justify-between cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs font-medium truncate">
+                              {format(new Date(report.createdAt), 'MMM dd')} • {report.articles.length} articles • {format(new Date(report.createdAt), 'h:mm a')}
+                            </span>
+                          </div>
+                          
+                          {/* Delete button */}
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              confirmDeleteReport(report);
+                            }}
+                            className="p-1 rounded bg-red-900/20 hover:bg-red-900/40 text-red-400 transition-colors text-xs flex-shrink-0"
+                            title="Delete report"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M3 6h18"></path>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path>
+                              <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
                         </div>
-                      </button>
-                    )}
-
-                    {/* Row 2: Summary and Share Report - Horizontal */}
-                    <div className="grid grid-cols-2 gap-1">
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "Generating Summary",
-                            description: "AI-powered executive summary is being generated...",
-                          });
-                        }}
-                        className="h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        Summary
-                      </button>
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "Send Report",
-                            description: "Report sending options available...",
-                          });
-                        }}
-                        className="h-8 px-3 text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-white rounded border border-green-500/40 transition-colors flex items-center justify-center"
-                      >
-                        Send Report
-                      </button>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-slate-400">
-                  <BarChart3 className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">Select report to view</p>
+                      </div>
+                    ))
+                  )}
                 </div>
-              )}
-            </div>
-
-            {/* Column 3: Export Actions */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <FileText className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Export Reports</span>
               </div>
               
-              {selectedReport ? (
-                <>
-                  {/* Export Buttons - 2 Rows */}
-                  <div className="space-y-2">
-                    <div className="flex gap-1">
-                      <button
-                        onClick={async () => {
-                          try {
-                            const container = document.createElement('div');
-                            container.style.position = 'absolute';
-                            container.style.left = '-9999px';
-                            container.style.top = '0';
-                            container.style.width = '7in';
-                            container.style.background = 'white';
-                            container.style.fontFamily = 'Cambria, serif';
-                            container.style.fontSize = '11pt';
-                            container.style.lineHeight = '1.3';
-                            container.style.color = 'black';
-                            container.style.padding = '20px';
-                            
-                            let htmlContent = `
-                              <div style="font-family: Cambria, serif; font-size: 11pt; line-height: 1.3; color: black; max-width: 100%;">
-                                <h1 style="text-align: center; font-size: 16pt; font-weight: bold; margin-bottom: 24px;">RisqAI News Capsule Reporting</h1>
-                                <h2 style="font-size: 14pt; font-weight: bold; margin-bottom: 16px;">Executive Report: ${String(selectedReport.createdAt)}</h2>
-                            `;
-                            
-                            if (selectedReport.topic) {
-                              htmlContent += `<p style="margin-bottom: 16px;"><strong>Report Topic:</strong> ${selectedReport.topic}</p>`;
-                            }
-                            
-                            selectedReport.articles.forEach((article, index) => {
-                              htmlContent += `
-                                <div style="page-break-inside: avoid; page-break-before: ${index > 0 ? 'auto' : 'avoid'}; margin-bottom: 32px; border: 1px solid #e0e0e0; padding: 20px; background-color: #fafafa;">
-                                  <h3 style="font-size: 13pt; font-weight: bold; margin-bottom: 16px; color: #222; border-bottom: 2px solid #007bff; padding-bottom: 8px;">Article ${index + 1}: ${article.title}</h3>
-                                  
-                                  <div style="margin-bottom: 16px;">
-                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Threat Name:</strong> ${article.threatName}</p>
-                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Vulnerability ID:</strong> ${article.vulnerabilityId}</p>
-                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Target OS:</strong> ${article.targetOS}</p>
-                                    <p style="margin-bottom: 6px; font-size: 10pt;"><strong>Source:</strong> ${article.sourcePublication}</p>
-                                  </div>
-                                  
-                                  <div style="margin-bottom: 16px;">
-                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Summary:</h4>
-                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.summary}</p>
-                                  </div>
-                                  
-                                  <div style="margin-bottom: 16px;">
-                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Impacts:</h4>
-                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.impacts}</p>
-                                  </div>
-                                  
-                                  <div style="margin-bottom: 16px;">
-                                    <h4 style="font-weight: bold; margin: 12px 0 8px 0; color: #444; font-size: 11pt;">Attack Vector:</h4>
-                                    <p style="margin-bottom: 12px; line-height: 1.5; text-align: justify;">${article.attackVector}</p>
-                                  </div>
-                              `;              
-                              htmlContent += `
-                                  <div style="border-top: 1px solid #ccc; padding-top: 8px; margin-top: 16px;">
-                                    <p style="margin-bottom: 0; font-size: 9pt; color: #888;"><strong>Source URL:</strong> ${article.originalUrl}</p>
-                                  </div>
-                                </div>`;
-                            });
-                            
-                            htmlContent += '</div>';
-                            container.innerHTML = htmlContent;
-                            document.body.appendChild(container);
-                            
-                            const canvas = await html2canvas(container, {
-                              scale: 2,
-                              useCORS: true,
-                              backgroundColor: '#ffffff'
-                            });
-                            
-                            const pdf = new jsPDF('p', 'mm', 'a4');
-                            const pageWidth = 210;
-                            const pageHeight = 297;
-                            const margins = { top: 25, bottom: 25, left: 20, right: 20 };
-                            const contentWidth = pageWidth - margins.left - margins.right;
-                            const contentHeight = pageHeight - margins.top - margins.bottom;
-                            
-                            const imgWidth = contentWidth;
-                            const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                            let heightLeft = imgHeight;
-                            let position = 0;
-                            
-                            pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margins.left, margins.top + position, imgWidth, imgHeight);
-                            heightLeft -= contentHeight;
-                            
-                            while (heightLeft >= 0) {
-                              position = heightLeft - imgHeight;
-                              pdf.addPage();
-                              pdf.addImage(canvas.toDataURL('image/png'), 'PNG', margins.left, margins.top + position, imgWidth, imgHeight);
-                              heightLeft -= contentHeight;
-                            }
-                            
-                            pdf.save(`Executive_Report_${String(selectedReport.createdAt).replace(/,|\s/g, '_')}.pdf`);
-                            document.body.removeChild(container);
-                            
-                          } catch (error) {
-                            toast({
-                              variant: "destructive",
-                              title: "Export Error",
-                              description: "Error creating PDF. Please try again.",
-                            });
-                          }
-                        }}
-                        className="flex-1 h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        PDF
-                      </button>
-                      <button
-                        onClick={async () => {
-                          try {
-                            const sections = [];
-                            
-                            sections.push(
-                              new Paragraph({
-                                children: [
-                                  new TextRun({
-                                    text: "RisqAI News Capsule Reporting",
-                                    font: "Cambria",
-                                    size: 28,
-                                    bold: true,
-                                    color: "000000"
-                                  })
-                                ],
-                                alignment: AlignmentType.CENTER,
-                                spacing: { after: 240 }
-                              })
-                            );
-                            
-                            sections.push(
-                              new Paragraph({
-                                children: [
-                                  new TextRun({
-                                    text: `Executive Report: ${String(selectedReport.createdAt)}`,
-                                    font: "Cambria",
-                                    size: 22
-                                  })
-                                ],
-                                alignment: AlignmentType.CENTER,
-                                spacing: { after: 120 }
-                              })
-                            );
-                            
-                            if (selectedReport.topic) {
-                              sections.push(
-                                new Paragraph({
-                                  children: [
-                                    new TextRun({
-                                      text: "Report Topic: ",
-                                      font: "Cambria",
-                                      size: 22,
-                                      bold: true
-                                    }),
-                                    new TextRun({
-                                      text: selectedReport.topic,
-                                      font: "Cambria",
-                                      size: 22
-                                    })
-                                  ],
-                                  alignment: AlignmentType.CENTER,
-                                  spacing: { after: 120 }
-                                })
-                              );
-                            }
-                            
-                            selectedReport.articles.forEach((article, index) => {
-                              sections.push(
-                                new Paragraph({
-                                  children: [
-                                    new TextRun({
-                                      text: article.title,
-                                      font: "Cambria",
-                                      size: 22,
-                                      bold: true
-                                    })
-                                  ],
-                                  spacing: { after: 120 }
-                                })
-                              );
-                              
-                              sections.push(
-                                new Paragraph({
-                                  children: [
-                                    new TextRun({
-                                      text: "Summary: ",
-                                      font: "Cambria",
-                                      size: 22,
-                                      bold: true
-                                    }),
-                                    new TextRun({
-                                      text: article.summary,
-                                      font: "Cambria",
-                                      size: 22
-                                    })
-                                  ],
-                                  spacing: { after: 60 }
-                                })
-                              );
-                            });
-                            
-                            const doc = new Document({
-                              sections: [
-                                {
-                                  properties: {},
-                                  children: sections
-                                }
-                              ]
-                            });
-                            
-                            const buffer = await Packer.toBuffer(doc);
-                            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
-                            const url = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = url;
-                            link.download = `Executive_Report_${String(selectedReport.createdAt).replace(/,|\s/g, '_')}.docx`;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(url);
-                          } catch (error) {
-                            toast({
-                              variant: "destructive",
-                              title: "Export Error",
-                              description: "Error creating Word document. Please try again.",
-                            });
-                          }
-                        }}
-                        className="flex-1 h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        Word
-                      </button>
-                    </div>
-                    <button
-                      onClick={exportToJSON}
-                      className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                    >
-                      JSON Export
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4 text-slate-400">
-                  <FileText className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">Select report to export</p>
-                </div>
-              )}
+
             </div>
           </div>
-        </div>
+        )}
       </div>
       
       {/* Executive Report Content - Full Width */}

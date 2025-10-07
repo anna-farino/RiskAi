@@ -31,7 +31,6 @@ export async function handleGetUsersRoles(req: Request, res: Response) {
           roles,
           eq(rolesUsers.roleId,roles.id)
         )
-        .where(eq(users.organizationId, user.organizationId))
         .orderBy(users.id)
     }
   )
@@ -44,8 +43,6 @@ export async function handleGetUsersRoles(req: Request, res: Response) {
 export async function handleEditUsersRoles(req: Request, res: Response) {
   const { userId, roleName } = req.params;
   console.log("📝🚫👤 [EDIT USERS ROLES] userId, roleName:", userId, roleName)
-
-  const requestingUser = (req as any).user as User
 
   try {
     const userRoleResult = await db
@@ -89,7 +86,6 @@ export async function handleEditUsersRoles(req: Request, res: Response) {
         roles,
         eq(rolesUsers.roleId,roles.id)
       )
-      .where(eq(users.organizationId, requestingUser.organizationId))
       .orderBy(users.id)
 
     console.log("📝🚫👤 [EDIT USERS ROLES] New users-roles:", newUserRoles)

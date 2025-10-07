@@ -6,7 +6,7 @@ import { authRouter } from "./routes/auth";
 import { usersRouter } from "./routes/users";
 import { noSimpleRequests } from "../middleware/no-simple-requests";
 import { newsRouter } from "../apps/news-radar/router";
-import { Options, rateLimit } from "express-rate-limit";
+import { rateLimit } from "express-rate-limit";
 import { rateLimitConfig } from "backend/utils/rate-limit-config";
 import { threatRouter } from "backend/apps/threat-tracker/router";
 import { newsCapsuleRouter } from "backend/apps/news-capsule/router";
@@ -23,11 +23,16 @@ import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
 import { handleTestScraping, handleTestScrapingHealth, handleTestAllSources } from "backend/test-scraping";
 import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
 import liveLogsRouter from "backend/api/live-logs-management";
-import { adminRouter } from "./routes/admin";
 
-const limiter = rateLimit(rateLimitConfig as Partial<Options>);
+const limiter = rateLimit(rateLimitConfig);
 const router = Router();
 
+// HELLO WORLD route
+router.use((req: Request, _: Response, next: NextFunction) => {
+  console.log("Server hit");
+  console.log("req.headers.authorization", req.headers.authorization);
+  next();
+});
 router.get("/test", limiter, handleTest);
 //router.get('/test-articles', testArticles)
 
@@ -56,15 +61,16 @@ router.use("/live-logs-management", liveLogsRouter);
 router.use("/auth", limiter, authRouter);
 
 // PROTECTIONS
+
 router.use(auth0CheckJwt);
 router.use(jwtErrorHandler);
 router.use(noSimpleRequests);
+
 router.use(auth0middleware);
 
+// 
 // PROTECTED ROUTES
-
-router.use('/admin', adminRouter)
-
+// 
 router.use("/users", usersRouter);
 router.post("/change-password", handleChangePassword);
 

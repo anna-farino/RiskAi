@@ -8,16 +8,12 @@ const buttons = [
     url: "/dashboard/threat/home",
   },
   {
-    label: "Threat Intelligence",
-    url: "/dashboard/threat/threats",
+    label: "Keywords",
+    url: "/dashboard/threat/keywords",
   },
   {
     label: "Sources",
     url: "/dashboard/threat/sources",
-  },
-  {
-    label: "Tech Stack",
-    url: "/dashboard/threat/tech-stack",
   },
 ];
 
@@ -39,18 +35,16 @@ export default function ThreatLayout() {
   return (
     <div className="flex flex-col w-full h-full gap-y-2">
       {/* Page Title Tile */}
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
-              <span className="text-white">
-                Threat Tracker
-              </span>
-            </h1>
-            <p className="text-muted-foreground max-w-3xl">
-              Advanced threat detection and security intelligence monitoring for proactive cybersecurity awareness and incident response.
-            </p>
-          </div>
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6">
+        <div className="flex flex-col gap-4">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold tracking-wider relative">
+            <span className="text-white">
+              Threat Tracker
+            </span>
+          </h1>
+          <p className="text-muted-foreground max-w-3xl">
+            Advanced threat detection and security intelligence monitoring for proactive cybersecurity awareness and incident response.
+          </p>
         </div>
       </div>
 

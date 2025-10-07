@@ -2,7 +2,6 @@ import { pgTable, text, timestamp, uuid, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 import { capsuleArticles } from "./news-capsule";
-import { organizations } from "./organizations";
 
 export const auth0Ids = pgTable("auth0_ids", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -15,7 +14,6 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
-  organizationId: uuid("organization_id").references(() => organizations.id),
   twoFactorEnabled: boolean("two_factor_enabled").default(false),
   verified: boolean("verified").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull()
@@ -36,11 +34,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
   revokedAt: timestamp("revoked_at")
 });
 
-export const usersRelations = relations(users, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [users.organizationId],
-    references: [organizations.id]
-  }),
+export const usersRelations = relations(users, ({ many }) => ({
   refreshTokens: many(refreshTokens),
   capsuleArticles: many(capsuleArticles)
 }));

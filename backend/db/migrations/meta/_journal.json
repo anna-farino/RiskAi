@@ -281,20 +281,6 @@
       "when": 1758827321548,
       "tag": "0039_salty_venom",
       "breakpoints": true
-    },
-    {
-      "idx": 40,
-      "version": "7",
-      "when": 1758837586988,
-      "tag": "0040_lean_meteorite",
-      "breakpoints": true
-    },
-    {
-      "idx": 41,
-      "version": "7",
-      "when": 1759773165411,
-      "tag": "0041_keen_dagger",
-      "breakpoints": true
     }
   ]
 }

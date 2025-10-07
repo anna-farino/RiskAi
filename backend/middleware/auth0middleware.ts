@@ -2,22 +2,21 @@ import { Request, Response, NextFunction } from 'express'
 import { db } from '../db/db';
 import { eq } from 'drizzle-orm';
 import { auth0Ids, User, users } from '@shared/db/schema/user';
-import { attachPermissionsAndRoleToRequest, FullRequest } from '.';
-import attachOrganizationToRequest from './utils/attach-org';
+import { FullRequest } from '.';
 
 type CustomRequest = Request &  { log: (...args: any[]) => void }
 
 export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
-  //const payload = req.auth
+  const payload = req.auth
   const email = req.auth?.payload['user/email'] as string || req.auth?.payload['email'] as string
   const email_verified = req.auth?.payload['user/email_verified'] || req.auth?.payload['email_verified']
   const sub = req.auth?.payload.sub
 
-  //req.log("payload", payload)
+  req.log("payload", payload)
   //req.log("email: ", email)
   //req.log("sub: ", sub)
 
-  console.log("auth0middleware...")
+  console.log("auth0middleware")
 
   if (!sub) {
     req.log("❌ [AUTH0-MIDDLEWARE] User id not provided")
@@ -39,7 +38,6 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
   let userToReturn: User;
 
   if (auth0id) {
-    console.log("auth0id...")
     try {
       const [ user ] = await db
         .select()
@@ -103,7 +101,6 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
         if (!user) throw new Error()
 
         userToReturn = user
-
       } catch(error) {
         req.log("❌[AUTH0-MIDDLEWARE] An error occurred while creating the new user", error)
         res.status(500).send()
@@ -125,15 +122,9 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
 
   (req as unknown as FullRequest).user = userToReturn;
 
-  try {
-    const userId = userToReturn.id.toString();
-    console.log("About to attach permissions and roles to request...")
-    await attachPermissionsAndRoleToRequest(userId, req)
-    console.log("About to attach orgainzation to request")
-    await attachOrganizationToRequest(userToReturn, req)
-  } catch(error) {
-    console.error("auth0middleware ERROR: ", error)
-    throw error
-  }
+  //req.log("👤[AUTH0-MIDDLEWARE] req object updated with user:", req.user)
+  //const userId = user[0].id.toString();
+  //await attachPermissionsAndRoleToRequest(userId, req)
+
   next()
 }

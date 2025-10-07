@@ -10,12 +10,8 @@ import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
 import { extractTitlesFromUrls, isValidUrl } from "backend/services/scraping/extractors/title-extraction/bulk-title-extractor";
-import { techStackRouter } from "./tech-stack";
 
 export const threatRouter = Router();
-
-// Mount tech-stack router for entity management
-threatRouter.use('/tech-stack', techStackRouter);
 
 // Note: Scheduler is now initialized in backend/index.ts on server startup
 // This prevents duplicate initialization that was causing job conflicts
@@ -703,154 +699,6 @@ threatRouter.get("/articles", async (req, res) => {
   }
 });
 
-// =====================================================
-// ENHANCED THREAT DATA API ENDPOINTS
-// Must be defined BEFORE dynamic routes like /articles/:id
-// =====================================================
-
-import { RelevanceScorer } from '../services/relevance-scorer';
-import { db } from '../../../db/db';
-import { globalArticles } from '../../../../shared/db/schema/global-tables';
-import { articleRelevanceScores } from '../../../../shared/db/schema/threat-tracker/relevance-scoring';
-import { and, eq, desc, gte, sql } from 'drizzle-orm';
-
-// Get articles with relevance scores for the current user
-threatRouter.get("/articles/with-relevance", async (req, res) => {
-  reqLog(req, "GET /articles/with-relevance");
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    const { limit = 50, offset = 0, minSeverity = 0, sortBy = 'relevance' } = req.query;
-    
-    // Join articles with pre-calculated relevance scores
-    const query = db
-      .select({
-        article: globalArticles,
-        relevanceData: articleRelevanceScores
-      })
-      .from(globalArticles)
-      .leftJoin(
-        articleRelevanceScores,
-        and(
-          eq(articleRelevanceScores.articleId, globalArticles.id),
-          eq(articleRelevanceScores.userId, userId)
-        )
-      )
-      .where(and(
-        eq(globalArticles.isCybersecurity, true),
-        gte(globalArticles.threatSeverityScore, minSeverity.toString())
-      ));
-    
-    // Apply sorting based on user preference
-    if (sortBy === 'relevance') {
-      query.orderBy(
-        desc(articleRelevanceScores.relevanceScore),
-        desc(globalArticles.threatSeverityScore)
-      );
-    } else if (sortBy === 'severity') {
-      query.orderBy(
-        desc(globalArticles.threatSeverityScore),
-        desc(articleRelevanceScores.relevanceScore)
-      );
-    } else {
-      query.orderBy(desc(globalArticles.publishDate));
-    }
-    
-    const results = await query.limit(Number(limit)).offset(Number(offset));
-    
-    // Transform results to include relevance score
-    const articlesWithRelevance = results.map(row => ({
-      ...row.article,
-      relevanceScore: row.relevanceData?.relevanceScore || '0',
-      softwareScore: row.relevanceData?.softwareScore || '0',
-      clientScore: row.relevanceData?.clientScore || '0',
-      vendorScore: row.relevanceData?.vendorScore || '0',
-      hardwareScore: row.relevanceData?.hardwareScore || '0',
-      keywordScore: row.relevanceData?.keywordScore || '0',
-      matchedSoftware: row.relevanceData?.matchedSoftware || [],
-      matchedCompanies: row.relevanceData?.matchedCompanies || [],
-      matchedHardware: row.relevanceData?.matchedHardware || [],
-      matchedKeywords: row.relevanceData?.matchedKeywords || []
-    }));
-    
-    res.json(articlesWithRelevance);
-  } catch (error: any) {
-    console.error("Error fetching articles with relevance:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch articles with relevance" });
-  }
-});
-
-// Trigger relevance score calculation for the current user
-threatRouter.post("/relevance/calculate", async (req, res) => {
-  reqLog(req, "POST /relevance/calculate");
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    const { forceRecalculate = false, articleIds } = req.body;
-    
-    const scorer = new RelevanceScorer();
-    
-    // Start calculation in background
-    scorer.batchCalculateRelevance(userId, {
-      forceRecalculate,
-      articleIds
-    }).catch(error => {
-      console.error("Background relevance calculation error:", error);
-    });
-    
-    res.json({ 
-      message: "Relevance score calculation started",
-      status: "processing"
-    });
-  } catch (error: any) {
-    console.error("Error starting relevance calculation:", error);
-    res.status(500).json({ error: error.message || "Failed to start relevance calculation" });
-  }
-});
-
-// Get relevance score status for the current user
-threatRouter.get("/relevance/status", async (req, res) => {
-  reqLog(req, "GET /relevance/status");
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    // Count articles with scores vs without - fixed to use proper SQL aggregation
-    const totalResult = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(globalArticles)
-      .where(eq(globalArticles.isCybersecurity, true));
-    
-    const total = totalResult[0]?.count || 0;
-    
-    const scoredResult = await db
-      .select({ count: sql<number>`COUNT(*)` })
-      .from(articleRelevanceScores)
-      .where(eq(articleRelevanceScores.userId, userId));
-    
-    const scored = scoredResult[0]?.count || 0;
-    
-    res.json({
-      totalArticles: total,
-      scoredArticles: scored,
-      unscoredArticles: total - scored,
-      percentComplete: total > 0 ? Math.round((scored / total) * 100) : 0
-    });
-  } catch (error: any) {
-    console.error("Error fetching relevance status:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch relevance status" });
-  }
-});
-
-// Dynamic route - comes AFTER specific routes
 threatRouter.get("/articles/:id", async (req, res) => {
   reqLog(req, `GET /articles/${req.params.id}`);
   try {
@@ -1111,4 +959,5 @@ threatRouter.post("/scheduler/reinitialize", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to fetch scheduler status" });
   }
 });
+
 

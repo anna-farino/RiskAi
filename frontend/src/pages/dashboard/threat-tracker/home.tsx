@@ -12,11 +12,10 @@ import {
   Search,
   ArrowRight,
   X,
+  FileText,
   Calendar,
   ChevronDown,
   ChevronUp,
-  Sliders,
-  Filter,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,6 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { ThreatArticleCard } from "./components/threat-article-card";
-import { Loader2, Sparkles } from "lucide-react";
 
 export default function ThreatHome() {
   const { toast } = useToast();
@@ -32,76 +30,11 @@ export default function ThreatHome() {
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
-  const [threatLevel, setThreatLevel] = useState<string>("All");
-  const [dateRange, setDateRange] = useState<string>("Today");
-  const [sortOrder, setSortOrder] = useState<string>("Newest First");
-  const [fromDate, setFromDate] = useState<string>("");
-  const [toDate, setToDate] = useState<string>("");
-
-  // Helper function to convert date range labels to actual dates
-  const getDateRangeFromLabel = (label: string) => {
-    const now = new Date();
-    switch (label) {
-      case "Today": {
-        const startOfToday = new Date(now);
-        startOfToday.setHours(0, 0, 0, 0);
-        return {
-          startDate: startOfToday,
-          endDate: now
-        };
-      }
-      case "24hrs":
-        return {
-          startDate: new Date(now.getTime() - 24 * 60 * 60 * 1000),
-          endDate: now
-        };
-      case "48hrs":
-        return {
-          startDate: new Date(now.getTime() - 48 * 60 * 60 * 1000),
-          endDate: now
-        };
-      case "Year to Date": {
-        const startOfYear = new Date(now.getFullYear(), 0, 1);
-        return {
-          startDate: startOfYear,
-          endDate: now
-        };
-      }
-      case "All":
-        return { startDate: undefined, endDate: undefined };
-      case "Past 24hrs":
-        return {
-          startDate: new Date(now.getTime() - 24 * 60 * 60 * 1000),
-          endDate: now
-        };
-      case "Past 7 Days":
-        return {
-          startDate: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000),
-          endDate: now
-        };
-      case "Past Month":
-        return {
-          startDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000),
-          endDate: now
-        };
-      case "All Time":
-      default:
-        return { startDate: undefined, endDate: undefined };
-    }
-  };
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
-  const [originalDateRange, setOriginalDateRange] = useState<{
+  const [dateRange, setDateRange] = useState<{
     startDate?: Date;
     endDate?: Date;
-  }>(() => {
-    const now = new Date();
-    const startOfToday = new Date(now);
-    startOfToday.setHours(0, 0, 0, 0);
-    return {
-      startDate: startOfToday,
-      endDate: now
-    };
-  });
+  }>({});
   const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
   const [keywordAutocompleteOpen, setKeywordAutocompleteOpen] =
     useState<boolean>(false);
@@ -126,6 +59,21 @@ export default function ThreatHome() {
     string | null
   >(null);
 
+  // Collapsible toolbar state with localStorage persistence
+  const [isToolbarExpanded, setIsToolbarExpanded] = useState<boolean>(() => {
+    const saved = localStorage.getItem("threat-tracker-toolbar-expanded");
+    return saved !== null ? JSON.parse(saved) : true;
+  });
+
+  // Toggle toolbar expansion
+  const toggleToolbar = () => {
+    const newExpanded = !isToolbarExpanded;
+    setIsToolbarExpanded(newExpanded);
+    localStorage.setItem(
+      "threat-tracker-toolbar-expanded",
+      JSON.stringify(newExpanded),
+    );
+  };
 
   // Fetch keywords for filter dropdown
   const keywords = useQuery<ThreatKeyword[]>({
@@ -162,12 +110,12 @@ export default function ThreatHome() {
       });
     }
 
-    if (originalDateRange.startDate) {
-      params.append("startDate", originalDateRange.startDate.toISOString());
+    if (dateRange.startDate) {
+      params.append("startDate", dateRange.startDate.toISOString());
     }
 
-    if (originalDateRange.endDate) {
-      params.append("endDate", originalDateRange.endDate.toISOString());
+    if (dateRange.endDate) {
+      params.append("endDate", dateRange.endDate.toISOString());
     }
 
     // Send a high limit to get more articles (instead of backend default 50)
@@ -177,29 +125,30 @@ export default function ThreatHome() {
   };
 
   // Articles query with filtering - only fetch when keywords are selected
-  // Now using enhanced endpoint with relevance scores
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
-      "/api/threat-tracker/articles/with-relevance",
+      "/api/threat-tracker/articles",
       searchTerm,
       selectedKeywordIds,
-      originalDateRange,
+      dateRange,
     ],
     queryFn: async () => {
       try {
         const queryString = buildQueryString();
-        const url = `/api/threat-tracker/articles/with-relevance${queryString ? `?${queryString}` : ""}`;
+        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+
+        console.log("Fetching articles with URL:", url);
 
         const response = await fetchWithAuth(url, {
           method: "GET",
         });
 
-        if (!response.ok) throw new Error("Failed to fetch articles with relevance");
+        if (!response.ok) throw new Error("Failed to fetch articles");
         const data = await response.json();
-        console.log("Received filtered articles with relevance scores:", data.length);
+        console.log("Received filtered articles:", data.length);
         return data || [];
       } catch (error) {
-        console.error("Error fetching articles with relevance:", error);
+        console.error("Error fetching articles:", error);
         return [];
       }
     },
@@ -278,7 +227,7 @@ export default function ThreatHome() {
   // Reset pagination when filters change or when an article is highlighted
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedKeywordIds, originalDateRange, highlightedArticleId, threatLevel, sortOrder]);
+  }, [searchTerm, selectedKeywordIds, dateRange, highlightedArticleId]);
 
   // Click outside handler for autocomplete dropdown
   useEffect(() => {
@@ -388,51 +337,6 @@ export default function ThreatHome() {
     }
   };
 
-  // Calculate relevance scores mutation
-  const calculateRelevance = useMutation({
-    mutationFn: async ({ forceRecalculate }: { forceRecalculate?: boolean }) => {
-      const response = await fetchWithAuth("/api/threat-tracker/relevance/calculate", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ forceRecalculate }),
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to calculate relevance scores");
-      }
-      
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Relevance Calculation Started",
-        description: "Calculating personalized relevance scores for all articles. This may take a few minutes.",
-      });
-      
-      // Refetch articles after a delay to show updated scores
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: ["/api/threat-tracker/articles/with-relevance"],
-        });
-      }, 5000);
-    },
-    onError: (error) => {
-      console.error("Error calculating relevance:", error);
-      toast({
-        title: "Calculation Error",
-        description: "Failed to calculate relevance scores. Please try again.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Check if any articles are missing relevance scores
-  const hasUnscoreedArticles = localArticles.some(
-    article => !article.relevanceScore || parseFloat(article.relevanceScore) === 0
-  );
-
   // Function to handle keyword filtering
   const toggleKeywordFilter = (keywordId: string) => {
     setSelectedKeywordIds((prev) =>
@@ -442,18 +346,11 @@ export default function ThreatHome() {
     );
   };
 
-
   // Clear all filters
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedKeywordIds([]);
-    setThreatLevel("All");
-    const newDateRange = "Today";
-    setDateRange(newDateRange);
-    setOriginalDateRange(getDateRangeFromLabel(newDateRange));
-    setSortOrder("Newest First");
-    setFromDate("");
-    setToDate("");
+    setDateRange({});
   };
 
   // Function to handle marking for capsule
@@ -516,38 +413,6 @@ export default function ThreatHome() {
     return keywords.data.filter((k) => selectedKeywordIds.includes(k.id));
   }, [keywords.data, selectedKeywordIds]);
 
-  // Count how many times each selected keyword appears in current filtered results
-  const keywordCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    
-    selectedKeywords.forEach(keyword => {
-      let count = 0;
-      localArticles.forEach(article => {
-        if (article.detectedKeywords) {
-          const detected = article.detectedKeywords as any;
-          ["threats", "vendors", "clients", "hardware"].forEach((category) => {
-            if (detected[category]) {
-              let categoryTerms: string[] = [];
-              if (Array.isArray(detected[category])) {
-                categoryTerms = detected[category];
-              } else if (typeof detected[category] === "string") {
-                categoryTerms = detected[category].split(",").map((term: string) => term.trim());
-              }
-              
-              if (categoryTerms.some(term => term.toLowerCase() === keyword.term?.toLowerCase())) {
-                count++;
-                return; // Exit early to avoid double-counting same article
-              }
-            }
-          });
-        }
-      });
-      counts[keyword.id] = count;
-    });
-    
-    return counts;
-  }, [selectedKeywords, localArticles]);
-
   // Add keyword to selection
   const addKeywordToFilter = (keywordId: string) => {
     if (!selectedKeywordIds.includes(keywordId)) {
@@ -582,63 +447,21 @@ export default function ThreatHome() {
     return scrapeDate > lastVisit;
   };
 
-  // Computed property for sorted articles - handles both new article surfacing and sort order
+  // Computed property for sorted articles - surface new articles to top when sortNewToTop is true
   const sortedArticles = useMemo(() => {
-    let articles = [...localArticles];
-    
-    // Apply threat level filtering
-    if (threatLevel !== "All Threats") {
-      articles = articles.filter((article) => {
-        const securityScore = typeof article.securityScore === "string" 
-          ? parseInt(article.securityScore, 10) 
-          : article.securityScore || 0;
-        
-        switch (threatLevel) {
-          case "Critical": return securityScore >= 8;
-          case "High": return securityScore >= 6 && securityScore < 8;
-          case "Medium": return securityScore >= 4 && securityScore < 6;
-          case "Low": return securityScore < 4;
-          default: return true;
-        }
-      });
-    }
-    
-    // Apply sorting
-    articles.sort((a, b) => {
-      // First priority: surface new articles if enabled
-      if (sortNewToTop) {
-        const aIsNew = isArticleNew(a);
-        const bIsNew = isArticleNew(b);
-        if (aIsNew !== bIsNew) {
-          return aIsNew ? -1 : 1;
-        }
-      }
-      
-      // Second priority: apply sort order
-      const getDate = (article: any) => {
-        const date = article.publishDate || article.scrapeDate;
-        return date ? new Date(date).getTime() : 0;
-      };
-      
-      switch (sortOrder) {
-        case "Oldest First":
-          return getDate(a) - getDate(b);
-        case "Relevance":
-          const aRelevance = typeof a.relevanceScore === "string" 
-            ? parseInt(a.relevanceScore, 10) 
-            : a.relevanceScore || 0;
-          const bRelevance = typeof b.relevanceScore === "string" 
-            ? parseInt(b.relevanceScore, 10) 
-            : b.relevanceScore || 0;
-          return bRelevance - aRelevance;
-        case "Newest First":
-        default:
-          return getDate(b) - getDate(a);
-      }
+    if (!sortNewToTop) return localArticles;
+
+    return [...localArticles].sort((a, b) => {
+      const aIsNew = isArticleNew(a);
+      const bIsNew = isArticleNew(b);
+
+      // If both are new or both are not new, maintain original order
+      if (aIsNew === bIsNew) return 0;
+
+      // New articles come first
+      return aIsNew ? -1 : 1;
     });
-    
-    return articles;
-  }, [localArticles, sortNewToTop, lastVisitTimestamp, threatLevel, sortOrder]);
+  }, [localArticles, sortNewToTop, lastVisitTimestamp]);
 
   // Function to handle clicking the "New" button to surface new articles
   const handleSurfaceNewArticles = () => {
@@ -671,315 +494,338 @@ export default function ThreatHome() {
 
   return (
     <>
-      {/* Unified Toolbar Container */}
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4">
-        <div className="p-6">
-          <div className="flex flex-col gap-6">
-            {/* Search & Filter Bar */}
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-6">
-              <div className="flex items-center justify-between mb-6">
-                <div className="flex items-center gap-3">
-                  <Sliders className="h-5 w-5 text-purple-400" />
-                  <span className="text-base font-medium text-purple-400">
-                    Threat Control Panel
+      {/* Collapsible Unified Toolbar Container */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
+        {!isToolbarExpanded ? (
+          /* Collapsed State */
+          <div className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-purple-400" />
+                  <span className="text-base font-medium text-slate-200">
+                    Threat Analysis & Control
                   </span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge className="bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30 text-xs px-2 py-0.5">
-                    {totalArticles}
-                  </Badge>
-                  <span className="text-xs text-slate-400">Found Articles</span>
-                </div>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-3 mt-2">
-                {/* Search & Filter Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Search className="h-4 w-4 text-purple-400" />
-                    <h4 className="text-sm font-medium text-purple-300">Search & Filter</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {/* Search input */}
-                    <div className="relative">
-                      <Input
-                        placeholder="search keywords, threats..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-8 pl-8 pr-3 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                      <Search className="absolute left-2.5 top-2 h-3 w-3 text-slate-400" />
-                    </div>
-                    {/* Priority filter buttons and Clear All */}
-                    <div className="grid grid-cols-3 gap-1">
-                      {["All", "High Priority", "Clear All"].map((option) => (
-                        <Button
-                          key={option}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            if (option === "Clear All") {
-                              clearFilters();
-                            } else {
-                              setThreatLevel(option === "High Priority" ? "High" : "All");
-                            }
-                          }}
-                          className={cn(
-                            "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                            option === "Clear All"
-                              ? "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                              : (option === "All" && threatLevel === "All") || (option === "High Priority" && threatLevel === "High")
-                              ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                              : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                          )}
-                        >
-                          {option}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Date Range Filter Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Calendar className="h-4 w-4 text-purple-400" />
-                    <h4 className="text-sm font-medium text-purple-300">Date Range</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {/* Horizontal buttons for Today/24hrs/48hrs/YTD */}
-                    <div className="grid grid-cols-4 gap-1">
-                      {["Today", "24hrs", "48hrs", "YTD"].map((range) => (
-                        <Button
-                          key={range}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const actualRange = range === "YTD" ? "Year to Date" : range;
-                            setDateRange(actualRange);
-                            setOriginalDateRange(getDateRangeFromLabel(actualRange));
-                          }}
-                          className={cn(
-                            "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                            (range === "YTD" && dateRange === "Year to Date") || (range !== "YTD" && dateRange === range)
-                              ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                              : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                          )}
-                        >
-                          {range}
-                        </Button>
-                      ))}
-                    </div>
-                    {/* Custom date range inputs */}
-                    <div className="grid grid-cols-2 gap-1">
-                      <Input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        placeholder="From Date"
-                        className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                      <Input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        placeholder="To Date"
-                        className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Sort Order Filter Section */}
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ArrowRight className="h-4 w-4 text-purple-400" />
-                    <h4 className="text-sm font-medium text-purple-300">Sort Order</h4>
-                  </div>
-                  <div className="space-y-2">
-                    {/* Horizontal buttons for Oldest/Newest First */}
-                    <div className="grid grid-cols-2 gap-1">
-                      {["Oldest First", "Newest First"].map((order) => (
-                        <Button
-                          key={order}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setSortOrder(order)}
-                          className={cn(
-                            "w-full h-8 px-2 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                            sortOrder === order
-                              ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                              : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                          )}
-                        >
-                          {order}
-                        </Button>
-                      ))}
-                    </div>
-                    {/* More Filters button - full width */}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsFilterOpen(!isFilterOpen)}
-                      className={cn(
-                        "w-full h-8 px-3 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                        isFilterOpen
-                          ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                          : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                      )}
-                    >
-                      <Filter className="h-3 w-3 mr-1" />
-                      More Filters
-                      {isFilterOpen ? <ChevronUp className="h-3 w-3 ml-1" /> : <ChevronDown className="h-3 w-3 ml-1" />}
-                    </Button>
+                <div className="flex items-center gap-4 text-sm text-slate-400">
+                  <div className="flex items-center gap-1">
+                    <FileText className="h-4 w-4" />
+                    <span>{localArticles.length} threats</span>
                   </div>
                 </div>
               </div>
-
-              {/* Integrated Filter Options Panel */}
-              {isFilterOpen && (
-                <div className="grid grid-cols-1 gap-4 mt-4 pt-4 border-t border-purple-500/20">
-                  <div className="space-y-4">
-                    {/* Keyword Filter Section */}
-                    <div>
-                      <h4 className="text-sm font-medium mb-3 text-purple-300 flex items-center gap-2">
-                        <Search className="h-4 w-4" />
-                        Filter by Keywords
-                      </h4>
-                      <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Type keyword to filter (e.g., malware, vulnerability)..."
-                          className="pl-9 h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                          value={keywordSearchTerm}
-                          onChange={(e) => {
-                            setKeywordSearchTerm(e.target.value);
-                            // Auto-filter based on search term
-                            if (e.target.value.trim()) {
-                              const matchingKeywords = keywords.data?.filter(
-                                (k) =>
-                                  k.term
-                                    ?.toLowerCase()
-                                    .includes(e.target.value?.toLowerCase()) &&
-                                  k.active &&
-                                  !selectedKeywordIds.includes(k.id),
-                              );
-                              if (matchingKeywords && matchingKeywords.length > 0) {
-                                setKeywordAutocompleteOpen(true);
-                              }
-                            } else {
-                              setKeywordAutocompleteOpen(false);
-                            }
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && filteredKeywords.length > 0) {
-                              addKeywordToFilter(filteredKeywords[0].id);
-                            }
-                          }}
-                        />
-                        {/* Simple dropdown for matching keywords */}
-                        {keywordAutocompleteOpen && filteredKeywords.length > 0 && (
-                          <div
-                            ref={dropdownRef}
-                            className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto"
-                          >
-                            {filteredKeywords.slice(0, 5).map((keyword) => (
-                              <div
-                                key={keyword.id}
-                                className="px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-2"
-                                onClick={() => addKeywordToFilter(keyword.id)}
-                              >
-                                <div
-                                  className={`h-2 w-2 rounded-full ${
-                                    keyword.category === "threat"
-                                      ? "bg-red-500"
-                                      : keyword.category === "vendor"
-                                        ? "bg-blue-500"
-                                        : keyword.category === "client"
-                                          ? "bg-green-500"
-                                          : "bg-orange-500"
-                                  }`}
-                                />
-                                <span className="text-sm">{keyword.term}</span>
-                                <span className="text-xs text-muted-foreground ml-auto">
-                                  {keyword.category}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Selected Keywords Display */}
-                    {selectedKeywords.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-medium mb-2 text-purple-300">
-                          Active Keyword Filters
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {selectedKeywords.map((keyword) => (
-                            <Badge
-                              key={keyword.id}
-                              variant="default"
-                              className="cursor-pointer hover:bg-[#9333EA]/30 hover:text-white transition-colors bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30 px-3 py-1.5"
-                              onClick={() => removeKeywordFromFilter(keyword.id)}
-                            >
-                              {keyword.term}
-                              <span className="ml-2 px-1.5 py-0.5 text-xs bg-[#00FFFF]/20 text-[#00FFFF] rounded-full font-medium">
-                                {keywordCounts[keyword.id] || 0}
-                              </span>
-                              <X className="h-3 w-3 ml-1" />
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">click to expand</span>
+                <Button
+                  onClick={toggleToolbar}
+                  variant="ghost"
+                  size="sm"
+                  className="text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30 hover:border-[#00FFFF]/50 transition-all duration-200"
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Expanded State */
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Shield className="h-5 w-5 text-purple-400" />
+                <span className="text-base font-medium text-slate-200">
+                  Threat Analysis & Control
+                </span>
+              </div>
+              <Button
+                onClick={toggleToolbar}
+                variant="ghost"
+                size="sm"
+                className="text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30 hover:border-[#00FFFF]/50 transition-all duration-200"
+              >
+                <ChevronUp className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="flex flex-col gap-6">
+              {/* Search & Filter Bar */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <Search className="h-5 w-5 text-purple-400" />
+                    <span className="text-base font-medium text-purple-400">
+                      Search & Filter
+                    </span>
+                    <div className="flex items-center gap-2 ml-4">
+                      <div className="h-4 w-px bg-slate-600"></div>
+                      <span className="text-sm text-slate-400">
+                        {localArticles.length}{" "}
+                        {localArticles.length === 1 ? "result" : "results"}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 lg:grid-cols-4 mt-2">
+                  {/* Search Input */}
+                  <div className="lg:col-span-1">
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-purple-300">
+                        Search Threats
+                      </h4>
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                        <Input
+                          placeholder="threat search"
+                          className="pl-10 h-8 text-xs bg-slate-800/70 border border-slate-700 text-white placeholder:text-slate-500"
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Threat Level Filter */}
+                  <div className="lg:col-span-1">
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-purple-300">
+                        Threat Level
+                      </h4>
+                      <div className="grid grid-cols-1 gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs justify-start hover:bg-transparent border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        >
+                          Critical
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs justify-start hover:bg-transparent border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        >
+                          High
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs justify-start hover:bg-transparent border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        >
+                          Medium
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs justify-start hover:bg-transparent border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        >
+                          Low
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Date Range Filter */}
+                  <div className="lg:col-span-1">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5 text-white" />
+                        <h4 className="text-sm font-medium text-purple-300">
+                          Date Range
+                        </h4>
+                      </div>
+                      <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-1">
+                          <div className="relative">
+                            <Input
+                              type="date"
+                              placeholder="From Date"
+                              className="h-9 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                            />
+                            <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white pointer-events-none" />
+                          </div>
+                          <div className="relative">
+                            <Input
+                              type="date"
+                              placeholder="To Date"
+                              className="h-9 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                            />
+                            <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-white pointer-events-none" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-3 text-xs transition-colors justify-start border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                          >
+                            Past 24hrs
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-8 px-3 text-xs transition-colors justify-start border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                          >
+                            Past 7 Days
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sort Order Filter */}
+                  <div className="lg:col-span-1">
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-purple-300">
+                        Sort Order
+                      </h4>
+                      <div className="grid grid-cols-1 gap-1">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs justify-start hover:bg-transparent border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        >
+                          Newest First
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 px-3 text-xs justify-start hover:bg-transparent border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                        >
+                          Oldest First
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
+      {/* Filters section */}
+      {isFilterOpen && (
+        <div className="p-6 border border-slate-700/50 rounded-md bg-slate-900/50 mt-4">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-medium">Filter Options</h3>
+            <div className="flex gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearFilters}
+                className="h-11 px-4 font-semibold text-slate-300 hover:text-white hover:bg-white/10 transition-all duration-200"
+              >
+                Clear all
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsFilterOpen(false)}
+                className="h-11 w-11 p-0 text-slate-400 hover:text-white hover:bg-white/10 transition-all duration-200"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            {/* Simple Keyword Filter */}
+            <div>
+              <h4 className="text-sm font-medium mb-2 text-muted-foreground">
+                Filter by Keywords
+              </h4>
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Type keyword to filter (e.g., malware, vulnerability)..."
+                  className="pl-9"
+                  value={keywordSearchTerm}
+                  onChange={(e) => {
+                    setKeywordSearchTerm(e.target.value);
+                    // Auto-filter based on search term
+                    if (e.target.value.trim()) {
+                      const matchingKeywords = keywords.data?.filter(
+                        (k) =>
+                          k.term
+                            ?.toLowerCase()
+                            .includes(e.target.value?.toLowerCase()) &&
+                          k.active &&
+                          !selectedKeywordIds.includes(k.id),
+                      );
+                      if (matchingKeywords && matchingKeywords.length > 0) {
+                        setKeywordAutocompleteOpen(true);
+                      }
+                    } else {
+                      setKeywordAutocompleteOpen(false);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && filteredKeywords.length > 0) {
+                      addKeywordToFilter(filteredKeywords[0].id);
+                    }
+                  }}
+                />
+                {/* Simple dropdown for matching keywords */}
+                {keywordAutocompleteOpen && filteredKeywords.length > 0 && (
+                  <div
+                    ref={dropdownRef}
+                    className="absolute top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-lg z-50 max-h-48 overflow-y-auto"
+                  >
+                    {filteredKeywords.slice(0, 5).map((keyword) => (
+                      <div
+                        key={keyword.id}
+                        className="px-3 py-2 hover:bg-accent cursor-pointer flex items-center gap-2"
+                        onClick={() => addKeywordToFilter(keyword.id)}
+                      >
+                        <div
+                          className={`h-2 w-2 rounded-full ${
+                            keyword.category === "threat"
+                              ? "bg-red-500"
+                              : keyword.category === "vendor"
+                                ? "bg-blue-500"
+                                : keyword.category === "client"
+                                  ? "bg-green-500"
+                                  : "bg-orange-500"
+                          }`}
+                        />
+                        <span className="text-sm">{keyword.term}</span>
+                        <span className="text-xs text-muted-foreground ml-auto">
+                          {keyword.category}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Selected Keywords Display */}
+            {selectedKeywords.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2 text-muted-foreground">
+                  Active Keyword Filters
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedKeywords.map((keyword) => (
+                    <Badge
+                      key={keyword.id}
+                      variant="default"
+                      className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                      onClick={() => removeKeywordFromFilter(keyword.id)}
+                    >
+                      {keyword.term}
+                      <X className="h-3 w-3 ml-1" />
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Articles Container - Separate from actions */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6">
         <div className="space-y-6">
-          {/* Relevance Score Calculation Button - show when articles exist but scores are missing */}
-          {!articles.isLoading && localArticles.length > 0 && hasUnscoreedArticles && (
-            <div className="flex items-center justify-between p-4 bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-lg border border-purple-500/20">
-              <div className="flex items-center gap-3">
-                <Sparkles className="h-5 w-5 text-purple-400" />
-                <div>
-                  <p className="text-sm font-medium text-white">Personalized Relevance Scoring Available</p>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    Calculate relevance scores based on your technology stack to prioritize the most important threats
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => calculateRelevance.mutate({ forceRecalculate: false })}
-                disabled={calculateRelevance.isPending}
-                className="bg-purple-600 hover:bg-purple-700 text-white"
-                size="sm"
-              >
-                {calculateRelevance.isPending ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1.5 animate-spin" />
-                    Calculating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3 w-3 mr-1.5" />
-                    Calculate Scores
-                  </>
-                )}
-              </Button>
-            </div>
-          )}
-          
           {articles.isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-5 md:gap-6 py-4">
               {/* Standardized skeleton items */}

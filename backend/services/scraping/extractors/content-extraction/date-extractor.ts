@@ -465,7 +465,7 @@ function parseDate(dateString: string): Date | null {
       const monthMap: { [key: string]: number } = {
         'JANUARY': 0, 'FEBRUARY': 1, 'MARCH': 2, 'APRIL': 3, 'MAY': 4, 'JUNE': 5,
         'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11,
-        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'JUN': 5,
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
         'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
       };
 
@@ -493,7 +493,7 @@ function parseDate(dateString: string): Date | null {
       const monthMap: { [key: string]: number } = {
         'JANUARY': 0, 'FEBRUARY': 1, 'MARCH': 2, 'APRIL': 3, 'MAY': 4, 'JUNE': 5,
         'JULY': 6, 'AUGUST': 7, 'SEPTEMBER': 8, 'OCTOBER': 9, 'NOVEMBER': 10, 'DECEMBER': 11,
-        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'JUN': 5,
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
         'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
       };
 

@@ -48,19 +48,19 @@ export default function Settings() {
         })
       })
     },
-    onSettled: () => {
-      userData.refetch()
-    },
+    onSettled: () => userData.refetch(),
     onError: () => {
       setError(true)
       setTimeout(()=>setError(false),3000)
     }
   })
 
+  const navigate = useNavigate();
+
   const sendOtpMutation = useMutation({
     mutationFn: async () => {
       if (!userData.data?.email) throw new Error()
-      const response = await fetchWithAuth(`/api/change-password`, {
+      const response = await fetchWithAuth(`${serverUrl}/api/auth/new-password-otp`, {
         method: 'POST',
         credentials: 'include',
         headers: {
@@ -73,12 +73,14 @@ export default function Settings() {
       })
       if (!response.ok) throw new Error("No response")
     },
-    onSuccess() {},
+    onSuccess() {
+      navigate('/dashboard/settings/otp?p=npw')
+    },
     onError(error) {
       console.error(error)
     },
   })
-  //console.log("MFA Enabled: ", userData.data?.twoFactorEnabled)
+  //console.log(userData.data)
 
   return (
     <div className="flex flex-col gap-4">
@@ -134,7 +136,7 @@ export default function Settings() {
                 <Switch
                   id="two-factor-authentication"
                   disabled={twoFAmutation.isPending}
-                  checked={userData.isFetching ? !(userData.data?.twoFactorEnabled) : !!userData.data?.twoFactorEnabled}
+                  checked={twoFAmutation.isPending ? twoFAmutation.variables : !!userData.data?.twoFactorEnabled}
                   onClick={() => twoFAmutation.mutate(!userData.data?.twoFactorEnabled)}
                 />
               </div>

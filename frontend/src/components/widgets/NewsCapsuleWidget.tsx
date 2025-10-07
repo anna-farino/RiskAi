@@ -3,17 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Newspaper, FileText, ArrowRight, Upload } from 'lucide-react';
 import { RisqWidget, WidgetActions, WidgetButton } from './RisqWidget';
-import { useAuth } from '@/hooks/use-auth';
 
 export function NewsCapsuleWidget() {
   const navigate = useNavigate();
-  const { data: userData } = useAuth();
-
-  // Only render for admin users
-  if (!userData || userData.role !== 'admin') {
-    return null;
-  }
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
