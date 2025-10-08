@@ -355,7 +355,7 @@ This system implements a **two-dimensional threat assessment** that separates un
 - **User-specific measurement** based on YOUR tech stack: software versions, hardware, vendors, clients
 - **Different per user** - Same Apache vulnerability scores high for Apache users, zero for others
 - **Stored per user** in `article_relevance_score` table (one row per user-article pair)
-- **Calculated asynchronously** on user login or tech stack changes (batch processing)
+- **Calculated asynchronously** when user enters the frontend (includes login and returning with active session) or tech stack changes (batch processing)
 - **Scale:** 0-100, considering version matching, vendor relationships, priority weights
 
 **Why separate them?** This allows users to see both "this is a critical threat" (severity) AND "it directly affects your systems" (relevance) - two essential but distinct perspectives for threat prioritization.
@@ -401,7 +401,7 @@ This system implements a **two-dimensional threat assessment** that separates un
 ┌─────────────────────────────────────────────────────────────────┐
 │              RELEVANCE PHASE (Asynchronous, Per User)            │
 └─────────────────────────────────────────────────────────────────┘
-    User logs in OR modifies tech stack
+    User loads application frontend OR modifies tech stack
            ↓
     [RelevanceScorer] Batch process (up to 2000 articles):
       • Get user's tech stack (users_software, users_hardware, etc.)
@@ -438,9 +438,9 @@ This system implements a **two-dimensional threat assessment** that separates un
 
 #### **Asynchronous Operations (User-Triggered)**
 **What:** Relevance score calculation  
-**When:** User login, tech stack changes, or on-demand request  
+**When:** User enters frontend (login or returning with active session), tech stack changes, or on-demand request  
 **Why:** User-specific, can't pre-calculate for all users. Batched for efficiency  
-**Trade-off:** Slight delay on first login, but cached thereafter
+**Trade-off:** Slight delay on first frontend load, but cached thereafter
 
 **Services involved:**
 - `RelevanceScorer.batchCalculateRelevance()` - Batch processing
@@ -470,7 +470,7 @@ This system implements a **two-dimensional threat assessment** that separates un
 **Storage Locations:**
 - Severity: `global_articles.threat_severity_score` (one per article)
 - Relevance: `article_relevance_score` table (one per user-article pair)
-- Update triggers: Article scraping (severity), user login/tech change (relevance)
+- Update triggers: Article scraping (severity), frontend entry/tech stack change (relevance)
 
 #### **AI Entity Resolution with 30-Day Caching**
 
@@ -626,7 +626,7 @@ This enhanced threat severity scoring system will:
 1. Extract entities (software, hardware, companies, CVEs, threat actors) into normalized tables
 2. Calculate **severity scores** based on threat characteristics (stored in DB)
 3. Calculate **relevance scores** per user in batches (stored in DB):
-   - When a user loads application frontend, on per user basis
+   - When a user enters the frontend (login or returning with active session)
    - When user changes technology stack
    - On-demand for older articles
 4. Display combined threat assessment to users
@@ -645,7 +645,7 @@ Calculate weighted severity scores using rubric formulas
 ↓
 Store all metadata in database
 ↓
-Generate relevance score when a user loads application frontend, on per user basis, or when they modify their tech stack keywords
+Generate relevance score when a user enters the frontend (login or returning with session), or when they modify their tech stack
 ↓
 Display appropriate threat severity and relevance level to users on article cards
 ```
@@ -1652,7 +1652,7 @@ export class RelevanceScorer {
   
   /**
    * Batch calculate and store relevance scores for new articles
-   * Called when user logs in or changes technology stack
+   * Called when user enters the frontend (login or returning with active session) or changes technology stack
    */
   async batchCalculateRelevance(
     userId: string,
@@ -2398,7 +2398,7 @@ const SPECIFICITY_WEIGHTS = {
 8. Article now complete and ready for users
 
 [LATER] Relevance scoring happens separately:
-   - When user logs in (batch process for new articles)
+   - When user enters the frontend - login or returning with active session (batch process for new articles)
    - When user modifies tech stack
    - On-demand for older articles
 ```
