@@ -786,6 +786,7 @@ export async function extractArticleEntities(article: {
     versionTo?: string; // End of version range
     vendor?: string;
     category?: string;
+    specificity: 'generic' | 'partial' | 'specific'; // NEW: How specific is this mention?
     confidence: number;
     context: string;
   }>;
@@ -794,12 +795,14 @@ export async function extractArticleEntities(article: {
     model?: string;
     manufacturer?: string;
     category?: string;
+    specificity: 'generic' | 'partial' | 'specific'; // NEW: How specific is this mention?
     confidence: number;
     context: string;
   }>;
   companies: Array<{
     name: string;
     type: 'vendor' | 'client' | 'affected' | 'mentioned';
+    specificity: 'generic' | 'specific'; // NEW: Is this a broad mention or specific reference?
     confidence: number;
     context: string;
   }>;
@@ -822,6 +825,8 @@ export async function extractArticleEntities(article: {
   const prompt = `
     Analyze this article and extract ALL mentioned entities with high precision.
     
+    **IMPORTANT: Extract PARTIAL entities too - don't skip mentions just because they lack details.**
+    
     For SOFTWARE, extract:
     - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
     - Versions if specified - distinguish between:
@@ -830,12 +835,20 @@ export async function extractArticleEntities(article: {
     - For ranges, extract versionFrom (start) and versionTo (end)
     - Vendor/company that makes it
     - Category (os, application, library, framework, etc.)
+    - Specificity level:
+      * "generic" - Broad mention (e.g., "Microsoft products", "routers", "cloud services")
+      * "partial" - Some details (e.g., "Cisco Catalyst switches", "Apache web server")
+      * "specific" - Full details (e.g., "Cisco Catalyst 9300 v16.12", "Apache HTTP Server 2.4.49")
     - The sentence/context where mentioned
     
     For HARDWARE, extract:
     - Device names/models (e.g., "Cisco ASA 5500", "Netgear R7000")
     - Manufacturer
     - Category (router, iot, server, workstation, etc.)
+    - Specificity level:
+      * "generic" - Broad mention (e.g., "routers", "IoT devices", "network equipment")
+      * "partial" - Brand/series (e.g., "Cisco routers", "Netgear devices")
+      * "specific" - Exact model (e.g., "Cisco ASA 5500-X", "Netgear R7000")
     - The context where mentioned
     
     For COMPANIES, extract:
@@ -844,6 +857,9 @@ export async function extractArticleEntities(article: {
       - client (affected organization)
       - affected (impacted by issue)
       - mentioned (referenced but not directly affected)
+    - Specificity level:
+      * "generic" - Broad mention (e.g., "cloud providers", "tech companies")
+      * "specific" - Named entity (e.g., "Amazon", "Microsoft Azure")
     
     For CVEs, extract:
     - CVE identifiers (format: CVE-YYYY-NNNNN)
@@ -876,6 +892,7 @@ export async function extractArticleEntities(article: {
           "versionTo": "end of range (e.g., 2.17.0)",
           "vendor": "company that makes it",
           "category": "category type",
+          "specificity": "generic|partial|specific",
           "confidence": 0.95,
           "context": "sentence where mentioned"
         }
@@ -886,6 +903,7 @@ export async function extractArticleEntities(article: {
           "model": "model number",
           "manufacturer": "company name",
           "category": "device type",
+          "specificity": "generic|partial|specific",
           "confidence": 0.9,
           "context": "sentence where mentioned"
         }
@@ -894,6 +912,7 @@ export async function extractArticleEntities(article: {
         {
           "name": "company name",
           "type": "vendor|client|affected|mentioned",
+          "specificity": "generic|specific",
           "confidence": 0.85,
           "context": "sentence where mentioned"
         }
@@ -1679,12 +1698,19 @@ export class RelevanceScorer {
   
   /**
    * Calculate software relevance score based on matches
+   * NOW WITH SOFT MATCHING for partial entity data
    */
-  private scoreSoftwareRelevance(matches: SoftwareMatch[]): number {
+  private scoreSoftwareRelevance(
+    matches: SoftwareMatch[],
+    articleSoftware: Array<{ specificity: string; confidence: number }>
+  ): number {
     if (!matches || matches.length === 0) return 0;
     
     let maxScore = 0;
-    for (const match of matches) {
+    for (let i = 0; i < matches.length; i++) {
+      const match = matches[i];
+      const entityData = articleSoftware[i];
+      
       let score = 0;
       switch (match.match_type) {
         case 'exact':
@@ -1700,6 +1726,26 @@ export class RelevanceScorer {
           score = 0;
       }
       
+      // SOFT MATCH HANDLING
+      if (entityData) {
+        // Apply specificity dampening
+        if (entityData.specificity === 'partial') {
+          score *= 0.70; // 70% weight for partial matches
+        } else if (entityData.specificity === 'generic') {
+          // Generic matches only count if confidence is decent
+          if (entityData.confidence >= 0.55) {
+            score *= 0.45; // 45% weight for generic but confident
+          } else {
+            score = 0; // Too vague and low confidence - skip
+          }
+        }
+        
+        // Confidence threshold: Below 0.55 significantly reduces score
+        if (entityData.confidence < 0.55) {
+          score *= 0.3;
+        }
+      }
+      
       // Apply user priority weight (0.5 to 1.5 multiplier)
       if (match.priority) {
         score *= (0.5 + (match.priority / 100));
@@ -1709,6 +1755,23 @@ export class RelevanceScorer {
     }
     
     return Math.min(maxScore, 10); // Cap at 10
+  }
+  
+  /**
+   * Determine match badge type based on specificity and confidence
+   * Used for UI display
+   */
+  private getMatchBadgeType(
+    specificity: 'generic' | 'partial' | 'specific',
+    confidence: number
+  ): 'confirmed' | 'likely' | 'possible' {
+    if (specificity === 'specific' && confidence >= 0.80) {
+      return 'confirmed'; // 🔴 High confidence, full details
+    } else if (specificity === 'partial' || (specificity === 'specific' && confidence >= 0.60)) {
+      return 'likely'; // 🟠 Medium confidence or partial details
+    } else {
+      return 'possible'; // 🟡 Low confidence or generic mention
+    }
   }
   
 }
@@ -1896,8 +1959,155 @@ export class ThreatAnalyzer {
     
     return Math.min(maxScore, 10);
   }
+  
+  // ===== PARTIAL DATA HANDLING =====
+  
+  /**
+   * Handles scoring when only partial entity information is available
+   * Applies confidence-adjusted multipliers based on specificity level
+   */
+  private applyPartialDataMultiplier(
+    baseScore: number,
+    specificity: 'generic' | 'partial' | 'specific',
+    confidence: number
+  ): number {
+    // Specificity multipliers
+    const specificityMultiplier = {
+      'specific': 1.0,    // Full details → 100% weight
+      'partial': 0.65,    // Some details → 65% weight
+      'generic': 0.40     // Broad mention → 40% weight
+    }[specificity];
+    
+    // Confidence threshold: Low confidence entities contribute less
+    const confidenceMultiplier = confidence >= 0.6 ? confidence : confidence * 0.5;
+    
+    return baseScore * specificityMultiplier * confidenceMultiplier;
+  }
+  
+  /**
+   * Software impact scoring with partial data handling
+   * Examples:
+   * - "Apache 2.4.49" (specific) → Full score
+   * - "Apache web server" (partial) → Dampened score
+   * - "web servers" (generic) → Heuristic base score only
+   */
+  private async scoreSoftwareImpact(
+    software: Array<{
+      name: string;
+      specificity: 'generic' | 'partial' | 'specific';
+      confidence: number;
+      version?: string;
+    }>
+  ): Promise<number> {
+    if (!software || software.length === 0) return 0;
+    
+    let maxScore = 0;
+    
+    for (const item of software) {
+      let baseScore = 5; // Default mid-range score
+      
+      // Increase score if version info available (indicates specific vulnerability)
+      if (item.version) {
+        baseScore = 7;
+      }
+      
+      // Apply partial data multiplier
+      const adjustedScore = this.applyPartialDataMultiplier(
+        baseScore,
+        item.specificity,
+        item.confidence
+      );
+      
+      maxScore = Math.max(maxScore, adjustedScore);
+    }
+    
+    return Math.min(maxScore, 10);
+  }
+  
+  /**
+   * Conservative severity scoring strategy:
+   * - Missing data → Lower severity unless corroborating evidence exists
+   * - Confidence < 0.6 → Flag for manual review, reduced weight
+   * - Explicit exploit activity or zero-day → Can escalate despite missing details
+   */
+  private shouldEscalatePartialData(article: GlobalArticle, entities: ExtractedEntities): boolean {
+    const escalationKeywords = [
+      'zero-day', '0-day', 'actively exploited', 'in-the-wild',
+      'proof-of-concept', 'poc available', 'public exploit'
+    ];
+    
+    const contentLower = (article.content || '').toLowerCase();
+    return escalationKeywords.some(keyword => contentLower.includes(keyword));
+  }
 }
 ```
+
+---
+
+## 📊 PARTIAL DATA HANDLING STRATEGY
+
+### **Confidence Thresholds Per Entity Type**
+
+| Entity Type | Minimum Confidence | Full Weight Threshold | Notes |
+|------------|-------------------|----------------------|-------|
+| **CVE** | 0.85 | 0.90 | Must be certain—no false alarms |
+| **Software + Version** | 0.80 | 0.85 | Version info critical for relevance |
+| **Software (no version)** | 0.70 | 0.80 | Broader match acceptable |
+| **Hardware** | 0.75 | 0.85 | Model specificity matters |
+| **Vendor/Company** | 0.55 | 0.70 | Broader matching OK for awareness |
+| **Threat Actor** | 0.75 | 0.85 | Attribution needs confidence |
+
+### **Specificity-Based Weight Multipliers**
+
+```typescript
+// Applied to severity component scores based on entity specificity
+const SPECIFICITY_WEIGHTS = {
+  'specific': 1.00,   // Full details (e.g., "Cisco Catalyst 9300 v16.12") → 100% weight
+  'partial': 0.65,    // Some details (e.g., "Cisco Catalyst switches") → 65% weight  
+  'generic': 0.40     // Broad mention (e.g., "network routers") → 40% weight
+};
+```
+
+### **Relevance Matching with Partial Data**
+
+**Soft Match Logic:**
+
+1. **Generic Vendor Mention** (e.g., "Cisco Routers" - no version/model)
+   - ✅ **Match IF:** User has ANY Cisco hardware + confidence ≥ 0.55
+   - ✅ **Match IF:** User lists "Cisco" as vendor + article category = hardware/infrastructure
+   - ❌ **Don't match:** Cisco mentioned in passing (confidence < 0.55)
+   - **Badge:** 🟡 "May be relevant to Cisco devices"
+
+2. **Generic Service Mention** (e.g., "Amazon zero-day" - no specific service)
+   - ✅ **Match IF:** User lists Amazon as vendor/client + confidence ≥ 0.55
+   - ✅ **Match IF:** User has AWS services in tech stack + cloud category
+   - ❌ **Don't match:** Generic Amazon mention without security context
+   - **Badge:** 🟠 "Likely affects your Amazon infrastructure"
+
+3. **CVE without Product**
+   - ❌ **Don't trigger** on standalone CVE if no product mapped
+   - ✅ **Allow reverse lookup:** Check CVE database metadata (NVD) for affected products
+   - If products found in CVE metadata → Create soft match with medium confidence
+
+4. **Partial Software Match** (e.g., "Apache" - no version)
+   - ✅ **Match IF:** User has Apache (any version) + confidence ≥ 0.70
+   - **Badge:** 🟠 "May affect Apache HTTP (version TBD)"
+
+### **Conservative vs Warning Strategy**
+
+**Default: Conservative Scoring**
+- Missing entities → Lower severity components
+- Incomplete data → Reduced weight multipliers
+- Below threshold confidence (<0.6) → Flag for review
+
+**Exception: Escalate Despite Missing Data**
+- Article contains explicit exploit activity indicators:
+  - "zero-day", "actively exploited", "in-the-wild"
+  - "proof-of-concept available", "public exploit"
+- Corroborating threat actor attribution (high sophistication)
+- Multiple CVEs mentioned (pattern of widespread impact)
+
+---
 
 ### Step 7: Article Processing Pipeline Update
 
@@ -2089,9 +2299,9 @@ Repurpose the existing threat severity and relevance scales on the card:
 </div>
 ```
 
-#### 3. Detailed Threat Information
+#### 3. Detailed Threat Information with Partial Data Indicators
 
-Add an expandable section showing extracted metadata:
+Add an expandable section showing extracted metadata **with confidence/evidence indicators**:
 
 ```tsx
 // Expandable section showing:
@@ -2101,6 +2311,27 @@ Add an expandable section showing extracted metadata:
   </CollapsibleTrigger>
   <CollapsibleContent>
     <div className="space-y-2 mt-2">
+      {/* Evidence Completeness Meter */}
+      {article.threatMetadata?.entityCompleteness && (
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-sm mb-1">
+            <span className="text-gray-600">Evidence Completeness</span>
+            <span className="font-medium">{article.threatMetadata.entityCompleteness.score}/5</span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-blue-500 h-2 rounded-full" 
+              style={{ width: `${(article.threatMetadata.entityCompleteness.score / 5) * 100}%` }}
+            />
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {article.threatMetadata.entityCompleteness.missing?.length > 0 && (
+              <>Missing: {article.threatMetadata.entityCompleteness.missing.join(', ')}</>
+            )}
+          </div>
+        </div>
+      )}
+      
       {/* CVEs list */}
       {article.cves?.length > 0 && (
         <div>
@@ -2108,10 +2339,34 @@ Add an expandable section showing extracted metadata:
         </div>
       )}
       
-      {/* Affected software/vendors */}
+      {/* Affected software/vendors WITH CONFIDENCE BADGES */}
       {article.affectedSoftware?.length > 0 && (
         <div>
-          <strong>Affected Software:</strong> {article.affectedSoftware.join(', ')}
+          <strong>Affected Software:</strong>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {article.affectedSoftware.map((sw, i) => {
+              const badge = getMatchBadgeForEntity(sw);
+              return (
+                <Tooltip key={i}>
+                  <TooltipTrigger>
+                    <Badge 
+                      variant={badge.variant}
+                      className="cursor-help"
+                    >
+                      {badge.icon} {sw.name}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="text-xs">
+                      <div className="font-medium">{badge.label}</div>
+                      <div>Confidence: {(sw.confidence * 100).toFixed(0)}%</div>
+                      <div>Specificity: {sw.specificity}</div>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </div>
         </div>
       )}
       
@@ -2129,6 +2384,16 @@ Add an expandable section showing extracted metadata:
         </div>
       )}
       
+      {/* Partial Data Warning */}
+      {article.threatMetadata?.hasPartialData && (
+        <div className="flex items-center gap-2 p-2 bg-amber-50 border border-amber-200 rounded text-sm">
+          <AlertCircle className="h-4 w-4 text-amber-600" />
+          <span className="text-amber-800">
+            Some threat details are incomplete or uncertain. Review article for full context.
+          </span>
+        </div>
+      )}
+      
       {/* Mitigation status */}
       {article.patchAvailable && (
         <div className="text-green-600">
@@ -2138,6 +2403,106 @@ Add an expandable section showing extracted metadata:
     </div>
   </CollapsibleContent>
 </Collapsible>
+
+{/* Helper function for badge display */}
+function getMatchBadgeForEntity(entity: { 
+  specificity: string; 
+  confidence: number 
+}): { 
+  icon: string; 
+  variant: string; 
+  label: string 
+} {
+  if (entity.specificity === 'specific' && entity.confidence >= 0.80) {
+    return { 
+      icon: '🔴', 
+      variant: 'destructive', 
+      label: 'Confirmed impact' 
+    };
+  } else if (entity.specificity === 'partial' || (entity.specificity === 'specific' && entity.confidence >= 0.60)) {
+    return { 
+      icon: '🟠', 
+      variant: 'default', 
+      label: 'Likely affects this' 
+    };
+  } else {
+    return { 
+      icon: '🟡', 
+      variant: 'secondary', 
+      label: 'May be relevant' 
+    };
+  }
+}
+```
+
+#### 4. Technology Stack Threat Indicators (Inline Badges)
+
+**File:** `frontend/src/pages/dashboard/threat-tracker/tech-stack.tsx`
+
+```tsx
+// Component for displaying tech item with inline threat indicator
+function TechStackItem({ 
+  item, 
+  type 
+}: { 
+  item: TechItem; 
+  type: 'software' | 'hardware' | 'vendor' | 'client' 
+}) {
+  const threatBadge = item.threatCount > 0 ? getThreatBadge(item.threatLevel, item.threatCount) : null;
+  
+  return (
+    <div 
+      className="flex items-center justify-between p-3 border rounded hover:bg-gray-50"
+      data-testid={`${type}-item-${item.id}`}
+    >
+      <div className="flex items-center gap-3">
+        <span className="font-medium">{item.name}</span>
+        {item.version && (
+          <span className="text-sm text-gray-500">v{item.version}</span>
+        )}
+      </div>
+      
+      {/* Inline threat indicator - only shows if affected */}
+      {threatBadge && (
+        <Link 
+          href={`/threat-tracker?filter=${type}:${item.id}`}
+          className="flex items-center gap-2"
+          data-testid={`threat-indicator-${item.id}`}
+        >
+          <Badge 
+            variant={threatBadge.variant}
+            className="cursor-pointer hover:opacity-80"
+          >
+            {threatBadge.icon} {item.threatCount} {threatBadge.label}
+          </Badge>
+          <ChevronRight className="h-4 w-4 text-gray-400" />
+        </Link>
+      )}
+      
+      <button 
+        onClick={() => removeItem(item.id)}
+        data-testid={`button-remove-${type}-${item.id}`}
+      >
+        <X className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+function getThreatBadge(level: string, count: number) {
+  switch(level) {
+    case 'critical':
+      return { icon: '🔴', label: 'Critical threats', variant: 'destructive' };
+    case 'high':
+      return { icon: '🟠', label: 'High threats', variant: 'default' };
+    case 'medium':
+      return { icon: '🟡', label: 'Medium threats', variant: 'secondary' };
+    case 'low':
+      return { icon: '🟢', label: 'Low threats', variant: 'outline' };
+    default:
+      return null;
+  }
+}
 ```
 
 ### Step 9: Performance Optimization Strategies
