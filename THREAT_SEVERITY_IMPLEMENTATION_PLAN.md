@@ -338,44 +338,287 @@ npx drizzle-kit generate
 npx drizzle-kit migrate
 ```
 
-## Key Architectural Decisions
+## Architecture Overview
 
-### 1. Version Tracking in Junction Tables
-- Software versions moved from `software` table to junction tables for flexibility:
-  - `article_software` table tracks version ranges (`version_from`, `version_to`) for vulnerabilities
-  - `users_software` table tracks specific versions users are running
-- Allows accurate vulnerability matching: user's version 2.15.0 matches article's range 2.14.0-2.17.0
-- Software entities remain unique by name and company only
+### The Dual-Scoring Philosophy
 
-### 2. Threat Actors as Separate Entities
-- Threat actors are now in their own table (AI-discovered only, not user-entered)
-- Connected to articles via `article_threat_actors` junction table
-- Enables tracking of threat actor activity across articles
-- Allows for threat intelligence aggregation
+This system implements a **two-dimensional threat assessment** that separates universal danger from personal impact:
 
-### 3. User-Specific Relevance Scoring (Database Storage)
-- **STORED in the database** in `article_relevance_score` table for efficiency
-- Calculated in batches when:
-  - User logs in and new articles exist (up to 1 year old OR 2000 articles, whichever is smaller)
-  - User changes their technology stack keywords
-- One-off scoring available for articles older than 1 year via "generate score" button
-- Avoids redundant recalculation and improves query performance
-- Each user has their own set of relevance scores
+#### **Severity Score (Universal) - "How dangerous is this threat?"**
+- **Objective measurement** based on threat characteristics: CVE/CVSS scores, exploitability, impact scope, threat actor sophistication
+- **Same for everyone** - A zero-day affecting Apache gets the same severity score whether you use Apache or not
+- **Stored once** in `global_articles.threat_severity_score` 
+- **Calculated synchronously** during article scraping (immediate enrichment)
+- **Scale:** 0-100, mapped to 4-tier threat levels (Low, Medium, High, Critical)
 
-### 4. AI-Powered Entity Resolution for Deduplication
-- Separate AI service (`resolveEntity`) handles entity matching and normalization
-- Clean separation: extraction focuses on finding entities, resolution focuses on matching
-- Caching layer (`entity_resolution_cache` table) stores decisions for 30 days
-- Different confidence thresholds per entity type (0.85 default, 0.75 for threat actors)
-- Handles variations: abbreviations (MSFT→Microsoft), typos, subsidiaries, legal suffixes
-- Maintains canonical names and alias tracking for comprehensive matching
+#### **Relevance Score (Personal) - "How much does this affect MY environment?"**
+- **User-specific measurement** based on YOUR tech stack: software versions, hardware, vendors, clients
+- **Different per user** - Same Apache vulnerability scores high for Apache users, zero for others
+- **Stored per user** in `article_relevance_score` table (one row per user-article pair)
+- **Calculated asynchronously** on user login or tech stack changes (batch processing)
+- **Scale:** 0-100, considering version matching, vendor relationships, priority weights
 
-### 5. Severity Scoring is User-Independent
-- **CONFIRMED**: Severity score is based purely on threat characteristics in the article
-- Stored in `threat_severity_score` column in `global_articles` table
-- Calculated using the rubric's severity components only (CVSS, exploitability, impact, etc.)
-- Same severity score for all users viewing the same article
-- Relevance scoring (user-specific) is separate and stored per user
+**Why separate them?** This allows users to see both "this is a critical threat" (severity) AND "it directly affects your systems" (relevance) - two essential but distinct perspectives for threat prioritization.
+
+---
+
+### Complete Data Flow Pipeline
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    SCRAPING PHASE (Synchronous)                  │
+└─────────────────────────────────────────────────────────────────┘
+    RSS Article Scraped
+           ↓
+    [Global Scraper] AI flags as cybersecurity = true
+           ↓
+    [Article Processor] Extract article content
+           ↓
+    [EntityManager] AI extracts entities:
+      • Software (with versions/ranges)
+      • Hardware (with models)
+      • Companies (vendors/clients)
+      • CVEs (with CVSS)
+      • Threat Actors (APTs, ransomware groups)
+      • Attack Vectors
+           ↓
+    [Entity Resolution Service] Deduplicate with AI + 30-day cache:
+      • "Microsoft" = "MSFT" = "MS" → Same entity
+      • Check entity_resolution_cache for past decisions
+      • Create new entities or link to existing
+           ↓
+    [ThreatAnalyzer] Calculate severity score (0-100):
+      • Weight: 25% CVE severity + 20% exploitability + 20% impact
+      • + 10% hardware impact + 10% attack vector + 10% threat actor
+      • + 5% each: patch status, detection difficulty, recency
+      • Handle partial data with confidence multipliers
+           ↓
+    Store in Database:
+      • Article → global_articles (with threat_severity_score)
+      • Entities → junction tables (article_software, article_hardware, etc.)
+      • Cache → entity_resolution_cache
+
+┌─────────────────────────────────────────────────────────────────┐
+│              RELEVANCE PHASE (Asynchronous, Per User)            │
+└─────────────────────────────────────────────────────────────────┘
+    User logs in OR modifies tech stack
+           ↓
+    [RelevanceScorer] Batch process (up to 2000 articles):
+      • Get user's tech stack (users_software, users_hardware, etc.)
+      • For each article, match entities against user's stack
+      • Version-aware matching (user's v2.15.0 ∈ article's 2.14-2.17 range)
+      • Calculate relevance score with priority weights
+      • Support soft matching for partial entity data
+           ↓
+    Store in article_relevance_score table:
+      • One row per (user, article) pair
+      • Includes matched entities, individual scores, total relevance
+           ↓
+    [Frontend] Display combined assessment:
+      • Threat Level badge (severity-based)
+      • Relevance indicators on user's tech stack
+      • Expandable details with confidence/evidence meters
+```
+
+---
+
+### Execution Timing Model
+
+#### **Synchronous Operations (During Scraping)**
+**What:** Entity extraction → Resolution → Severity scoring  
+**When:** Immediately after article flagged as cybersecurity  
+**Why:** Every article enriched and ready to display instantly  
+**Trade-off:** Adds ~2-5 seconds to scraping per article, but ensures complete data
+
+**Services involved:**
+- `EntityManager.extractEntitiesFromArticle()` - AI entity extraction
+- `EntityManager.findOrCreate*()` - Entity resolution with caching
+- `ThreatAnalyzer.calculateSeverityScore()` - Severity calculation
+- Database writes to junction tables and global_articles
+
+#### **Asynchronous Operations (User-Triggered)**
+**What:** Relevance score calculation  
+**When:** User login, tech stack changes, or on-demand request  
+**Why:** User-specific, can't pre-calculate for all users. Batched for efficiency  
+**Trade-off:** Slight delay on first login, but cached thereafter
+
+**Services involved:**
+- `RelevanceScorer.batchCalculateRelevance()` - Batch processing
+- `RelevanceScorer.calculateRelevanceScore()` - Individual article scoring
+- Database writes to article_relevance_score table
+
+**Batch Limits:**
+- Max 2000 articles per batch (performance ceiling)
+- Max 1 year of articles (relevance window)
+- Older articles: on-demand via "Calculate Score" button
+
+---
+
+### Key Design Justifications
+
+#### **Database Storage vs Runtime Calculation**
+
+**✅ Chosen:** Pre-calculate and store scores in database tables  
+**❌ Rejected:** Calculate scores on every page load or API request
+
+**Rationale:**
+- **Performance:** 2000 articles × complex scoring (entity matching, version checks, AI calls) = 10-30 second queries
+- **Caching:** Pre-calculated scores retrieved in <100ms via indexed queries
+- **Consistency:** Same score across all views/sessions until tech stack changes
+- **Scalability:** Database handles concurrent users; runtime calculation doesn't
+
+**Storage Locations:**
+- Severity: `global_articles.threat_severity_score` (one per article)
+- Relevance: `article_relevance_score` table (one per user-article pair)
+- Update triggers: Article scraping (severity), user login/tech change (relevance)
+
+#### **AI Entity Resolution with 30-Day Caching**
+
+**✅ Chosen:** AI-powered entity matching + persistent cache  
+**❌ Rejected:** Exact string matching or manual deduplication
+
+**Rationale:**
+- **Intelligence needed:** "Microsoft" = "MSFT" = "MS Corp" = "Microsoft Corporation" requires semantic understanding
+- **Cost optimization:** Cache decisions for 30 days to avoid redundant AI calls
+- **Accuracy:** AI handles abbreviations, typos, subsidiaries, acquisitions (e.g., "YouTube" → Google subsidiary)
+- **Maintenance:** Self-improving through cached decisions and alias tracking
+
+**Implementation:**
+- `entity_resolution_cache` table: stores (input_name, entity_type) → (resolved_id, confidence)
+- TTL: 30 days (balance between accuracy and cost)
+- Confidence thresholds: 0.85 (companies/software), 0.75 (threat actors - more aliases)
+
+#### **Version Tracking in Junction Tables**
+
+**✅ Chosen:** Store versions in junction tables (article_software, users_software)  
+**❌ Rejected:** Version as attribute in software table
+
+**Rationale:**
+- **Flexibility:** Same software (Apache HTTP) can have different versions per article
+- **Accurate matching:** Article mentions "2.14.0-2.17.0" range, user runs "2.15.0" → Match detected
+- **Historical tracking:** Multiple articles can reference different version ranges of same software
+- **Normalization:** Software entities unique by (name, company), not version
+
+**Schema:**
+- `article_software`: version_from, version_to (ranges)
+- `users_software`: version (specific version user runs)
+- Matching logic handles: version ∈ [from, to] range checks
+
+---
+
+### Partial Data Handling Strategy
+
+Real-world threat articles often lack complete information. This system gracefully handles incomplete data:
+
+#### **Specificity Levels (Added to Entities)**
+- **`specific`**: Full details (e.g., "Cisco Catalyst 9300 v16.12") → 100% weight
+- **`partial`**: Some details (e.g., "Cisco Catalyst switches") → 65% weight  
+- **`generic`**: Broad mention (e.g., "network routers") → 40% weight
+
+#### **Confidence-Adjusted Scoring**
+```
+Final Score = Base Score × Specificity Multiplier × Confidence Multiplier
+
+Specificity Multiplier:
+  specific → 1.00
+  partial  → 0.65
+  generic  → 0.40
+
+Confidence Multiplier:
+  ≥0.60 → use confidence value
+  <0.60 → use (confidence × 0.5) [heavy penalty]
+```
+
+#### **Soft Matching for Relevance**
+**Example:** Article mentions "Cisco Routers" (no model/version)
+
+- ✅ **Match IF:** User has ANY Cisco hardware + confidence ≥ 0.55
+- ✅ **Match IF:** User lists "Cisco" as vendor + article category = hardware
+- ❌ **No match:** Generic mention with confidence < 0.55
+- **UI Badge:** 🟡 "May be relevant to Cisco devices"
+
+**Example:** Article mentions "Amazon zero-day" (no specific service)
+
+- ✅ **Match IF:** User lists Amazon as vendor/client + confidence ≥ 0.55
+- ✅ **Match IF:** User has AWS services in tech stack
+- **UI Badge:** 🟠 "Likely affects your Amazon infrastructure"
+
+#### **Conservative Scoring Philosophy**
+- **Default:** Missing data → Lower severity (cautious)
+- **Exception:** Escalate if article contains: "zero-day", "actively exploited", "in-the-wild", "public exploit"
+- **Threshold:** Entities with confidence <0.60 flagged for manual review, contribute reduced weight
+
+---
+
+### Performance Optimizations
+
+#### **Caching Layers**
+1. **Entity Resolution Cache:** 30-day TTL for AI deduplication decisions
+2. **Pre-calculated Scores:** Severity and relevance stored, not recomputed
+3. **Database Indexes:** All foreign keys + query columns indexed in Drizzle schema
+
+#### **Batch Processing**
+- **Entity Extraction:** Process software/hardware/companies/CVEs in parallel
+- **Relevance Scoring:** Batch up to 100 articles at a time in loops
+- **User Limits:** Max 2000 articles per relevance batch (bounded computation)
+
+#### **Query Optimization**
+- **Single Join Queries:** Fetch article + relevance score in one query
+- **Pre-filtering:** Use EXISTS clauses before expensive scoring
+- **Lazy Loading:** Calculate relevance only for articles user will view (1-year window)
+
+#### **Index Strategy (Drizzle Schema)**
+All indexes defined declaratively in schema (no manual SQL):
+```typescript
+// Example from article_software junction table
+{
+  articleIdx: index('article_software_article_idx').on(table.articleId),
+  softwareIdx: index('article_software_software_idx').on(table.softwareId),
+  versionIdx: index('article_software_version_idx').on(table.versionFrom, table.versionTo)
+}
+```
+
+---
+
+### Integration with Existing Scraper
+
+**Minimal Disruption Design:**
+
+1. **Hook Point:** After `is_cybersecurity = true` flag set in `processArticle()`
+2. **Addition:** Call entity extraction + severity scoring as final enrichment step
+3. **Backward Compatibility:** 
+   - Existing `security_score` column still populated (severity × 10)
+   - Old queries unchanged
+   - New tables isolated from legacy schema
+4. **Error Handling:** If entity extraction fails:
+   - Article still saved with `is_cybersecurity = true`
+   - `entities_extracted = false` flag set
+   - Background job can retry later
+   - Severity score defaults to null
+
+**Integration Flow:**
+```typescript
+// Existing scraper: processArticle()
+if (cyberAnalysis.isCybersecurity) {
+  // ... existing code to save article ...
+  
+  // NEW: Entity extraction and scoring
+  const entities = await entityManager.extractEntitiesFromArticle(newArticle);
+  const severityAnalysis = await threatAnalyzer.calculateSeverityScore(newArticle, entities);
+  
+  await db.update(globalArticles)
+    .set({
+      threatSeverityScore: severityAnalysis.severityScore,
+      threatLevel: severityAnalysis.threatLevel,
+      entitiesExtracted: true
+    });
+}
+```
+
+**No Breaking Changes:**
+- Existing threat tracker queries work as-is
+- New relevance features opt-in (user must configure tech stack)
+- Gradual rollout: old articles can be backfilled with "Calculate Score" button
 
 ## Implementation Overview
 
