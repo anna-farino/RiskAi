@@ -444,22 +444,15 @@ export default function Keywords() {
         "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
       )}
     >
-      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-xl md:text-2xl lg:text-2xl [letter-spacing:1px] text-white">
-                Keyword Management
-              </h1>
-              <p className="text-base text-slate-400">
-                Manage keywords to categorize and filter article content
-              </p>
-            </div>
+      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6 transition-all duration-300 mb-2">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <Tag className="h-6 w-6 text-purple-400" />
+            <span className="text-xl font-semibold text-white">Keyword Management</span>
           </div>
 
           {/* Toolbar Content */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-3">
             {/* Search Section */}
             <div className="col-span-1">
               <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
@@ -564,12 +557,9 @@ export default function Keywords() {
               </form>
             </div>
           </div>
-        </div>
       </div>
 
-
-
-      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-xl p-4">
+      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
         <div className="flex flex-row gap-x-4 items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <h2 className="hidden sm:block text-lg font-medium text-white">Keyword List</h2>

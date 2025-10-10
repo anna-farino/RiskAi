@@ -18,6 +18,7 @@ interface ArticleCardProps {
   isPending?: boolean;
   onKeywordClick?: (keyword: string) => void;
   onSendToCapsule?: (url: string) => void;
+  isSentToCapsule?: boolean;
 }
 
 export function ArticleCard({
@@ -25,6 +26,7 @@ export function ArticleCard({
   isPending = false,
   onKeywordClick,
   onSendToCapsule,
+  isSentToCapsule = false,
 }: ArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
@@ -203,13 +205,15 @@ export function ArticleCard({
                   onClick={handleSendToCapsule}
                   className={cn(
                     "h-8 w-8 p-2",
-                    "border border-slate-700 rounded-full",
-                    "text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 hover:border-[#00FFFF]/30",
+                    "border rounded-full",
                     "transition-all duration-200",
+                    isSentToCapsule
+                      ? "border-red-500/50 text-red-400 hover:text-red-300 hover:bg-red-500/10 hover:border-red-400/60"
+                      : "border-slate-700 text-slate-400 hover:text-[#00FFFF] hover:bg-[#00FFFF]/10 hover:border-[#00FFFF]/30",
                     (isPending || sendingToCapsule) &&
                       "cursor-not-allowed opacity-70",
                   )}
-                  title="Send to News Capsule"
+                  title={isSentToCapsule ? "Already sent to Report Center" : "Send to Report Center"}
                 >
                   {sendingToCapsule ? (
                     <Loader2 className="h-4 w-4 animate-spin" />

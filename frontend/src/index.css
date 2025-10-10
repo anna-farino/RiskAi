@@ -37,7 +37,7 @@ body {
     --primary-foreground: 0 0% 100%;
     --secondary: 180 100% 50%;      /* Neon Cyan #00FFFF */
     --secondary-foreground: 0 0% 0%;
-    --accent: 326 100% 50%;         /* Magenta #FF00BF */
+    --accent: 270 91% 56%;          /* Dark Purple #9333EA */
     --accent-foreground: 0 0% 100%;
     --muted: 0 0% 96.1%;
     --muted-foreground: 0 0% 45.1%;
@@ -45,7 +45,7 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 0 0% 89.8%;
     --input: 0 0% 89.8%;
-    --ring: 326 100% 50%;           /* Magenta for focus rings #FF00BF */
+    --ring: 270 91% 56%;            /* Dark Purple for focus rings #9333EA */
     
     /* Additional RisqAi Brand Colors */
     --dark-blue: 222 78% 33%;       /* #1E3A8A */
@@ -60,7 +60,7 @@ body {
     
     /* Chart Colors */
     --chart-1: 285 100% 50%;       /* Purple #BF00FF */
-    --chart-2: 326 100% 50%;       /* Magenta #FF00BF */
+    --chart-2: 270 91% 56%;        /* Dark Purple #9333EA */
     --chart-3: 180 100% 50%;       /* Cyan #00FFFF */
     --chart-4: 265 70% 42%;        /* Purple/Blue #5B21B6 */ 
     --chart-5: 222 78% 33%;        /* Dark Blue #1E3A8A */
@@ -82,7 +82,7 @@ body {
     --primary-foreground: 0 0% 100%;
     --secondary: 180 100% 50%;      /* Neon Cyan #00FFFF */
     --secondary-foreground: 0 0% 0%;
-    --accent: 326 100% 50%;         /* Magenta #FF00BF */
+    --accent: 270 91% 56%;          /* Dark Purple #9333EA */
     --accent-foreground: 0 0% 100%;
     --muted: 222 47% 11%;
     --muted-foreground: 0 0% 63.9%;
@@ -90,7 +90,7 @@ body {
     --destructive-foreground: 0 0% 98%;
     --border: 222 47% 20%;
     --input: 222 47% 15%;
-    --ring: 326 100% 50%;           /* Magenta for focus rings #FF00BF */
+    --ring: 270 91% 56%;            /* Dark Purple for focus rings #9333EA */
     
     /* Additional RisqAi Brand Colors */
     --dark-blue: 222 78% 33%;       /* #1E3A8A */
@@ -105,7 +105,7 @@ body {
     
     /* Chart Colors - Slightly brighter for dark mode */
     --chart-1: 285 100% 60%;       /* Purple #BF00FF */
-    --chart-2: 326 100% 60%;       /* Magenta #FF00BF */
+    --chart-2: 270 91% 60%;        /* Dark Purple #9333EA */
     --chart-3: 180 100% 60%;       /* Cyan #00FFFF */
     --chart-4: 265 70% 50%;        /* Purple/Blue #5B21B6 */ 
     --chart-5: 222 78% 40%;        /* Dark Blue #1E3A8A */

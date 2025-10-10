@@ -109,11 +109,11 @@ export default function Settings() {
         </div>
       </div>
 
-      {/* Sectioned Widget Layout */}
-      <div className="space-y-4 w-full">
+      {/* 2-Column Layout for Settings Sections */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mx-4 lg:mx-0">
         
         {/* Account & Security Section */}
-        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300 mx-4 lg:mx-0">
+        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
@@ -363,7 +363,7 @@ export default function Settings() {
         </div>}
 
         {/* Developer Tools Section */}
-        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300 mx-4 lg:mx-0">
+        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-6">
               <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">

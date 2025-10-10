@@ -1029,18 +1029,11 @@ export default function Keywords() {
         "flex flex-col pb-16 sm:pb-20 w-full min-w-0",
       )}
     >
-      <div className="flex flex-col gap-3 sm:gap-4 lg:gap-5 mb-4 sm:mb-6 lg:mb-8">
-        <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-xl md:text-2xl lg:text-2xl [letter-spacing:1px] text-white">
-                Threat Keyword Management
-              </h1>
-              <p className="text-base text-slate-400">
-                Manage keywords for threat monitoring across security categories
-              </p>
-            </div>
+      <div className="bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6 transition-all duration-300 mb-0">
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <Shield className="h-6 w-6 text-purple-400" />
+            <span className="text-xl font-semibold text-white">Keyword Management</span>
           </div>
 
           {/* Toolbar Content */}
@@ -1209,7 +1202,6 @@ export default function Keywords() {
             </div>
 
           </div>
-        </div>
       </div>
 
       <Tabs
@@ -1219,7 +1211,7 @@ export default function Keywords() {
         className="w-full"
       >
 
-        <TabsContent value="threat" className="mt-4 sm:mt-6">
+        <TabsContent value="threat" className="mt-[9px]">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-base sm:text-lg lg:text-xl">
@@ -1239,7 +1231,7 @@ export default function Keywords() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="vendor" className="mt-4 sm:mt-6">
+        <TabsContent value="vendor" className="mt-[9px]">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-base sm:text-lg lg:text-xl">Vendors</CardTitle>
@@ -1256,7 +1248,7 @@ export default function Keywords() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="client" className="mt-4 sm:mt-6">
+        <TabsContent value="client" className="mt-[9px]">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-base sm:text-lg lg:text-xl">Clients</CardTitle>
@@ -1273,7 +1265,7 @@ export default function Keywords() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="hardware" className="mt-4 sm:mt-6">
+        <TabsContent value="hardware" className="mt-[9px]">
           <Card className="border-0 sm:border">
             <CardHeader className="p-3 sm:p-4 lg:p-6">
               <CardTitle className="text-base sm:text-lg lg:text-xl">

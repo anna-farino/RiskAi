@@ -30,7 +30,7 @@ export function RisqWidget({
   const getWidgetClasses = () => {
     const baseClasses = "bg-gradient-to-b from-[#300A45]/80 to-black/80 backdrop-blur-sm " +
       "border border-[#BF00FF]/20 rounded-md p-6 flex flex-col " + 
-      "shadow-lg shadow-[#BF00FF]/5 h-full min-h-[400px]";
+      "shadow-lg shadow-[#BF00FF]/5 min-h-[400px]";
     
     const variantClasses = {
       standard: "",
@@ -153,7 +153,7 @@ export function WidgetGrid({
   className?: string 
 }) {
   return (
-    <div className={`grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 ${className}`}>
+    <div className={`grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6 items-start ${className}`}>
       {children}
     </div>
   );

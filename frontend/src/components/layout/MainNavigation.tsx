@@ -286,8 +286,6 @@ export const MainNavigation = ({ className }: { className?: string }) => {
         </div>
 
         {/* News Capsule collapsible section - Admin Only */}
-        {
-          (
           <div className="space-y-1">
             <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
               <div className="flex items-center">
@@ -302,7 +300,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
                     <div className="relative">
                       <Radar size={20} className="text-[#BF00FF]" />
                     </div>
-                    <span className="font-medium">News Capsule</span>
+                    <span className="font-medium">Report Center</span>
                   </Link>
                   <CollapsibleTrigger asChild>
                     <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
@@ -320,27 +318,26 @@ export const MainNavigation = ({ className }: { className?: string }) => {
                   transform: 'translateZ(0)' // Force hardware acceleration
                 }}
               >
-                <NavItem
-                  href="/dashboard/news-capsule/research"
-                  icon={<Search size={16} className="text-[#BF00FF]/60" />}
-                  active={isActive('/dashboard/news-capsule/research')}
-                  isChild={true}
-                >
-                  Research
-                </NavItem>
-
-                <NavItem
-                  href="/dashboard/news-capsule/reports"
-                  icon={<FileText size={16} className="text-[#BF00FF]/60" />}
-                  active={isActive('/dashboard/news-capsule/reports')}
-                  isChild={true}
-                >
-                  Executive Reports
-                </NavItem>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        )}
+              <NavItem 
+                href="/dashboard/news-capsule/research" 
+                icon={<Search size={16} className="text-[#BF00FF]/60" />} 
+                active={isActive('/dashboard/news-capsule/research')}
+                isChild={true}
+              >
+                Article Library
+              </NavItem>
+              
+              <NavItem 
+                href="/dashboard/news-capsule/reports" 
+                icon={<FileText size={16} className="text-[#BF00FF]/60" />} 
+                active={isActive('/dashboard/news-capsule/reports')}
+                isChild={true}
+              >
+                Current Report
+              </NavItem>
+            </CollapsibleContent>
+          </Collapsible>
+        </div>
         
         <NavItem
           href="/dashboard/settings"
@@ -567,33 +564,29 @@ export const MobileNavigation = () => {
                     </CollapsibleContent>
                   </Collapsible>
                 </div>
-
-                {/* News Capsule collapsible section - Admin Only */}
-                {userData?.role === 'admin' && (
-                  <div className="space-y-1">
-                    <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
-                      <div className="flex items-center">
-                        <div className={cn(
-                          "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
-                          "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
-                          location.pathname.startsWith('/dashboard/news-capsule')
-                            ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
-                            : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
-                        )}>
-                          <Link to="/dashboard/news-capsule/home" className="flex items-center gap-3 flex-1">
-                            <div className="relative">
-                              <Radar size={20} className="text-[#BF00FF]" />
-                            </div>
-                            <span className="font-medium">News Capsule</span>
-                          </Link>
-                          <CollapsibleTrigger asChild>
-                            <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
-                              {newsCapsuleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                            </button>
-                          </CollapsibleTrigger>
-                        </div>
+                {/* News Capsule collapsible section */}
+                <div className="space-y-1">
+                  <Collapsible open={newsCapsuleExpanded} onOpenChange={setNewsCapsuleExpanded} className="w-full">
+                    <div className="flex items-center">
+                      <div className={cn(
+                        "flex items-center justify-between w-full gap-3 rounded-md py-2.5 px-3 text-sm transition-all duration-300 group",
+                        "bg-gradient-to-b backdrop-blur-sm border shadow-sm",
+                        location.pathname.startsWith('/dashboard/news-capsule')
+                          ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
+                          : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
+                      )}>
+                        <Link to="/dashboard/news-capsule/home" className="flex items-center gap-3 flex-1">
+                          <div className="relative">
+                            <Radar size={20} className="text-[#BF00FF]" />
+                          </div>
+                          <span className="font-medium">Report Center</span>
+                        </Link>
+                        <CollapsibleTrigger asChild>
+                          <button className="text-gray-400 group-hover:text-[#BF00FF] transition-colors p-1 hover:bg-[#BF00FF]/10 rounded">
+                            {newsCapsuleExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          </button>
+                        </CollapsibleTrigger>
                       </div>
-
                       <CollapsibleContent
                         className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
                         style={{
@@ -602,28 +595,27 @@ export const MobileNavigation = () => {
                           transform: 'translateZ(0)' // Force hardware acceleration
                         }}
                       >
-                        <NavItem
-                          href="/dashboard/news-capsule/research"
-                          icon={<Search size={16} className="text-[#BF00FF]/60" />}
-                          active={location.pathname.includes('/dashboard/news-capsule/research')}
-                          isChild={true}
-                        >
-                          Research
-                        </NavItem>
-
-                        <NavItem
-                          href="/dashboard/news-capsule/reports"
-                          icon={<FileText size={16} className="text-[#BF00FF]/60" />}
-                          active={location.pathname.includes('/dashboard/news-capsule/reports')}
-                          isChild={true}
-                        >
-                          Executive Reports
-                        </NavItem>
-                      </CollapsibleContent>
-                    </Collapsible>
-                  </div>
-                )}
-                
+                      <NavItem 
+                        href="/dashboard/news-capsule/research" 
+                        icon={<Search size={16} className="text-[#BF00FF]/60" />} 
+                        active={location.pathname.includes('/dashboard/news-capsule/research')}
+                        isChild={true}
+                      >
+                        Article Library
+                      </NavItem>
+                      
+                      <NavItem 
+                        href="/dashboard/news-capsule/reports" 
+                        icon={<FileText size={16} className="text-[#BF00FF]/60" />}
+                        active={location.pathname.includes('/dashboard/news-capsule/reports')}
+                        isChild={true}
+                      >
+                        Current Report
+                      </NavItem>
+                    </CollapsibleContent>
+                    </div>
+                  </Collapsible>
+                </div>
                 <NavItem
                   href="/dashboard/settings"
                   icon={<Settings size={18} className="text-gray-300" />}
