@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RisqWidget, WidgetGrid } from '@/components/widgets/RisqWidget';
-import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart, Loader2, ArrowRight, Clock, Hash, ExternalLink } from 'lucide-react';
+import { Newspaper, AlertTriangle, TrendingUp, Radar, Settings, BarChart4, Search, Database, ShieldAlert, Bell, Lock, LineChart, Loader2, ArrowRight, Clock, Hash, ExternalLink, FileText } from 'lucide-react';
 import { useQuery } from "@tanstack/react-query";
 import { useFetch } from "@/hooks/use-fetch";
 import { useAuth } from "@/hooks/use-auth";
@@ -950,7 +950,7 @@ export default function Dashboard() {
                         className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
                       >
                         <span>Go To Threat Tracker</span>
-                        <ArrowRight className="h-3 w-3 flex-shrink-0" />
+                        <ArrowRight className="h-3 w-3 flex-shrink-0 text-[#00FFFF] border border-[#00FFFF]/40 rounded-sm p-0.5" />
                       </button>
                     </div>
                   ) : null}
@@ -1432,7 +1432,7 @@ export default function Dashboard() {
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate('/dashboard/news-capsule/reports');
+                          navigate('/dashboard/news-capsule/home');
                         }}
                         className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
                       >
@@ -1579,6 +1579,44 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  {/* Quick Action Buttons */}
+                  <div className="flex flex-col gap-2 mt-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/dashboard/news-capsule/research');
+                      }}
+                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
+                    >
+                      <Radar className="w-3.5 h-3.5" />
+                      <span>Create New Report</span>
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/dashboard/news-capsule/home');
+                      }}
+                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>View All Reports</span>
+                    </button>
+                    
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (capsuleReports && capsuleReports.length > 0) {
+                          navigate(`/dashboard/news-capsule/reports/${capsuleReports[0].id}`);
+                        }
+                      }}
+                      disabled={!capsuleReports || capsuleReports.length === 0}
+                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-purple-500/20 disabled:hover:to-purple-600/20 disabled:hover:border-purple-500/40"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>View Latest Report</span>
+                    </button>
+                  </div>
                   
                 </>
               ) : (

@@ -249,7 +249,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
                   <span className="font-medium">Threat Tracker</span>
                 </Link>
                 <CollapsibleTrigger asChild>
-                  <button className="text-gray-400 group-hover:text-[#00FFFF] transition-colors p-1 hover:bg-[#00FFFF]/10 rounded">
+                  <button className="text-gray-400 group-hover:text-[#00FFFF] transition-colors p-1 hover:bg-[#00FFFF]/10 rounded border border-transparent hover:border-[#00FFFF]/40">
                     {threatTrackerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                   </button>
                 </CollapsibleTrigger>
@@ -529,7 +529,7 @@ export const MobileNavigation = () => {
                           <span className="font-medium">Threat Tracker</span>
                         </Link>
                         <CollapsibleTrigger asChild>
-                          <button className="text-gray-400 group-hover:text-[#00FFFF] transition-colors p-1 hover:bg-[#00FFFF]/10 rounded">
+                          <button className="text-gray-400 group-hover:text-[#00FFFF] transition-colors p-1 hover:bg-[#00FFFF]/10 rounded border border-transparent hover:border-[#00FFFF]/40">
                             {threatTrackerExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                           </button>
                         </CollapsibleTrigger>
@@ -587,14 +587,16 @@ export const MobileNavigation = () => {
                           </button>
                         </CollapsibleTrigger>
                       </div>
-                      <CollapsibleContent
-                        className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
-                        style={{
-                          WebkitOverflowScrolling: 'touch',
-                          willChange: 'height',
-                          transform: 'translateZ(0)' // Force hardware acceleration
-                        }}
-                      >
+                    </div>
+                    
+                    <CollapsibleContent
+                      className="space-y-1 pt-2 overflow-hidden data-[state=open]:animate-collapsible-down data-[state=closed]:animate-collapsible-up"
+                      style={{
+                        WebkitOverflowScrolling: 'touch',
+                        willChange: 'height',
+                        transform: 'translateZ(0)' // Force hardware acceleration
+                      }}
+                    >
                       <NavItem 
                         href="/dashboard/news-capsule/research" 
                         icon={<Search size={16} className="text-[#BF00FF]/60" />} 
@@ -613,7 +615,6 @@ export const MobileNavigation = () => {
                         Current Report
                       </NavItem>
                     </CollapsibleContent>
-                    </div>
                   </Collapsible>
                 </div>
                 <NavItem
