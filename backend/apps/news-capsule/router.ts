@@ -6,6 +6,7 @@ import { deleteReport } from './delete-report';
 import { removeArticleFromReport } from './remove-article-from-report';
 import { getCapsueArticles } from './get-articles';
 import { deleteCapsuleArticle } from './delete-article';
+import { clearAllCapsuleArticles } from './clear-all-articles';
 
 const router = Router();
 
@@ -26,6 +27,9 @@ router.get('/reports', getReports);
 
 // Get all capsule articles for the current user
 router.get('/articles', getCapsueArticles);
+
+// Clear all capsule articles for the current user
+router.delete('/articles/clear-all', clearAllCapsuleArticles);
 
 // Delete a capsule article
 router.delete('/articles/:id', deleteCapsuleArticle);

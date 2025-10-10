@@ -44,7 +44,7 @@ export default function ThreatLayout() {
               </span>
             </h1>
             <p className="text-muted-foreground max-w-3xl">
-              Advanced threat detection and security intelligence monitoring for proactive cybersecurity awareness and incident response.
+              Monitor security threats and emerging cybersecurity intelligence updates.
             </p>
           </div>
         </div>

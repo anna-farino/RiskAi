@@ -51,7 +51,7 @@ export function RisqFooter() {
               </li>
               <li>
                 <Link to="/dashboard/capsule/home" className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                  News Capsule
+                  Report Center
                 </Link>
               </li>
               <li>

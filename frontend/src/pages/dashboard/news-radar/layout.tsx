@@ -44,8 +44,7 @@ export default function NewsLayout() {
               </span>
             </h1>
             <p className="text-muted-foreground max-w-3xl">
-              Advanced aggregation and AI-driven content analysis for efficient
-              news collection and processing.
+              AI-powered news aggregation and intelligent content analysis.
             </p>
           </div>
         </div>
