@@ -148,6 +148,7 @@ export default function ThreatSources() {
           <div className="flex items-center gap-3 mb-6">
             <Shield className="h-6 w-6 text-purple-400" />
             <span className="text-xl font-semibold text-white">Source Management</span>
+
           </div>
 
           {/* Toolbar Content */}
@@ -238,79 +239,6 @@ export default function ThreatSources() {
                     <CheckCircle className="h-3 w-3 mr-1" />
                     Active: {availableSources.data?.filter(s => s.isEnabled).length || 0}
                   </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Toolbar Content */}
-          <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-2">
-            {/* Search Section */}
-            <div className="col-span-1">
-              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <Search className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Search Sources</span>
-                </div>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search by name or URL..."
-                    className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Filter Section */}
-            <div className="col-span-1">
-              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="h-4 w-4 text-purple-400" />
-                  <span className="text-sm font-medium text-purple-400">Status Filters</span>
-                </div>
-                <div className="grid grid-cols-3 gap-1">
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      statusFilter === 'all'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setStatusFilter('all')}
-                    title="Show All Sources"
-                  >
-                    <Filter className="h-3 w-3 mr-1" />
-                    All
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      statusFilter === 'enabled'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setStatusFilter('enabled')}
-                    title="Show Enabled Sources"
-                  >
-                    <CheckCircle className="h-3 w-3 mr-1" />
-                    Enabled
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-1 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      statusFilter === 'disabled'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setStatusFilter('disabled')}
-                    title="Show Disabled Sources"
-                  >
-                    <XCircle className="h-3 w-3 mr-1" />
-                    Disabled
-                  </button>
                 </div>
               </div>
             </div>
