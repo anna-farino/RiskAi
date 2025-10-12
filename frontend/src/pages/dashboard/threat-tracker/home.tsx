@@ -1064,26 +1064,25 @@ export default function ThreatHome() {
                 <Shield className="h-8 w-8 text-[#BF00FF]" />
               </div>
               <h3 className="text-xl font-semibold text-white mb-3">
-                No threat articles found
+                Configure Your Technology Stack
               </h3>
               <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed">
-                Start by enabling sources and keywords to monitor for security
-                threats, or adjust your search filters to discover potential
-                vulnerabilities.
+                To see personalized threat intelligence, first configure your technology stack.
+                Add the software, hardware, vendors, and clients you want to monitor for security threats.
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
                 <Button
                   asChild
                   className="h-10 px-6 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] transition-all duration-200"
                 >
-                  <Link to="/dashboard/threat/sources">Enable Sources</Link>
+                  <Link to="/dashboard/threat/tech-stack">Configure Technology Stack</Link>
                 </Button>
                 <Button
                   variant="outline"
                   asChild
                   className="h-10 px-6 font-semibold border-slate-600 hover:bg-white/10 text-white transition-all duration-200"
                 >
-                  <Link to="/dashboard/threat/keywords">Manage Keywords</Link>
+                  <Link to="/dashboard/threat/sources">Enable Sources</Link>
                 </Button>
               </div>
             </div>
