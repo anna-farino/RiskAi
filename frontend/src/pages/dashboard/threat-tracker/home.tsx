@@ -37,7 +37,7 @@ export default function ThreatHome() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [threatLevel, setThreatLevel] = useState<string>("All");
   const [dateRange, setDateRange] = useState<string>("Today");
-  const [sortOrder, setSortOrder] = useState<string>("Newest First");
+  const [sortOrder, setSortOrder] = useState<string>("Relevance");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
@@ -180,6 +180,9 @@ export default function ThreatHome() {
     if (originalDateRange.endDate) {
       params.append("endDate", `${originalDateRange.endDate}T23:59:59.999Z`);
     }
+    
+    // Add sort order parameter
+    params.append("sortBy", sortOrder.toLowerCase().replace(" ", "_"));
 
     // Send a high limit to get more articles (instead of backend default 50)
     params.append("limit", "1000");
@@ -187,13 +190,14 @@ export default function ThreatHome() {
     return params.toString();
   };
 
-  // Articles query with filtering - only fetch when keywords are selected
+  // Articles query - now automatically loads based on Technology Stack
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
       "/api/threat-tracker/articles",
       searchTerm,
       selectedKeywordIds,
       originalDateRange,
+      sortOrder,
     ],
     queryFn: async () => {
       try {
@@ -213,7 +217,7 @@ export default function ThreatHome() {
         return [];
       }
     },
-    enabled: selectedKeywordIds.length > 0, // Only fetch when keywords are selected
+    enabled: true, // Always fetch - backend will use Tech Stack or fallback to keywords
   });
 
   // Auto-select active keywords when keywords are loaded
