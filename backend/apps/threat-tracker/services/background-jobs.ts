@@ -1,7 +1,7 @@
 import { storage } from "../queries/threat-tracker";
-import { analyzeContent, extractArticleEntities } from "./openai";
+import { analyzeContent } from "./openai";
 import { scrapingService } from "./scraper";
-import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai"; // Phase 2.2: AI Processing
+import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities } from "backend/services/openai"; // Phase 2.2: AI Processing
 import { EntityManager } from "backend/services/entity-manager";
 import { ThreatAnalyzer } from "backend/services/threat-analysis";
 
@@ -183,17 +183,14 @@ async function processArticle(
       
       // Extract entities from the article using AI
       log(`[Global ThreatTracker] Extracting entities from article`, "scraper");
-      extractedEntities = await extractArticleEntities(
-        articleData.content,
-        articleData.title
-      );
+      extractedEntities = await extractArticleEntities({
+        content: articleData.content,
+        title: articleData.title,
+        url: articleUrl
+      });
       
-      // Resolve and store entities in database
-      const entityManager = new EntityManager();
-      const storedEntities = await entityManager.processArticleEntities(
-        articleUrl, // We'll use URL as article ID for now
-        extractedEntities
-      );
+      // Note: We'll link entities after the article is saved to database
+      // since linkArticleToEntities requires the article ID from the database
       
       // Calculate threat severity score (user-independent)
       const threatAnalyzer = new ThreatAnalyzer();
@@ -201,14 +198,14 @@ async function processArticle(
         {
           title: articleData.title,
           content: articleData.content,
-          publishDate: articleData.publishDate,
-          url: articleUrl
-        },
+          publishDate: publishDate,
+          attackVectors: []  // We don't have attack vectors yet
+        } as any,  // Cast to any temporarily until we fix the type signature
         extractedEntities
       );
       
-      threatSeverityScore = severityResult.score;
-      severityLevel = severityResult.severityLevel;
+      threatSeverityScore = severityResult.severityScore;
+      severityLevel = severityResult.threatLevel;
       
       log(`[Global ThreatTracker] Threat severity score: ${threatSeverityScore} (${severityLevel})`, "scraper");
       
@@ -218,7 +215,7 @@ async function processArticle(
         content: articleData.content,
         detectedKeywords: analysis.detectedKeywords
       });
-      severityScore = parseInt(riskAnalysis.score);
+      severityScore = parseInt(riskAnalysis.score.toString());
     } else {
       // Not cybersecurity related - set minimal scores
       threatSeverityScore = 0;
