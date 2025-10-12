@@ -205,9 +205,48 @@ async function scrapeGlobalSource(
         });
         const isCybersecurity = cybersecurityAnalysis?.isCybersecurity || false;
         
-        // Calculate security risk score if it's a cybersecurity article
+        // Initialize threat scoring and entity data
         let securityScore = null;
+        let threatSeverityScore = null;
+        let threatMetadata = null;
+        let threatLevel = null;
+        let extractedEntities = null;
+        let entitiesExtracted = false;
+        
         if (isCybersecurity) {
+          // Extract entities from the article using AI
+          log(`[Global Scraping] Extracting entities from article`, "scraper");
+          try {
+            extractedEntities = await extractArticleEntities({
+              title: finalTitle,
+              content: articleContent.content,
+              url: link
+            });
+            entitiesExtracted = true;
+            
+            // Calculate threat severity score (user-independent)
+            const threatAnalyzer = new ThreatAnalyzer();
+            const severityResult = await threatAnalyzer.calculateSeverityScore(
+              {
+                title: finalTitle,
+                content: articleContent.content,
+                publishDate: articleContent.publishDate || new Date(),
+                attackVectors: []  // We don't have attack vectors yet
+              } as any,  // Cast temporarily until we fix the type signature
+              extractedEntities
+            );
+            
+            threatSeverityScore = severityResult.severityScore;
+            threatLevel = severityResult.threatLevel;
+            threatMetadata = severityResult.metadata;
+            
+            log(`[Global Scraping] Threat severity score: ${threatSeverityScore} (${threatLevel})`, "scraper");
+          } catch (error) {
+            log(`[Global Scraping] Entity extraction failed: ${error.message}`, "scraper");
+            // Don't fail the whole article if entity extraction fails
+          }
+          
+          // Keep backward compatibility with old risk analysis
           const riskAnalysis = await calculateSecurityRisk({
             title: articleContent.title || "",
             content: articleContent.content
