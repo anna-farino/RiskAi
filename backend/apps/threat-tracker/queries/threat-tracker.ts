@@ -123,7 +123,24 @@ export interface IStorage {
     limit?: number;
     page?: number;
   }): Promise<ThreatArticle[]>;
-  createArticle(article: InsertThreatArticle): Promise<ThreatArticle>;
+  createArticle(article: {
+    url: string;
+    userId?: string;
+    sourceId?: string;
+    title: string;
+    content: string;
+    author?: string;
+    publishDate?: Date;
+    summary?: string;
+    relevanceScore?: string;
+    securityScore?: string;
+    threatSeverityScore?: number;
+    threatMetadata?: any;
+    threatLevel?: string;
+    entitiesExtracted?: boolean;
+    detectedKeywords?: any;
+    markedForCapsule?: boolean;
+  }): Promise<ThreatArticle>;
   updateArticle(
     id: string,
     article: Partial<ThreatArticle>,
@@ -966,6 +983,9 @@ export const storage: IStorage = {
     relevanceScore?: string;
     securityScore?: string;
     threatSeverityScore?: number;
+    threatMetadata?: any;
+    threatLevel?: string;
+    entitiesExtracted?: boolean;
     detectedKeywords?: any;
     markedForCapsule?: boolean;
   }) => {
@@ -992,6 +1012,9 @@ export const storage: IStorage = {
               ? parseInt(article.securityScore)
               : null,
             threatSeverityScore: article.threatSeverityScore ? article.threatSeverityScore.toString() : null,
+            threatMetadata: article.threatMetadata || null,
+            threatLevel: article.threatLevel || null,
+            entitiesExtracted: article.entitiesExtracted || false,
             isCybersecurity: true, // Threat tracker articles are always cybersecurity
             scrapedAt: new Date(),
           })

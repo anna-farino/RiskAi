@@ -177,6 +177,7 @@ async function processArticle(
     let threatSeverityScore = 0;
     let severityLevel = 'low';
     let extractedEntities = null;
+    let severityResult = null;
     
     if (cyberAnalysis.isCybersecurity) {
       log(`[Global ThreatTracker] Article identified as cybersecurity-related (confidence: ${cyberAnalysis.confidence})`, "scraper");
@@ -194,7 +195,7 @@ async function processArticle(
       
       // Calculate threat severity score (user-independent)
       const threatAnalyzer = new ThreatAnalyzer();
-      const severityResult = await threatAnalyzer.calculateSeverityScore(
+      severityResult = await threatAnalyzer.calculateSeverityScore(
         {
           title: articleData.title,
           content: articleData.content,
@@ -251,6 +252,9 @@ async function processArticle(
       relevanceScore: analysis.relevanceScore.toString(),
       securityScore: severityScore.toString(), // Use calculated security score
       threatSeverityScore: threatSeverityScore, // Add new severity score
+      threatMetadata: cyberAnalysis.isCybersecurity && severityResult ? severityResult.metadata : null, // Add detailed scoring
+      threatLevel: cyberAnalysis.isCybersecurity ? severityLevel : null, // Add threat level
+      entitiesExtracted: cyberAnalysis.isCybersecurity && extractedEntities !== null, // Mark extraction done
       detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
       userId: undefined, // No userId for global articles
     });
@@ -259,6 +263,20 @@ async function processArticle(
       `[Global ThreatTracker] Successfully processed and stored article in global database: ${articleUrl}`,
       "scraper",
     );
+    
+    // Link entities to the article if we extracted them
+    if (cyberAnalysis.isCybersecurity && extractedEntities && newArticle?.id) {
+      try {
+        log(`[Global ThreatTracker] Linking entities to article ${newArticle.id}`, "scraper");
+        const entityManager = new EntityManager();
+        await entityManager.linkArticleToEntities(newArticle.id, extractedEntities);
+        log(`[Global ThreatTracker] Successfully linked entities to article`, "scraper");
+      } catch (error) {
+        log(`[Global ThreatTracker] Failed to link entities: ${error.message}`, "scraper-error");
+        // Don't fail the whole article processing if entity linking fails
+      }
+    }
+    
     return newArticle;
   } catch (error: any) {
     log(
