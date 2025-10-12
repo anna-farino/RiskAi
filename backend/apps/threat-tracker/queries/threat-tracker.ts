@@ -134,6 +134,7 @@ export interface IStorage {
     userId?: string;
     limit?: number;
     page?: number;
+    sortBy?: string;
   }): Promise<ThreatArticle[]>;
   createArticle(article: {
     url: string;

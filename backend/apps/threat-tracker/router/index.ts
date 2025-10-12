@@ -654,11 +654,13 @@ threatRouter.get("/articles", async (req, res) => {
   try {
     const userId = getUserId(req);
     
-    // Parse filter parameters
+    // BYPASS unified storage for now - use threat-tracker storage directly
+    // This allows us to use the new Technology Stack filtering
     const search = req.query.search as string | undefined;
     const keywordIds = req.query.keywordIds;
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
     const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const sortBy = req.query.sortBy as string | undefined;
     
     let startDate: Date | undefined;
     let endDate: Date | undefined;
@@ -671,27 +673,27 @@ threatRouter.get("/articles", async (req, res) => {
       endDate = new Date(req.query.endDate as string);
     }
     
-    // Prepare filter object for unified storage
-    const filter: any = {
-      searchTerm: search,
-      startDate,
-      endDate,
-      limit,
-      offset: (page - 1) * limit
-    };
-    
-    // Add keyword IDs filter if provided
+    // Prepare keyword IDs array
+    let keywordIdsArray: string[] | undefined;
     if (keywordIds) {
       if (Array.isArray(keywordIds)) {
-        filter.keywordIds = keywordIds.filter(id => typeof id === 'string') as string[];
+        keywordIdsArray = keywordIds.filter(id => typeof id === 'string') as string[];
       } else if (typeof keywordIds === 'string') {
-        filter.keywordIds = [keywordIds];
+        keywordIdsArray = [keywordIds];
       }
     }
     
-    // Use unified storage to get articles from global_articles table
-    // Threat tracker only shows cybersecurity articles (handled by unified storage)
-    const articles = await unifiedStorage.getUserArticles(userId, 'threat-tracker', filter);
+    // Call threat-tracker storage directly with Technology Stack support
+    const articles = await storage.getArticles({
+      search,
+      keywordIds: keywordIdsArray,
+      startDate,
+      endDate,
+      userId,
+      limit,
+      page,
+      sortBy
+    });
     
     res.json(articles);
   } catch (error: any) {
