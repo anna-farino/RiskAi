@@ -123,9 +123,6 @@ export default function Keywords() {
     Record<string, boolean>
   >({
     threat: true,
-    vendor: true,
-    client: true,
-    hardware: true,
   });
 
   // Toolbar state management - matching News Radar design
@@ -702,9 +699,6 @@ export default function Keywords() {
   // Group keywords by category for counts
   const categoryCounts = {
     threat: localKeywords.filter((k) => k.category === "threat").length,
-    vendor: localKeywords.filter((k) => k.category === "vendor").length,
-    client: localKeywords.filter((k) => k.category === "client").length,
-    hardware: localKeywords.filter((k) => k.category === "hardware").length,
   };
 
   // Helper function to render compact default keywords
@@ -777,12 +771,6 @@ export default function Keywords() {
           <p className="text-sm text-muted-foreground mb-4 text-center px-4">
             {selectedCategory === "threat" &&
               "Add custom threat keywords to monitor for specific security issues."}
-            {selectedCategory === "vendor" &&
-              "Add custom vendors to monitor for security vulnerabilities."}
-            {selectedCategory === "client" &&
-              "Add custom clients to track security issues affecting them."}
-            {selectedCategory === "hardware" &&
-              "Add custom hardware/software to monitor for security issues."}
           </p>
           <Button onClick={handleNewKeyword} className="border border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500">
             <Plus className="mr-2 h-4 w-4" />
@@ -862,10 +850,7 @@ export default function Keywords() {
                           {keyword.term}
                         </p>
                         <p className="text-xs text-slate-400 capitalize">
-                          {selectedCategory === "threat" ? "Custom Threat" : 
-                           selectedCategory === "vendor" ? "Custom Vendor" : 
-                           selectedCategory === "client" ? "Custom Client" : 
-                           "Custom Hardware/Software"}
+                          Custom Threat
                         </p>
                       </div>
                       
@@ -967,10 +952,7 @@ export default function Keywords() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <span className="capitalize">
-                      {selectedCategory === "threat" && "Security Threats"}
-                      {selectedCategory === "vendor" && "Technology Vendors"}
-                      {selectedCategory === "client" && "Client Organizations"}
-                      {selectedCategory === "hardware" && "Hardware & Software"}
+                      Security Threats
                     </span>
                     <ChevronDown className={cn(
                       "h-3 w-3 transition-transform duration-200",
@@ -983,14 +965,7 @@ export default function Keywords() {
                 <div className="p-4 bg-slate-900/40 rounded-md border border-blue-500/10">
                   <div className="mb-3">
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      {selectedCategory === "threat" && 
-                        "Pre-configured keywords for common cybersecurity threats, attack vectors, and security incidents."}
-                      {selectedCategory === "vendor" && 
-                        "Technology companies and vendors commonly mentioned in security advisories and threat reports."}
-                      {selectedCategory === "client" && 
-                        "Standard client organization types and sectors frequently targeted by cyber threats."}
-                      {selectedCategory === "hardware" && 
-                        "Common hardware devices, software platforms, and technologies with security implications."}
+                      Pre-configured keywords for common cybersecurity threats, attack vectors, and security incidents.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1080,7 +1055,7 @@ export default function Keywords() {
                   <Shield className="h-4 w-4 text-purple-400" />
                   <span className="text-sm font-medium text-purple-400">Category Filters</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   <button
                     className={cn(
                       "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
@@ -1093,45 +1068,6 @@ export default function Keywords() {
                   >
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Threats ({categoryCounts.threat})
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      selectedCategory === 'vendor'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setSelectedCategory('vendor')}
-                    title="Technology Vendors"
-                  >
-                    <Building className="h-3 w-3 mr-1" />
-                    Vendors ({categoryCounts.vendor})
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      selectedCategory === 'client'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setSelectedCategory('client')}
-                    title="Client Organizations"
-                  >
-                    <Users className="h-3 w-3 mr-1" />
-                    Clients ({categoryCounts.client})
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      selectedCategory === 'hardware'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setSelectedCategory('hardware')}
-                    title="Hardware/Software"
-                  >
-                    <Cpu className="h-3 w-3 mr-1" />
-                    H/W S/W ({categoryCounts.hardware})
                   </button>
                 </div>
               </div>
@@ -1230,59 +1166,6 @@ export default function Keywords() {
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="vendor" className="mt-[9px]">
-          <Card className="border-0 sm:border">
-            <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">Vendors</CardTitle>
-              <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                Technology vendors to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderUnifiedKeywordGrid(
-                defaultKeywords.filter((k) => k.category === "vendor"),
-                userKeywords.filter((k) => k.category === "vendor")
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="client" className="mt-[9px]">
-          <Card className="border-0 sm:border">
-            <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">Clients</CardTitle>
-              <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                Your client organizations to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderUnifiedKeywordGrid(
-                defaultKeywords.filter((k) => k.category === "client"),
-                userKeywords.filter((k) => k.category === "client")
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="hardware" className="mt-[9px]">
-          <Card className="border-0 sm:border">
-            <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">
-                Hardware/Software
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                Specific hardware or software to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderUnifiedKeywordGrid(
-                defaultKeywords.filter((k) => k.category === "hardware"),
-                userKeywords.filter((k) => k.category === "hardware")
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
       </Tabs>
 
       {/* Single keyword dialog */}
@@ -1334,11 +1217,6 @@ export default function Keywords() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="threat">Threat</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">
-                          Hardware/Software
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>Categorize this keyword</FormDescription>
@@ -1446,11 +1324,6 @@ export default function Keywords() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="threat">Threat</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">
-                          Hardware/Software
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
