@@ -866,7 +866,7 @@ export const storage: IStorage = {
       // Build the query with relevance scores
       const baseQuery = db.select({
         article: globalArticles,
-        relevanceScore: articleRelevanceScores.total,
+        relevanceScore: articleRelevanceScores.relevanceScore,
         relevanceMetadata: articleRelevanceScores.metadata
       })
       .from(globalArticles)
@@ -883,7 +883,7 @@ export const storage: IStorage = {
       if (sortBy === 'relevance' && hasTechStack) {
         // Sort by relevance score (nulls last), then by date
         orderByClause = [
-          desc(sql`COALESCE(${articleRelevanceScores.total}, 0)`),
+          desc(sql`COALESCE(${articleRelevanceScores.relevanceScore}, 0)`),
           desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`)
         ];
       } else {
