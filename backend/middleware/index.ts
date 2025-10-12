@@ -1,126 +1,18 @@
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv'
-import { verifyRefreshToken, revokeRefreshToken, createAndStoreLoginTokens } from '../utils/auth';
-import { User, users } from '@shared/db/schema/user';
-import { db } from '../db/db';
+import { User } from '@shared/db/schema/user';
 import { permissions, rolesPermissions, roles, rolesUsers } from '@shared/db/schema/rbac';
 import { eq } from 'drizzle-orm';
-import { reqLog } from 'backend/utils/req-log';
-import { refreshTokenLock } from 'backend/utils/refreshTokenLock';
 import { withUserContext } from 'backend/db/with-user-context';
 
 dotenv.config()
 export const SECRET = process.env.JWT_SECRET || 'secret';
-const baseURL = process.env.BASE_URL;
-
 
 export type FullRequest = express.Request & { 
   user: User 
     & { permissions?: string[] } 
     & { role? : string | undefined | null }
 };
-
-type Token = {
-	id: string,
-	email: string,
-	iat: number,
-	exp: number
-}
-export function requestLogger(req: express.Request, _res: express.Response, next: express.NextFunction) {
-  // console.log(`📝 [${req.method}] ${req.path}`, {
-  //   query: req.query,
-  //   cookies: req.cookies,
-  //   headers: {
-  //     authorization: req.headers.authorization,
-  //     'content-type': req.headers['content-type']
-  //   }
-  // });
-  next();
-}
-
-export async function verifyToken(req: express.Request,  res: express.Response, next: express.NextFunction) {
-	// console.log("🔐 [AUTH-MIDDLEWARE] Verifying token for path:", req.path, req.originalUrl)
-	const token = req.cookies.token;
-	const refreshToken = req.cookies.refreshToken;
-	// console.log("🔐 [AUTH-MIDDLEWARE] Access and refresh tokens received")
-
-	if (!token && !refreshToken) {
-		// console.log("❌ [AUTH-MIDDLEWARE] No tokens found")
-		res.status(401).json({ message: "Unauthorized"})
-		return
-	}
-
-	try {
-		if (token) {
-			// console.log("🔍 [AUTH-MIDDLEWARE] Verifying access token...")
-			const decoded: Token = jwt.verify(token, SECRET) as unknown as Token;
-			if (decoded) {
-				// console.log("✅ [AUTH-MIDDLEWARE] JWT valid for user:", decoded.id);
-				const user = await db
-					.select()
-					.from(users)
-					.where(eq(users.id, decoded.id))
-					.limit(1);
-
-				if (!user[0] || !user[0].verified) {
-					// console.log("❌ [AUTH-MIDDLEWARE] User not found")
-					res.status(401).end();
-					return;
-				}
-
-				(req as unknown as FullRequest).user = user[0];
-        const userId = user[0].id.toString();
-
-        await attachPermissionsAndRoleToRequest(userId, req)
-
-				next();
-				return;
-			}
-		}
-
-		if (refreshToken) {
-			reqLog(req, "🔄 [AUTH-MIDDLEWARE] Attempting to refresh token...")
-			const { user, isRefreshTokenValid } = await verifyRefreshToken(req, refreshToken);
-
-      if (!user) {
-        reqLog(req, "No user found while verifying refresh token")
-        res.status(500).send()
-        return
-      }
-
-			if (isRefreshTokenValid) {
-				reqLog(req, "✅ [AUTH-MIDDLEWARE] Refresh token valid, generating new tokens...")
-
-        await refreshTokenLock({
-          req: req,
-          refreshToken: refreshToken,
-          asyncFn: async () => {
-            await revokeRefreshToken(req,refreshToken);
-            await createAndStoreLoginTokens(res, user);
-          }
-        });
-
-        (req as unknown as FullRequest).user = user;
-        const userId = user.id.toString();
-
-        await attachPermissionsAndRoleToRequest(userId, req)
-
-        next();
-        return;
-			}
-		}
-
-		reqLog(req,"❌ [AUTH-MIDDLEWARE] Either the tokens are invalid or the user doesn't exist")
-		res.status(401).end();
-
-	} catch (error) {
-		// console.error('❌ [AUTH-MIDDLEWARE] Token verification error:', error);
-		res.status(401).end();
-	}
-}
-
-
 
 async function getUserRole(userId: string, req?: express.Request ) {
   const userRole = await withUserContext(
@@ -158,10 +50,12 @@ async function getUserPermissions(userId: string) {
 }
 
 
-async function attachPermissionsAndRoleToRequest(userId: string, req: express.Request) {
-    const userRole = await getUserRole(userId, req)
-    const userPermissions = await getUserPermissions(userId);
+export async function attachPermissionsAndRoleToRequest(userId: string, req: express.Request) {
+  console.log("Attaching permissions and role to request...")
 
-    (req as unknown as FullRequest).user.permissions = userPermissions;
-    (req as unknown as FullRequest).user.role = userRole;
+  const userRole = await getUserRole(userId, req)
+  const userPermissions = await getUserPermissions(userId);
+
+  (req as unknown as FullRequest).user.permissions = userPermissions;
+  (req as unknown as FullRequest).user.role = userRole;
 }

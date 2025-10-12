@@ -39,11 +39,6 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const reportsPerPage = 9; // 3 columns x 3 rows
   
-  // Collapsible toolbar state with localStorage persistence
-  const [isToolbarExpanded, setIsToolbarExpanded] = useState<boolean>(() => {
-    const saved = localStorage.getItem('news-capsule-toolbar-expanded');
-    return saved !== null ? JSON.parse(saved) : true;
-  });
   
   // Get query client instance
   const queryClient = useQueryClient();
@@ -51,12 +46,6 @@ export default function Home() {
 
   // Note: Delete functionality removed for reports view - reports are managed on the Reports page
 
-  // Toggle toolbar expansion
-  const toggleToolbar = () => {
-    const newExpanded = !isToolbarExpanded;
-    setIsToolbarExpanded(newExpanded);
-    localStorage.setItem('news-capsule-toolbar-expanded', JSON.stringify(newExpanded));
-  };
 
   // Note: Article management functions removed - this page now shows executive reports
 
@@ -125,308 +114,204 @@ export default function Home() {
     <>
       {/* Collapsible Unified Toolbar Container */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
-        {!isToolbarExpanded ? (
-          /* Collapsed State */
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-orange-400" />
-                  <span className="text-base font-medium text-slate-200">News Capsule Controls</span>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-slate-400">
-                  <div className="flex items-center gap-1">
-                    <div className="h-2 w-2 bg-slate-400 rounded-full"></div>
-                    <span>Ready</span>
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <BarChart3 className="h-4 w-4" />
-                    <span>{reports.length} reports</span>
-                  </div>
-                </div>
+        <div className="p-6">
+          {/* 3-Column Layout */}
+          <div className="grid gap-6 lg:grid-cols-3">
+            
+            {/* Column 1: Navigation & Actions */}
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Plus className="h-5 w-5 text-purple-400" />
+                <span className="text-base font-medium text-purple-400">Navigation & Actions</span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">click to expand</span>
-                <Button
-                  onClick={toggleToolbar}
-                  variant="ghost"
-                  size="sm"
-                  className="text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30 hover:border-[#00FFFF]/50 transition-all duration-200"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Expanded State */
-          <div className="p-6">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-orange-400" />
-                <span className="text-base font-medium text-slate-200">News Capsule Controls</span>
-              </div>
-              <Button
-                onClick={toggleToolbar}
-                variant="ghost"
-                size="sm"
-                className="text-[#00FFFF] hover:text-white hover:bg-[#00FFFF]/20 border border-[#00FFFF]/30 hover:border-[#00FFFF]/50 transition-all duration-200"
-              >
-                <ChevronUp className="h-4 w-4" />
-              </Button>
-            </div>
-            <div className="flex flex-col gap-6">
-              {/* Top Row: How To and Actions */}
-              <div className="grid gap-6 lg:grid-cols-4">
-                {/* How News Capsule Works - Expanded */}
-                <div className="lg:col-span-2">
-                  <div className="bg-blue-500/10 border border-blue-500/20 rounded-md p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <FileText className="h-5 w-5 text-blue-400" />
-                      <span className="text-base font-medium text-blue-400">How News Capsule Works</span>
-                    </div>
-                    <div className="text-sm text-slate-300 space-y-3">
-                      <p>
-                        Intelligently processes and analyzes security-focused articles to create comprehensive threat intelligence and executive reports.
-                      </p>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="font-medium text-blue-300 mb-2">Content Processing</h4>
-                          <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
-                            <li>URL-based article extraction</li>
-                            <li>AI-powered threat analysis</li>
-                            <li>Vulnerability identification</li>
-                          </ul>
-                        </div>
-                        <div>
-                          <h4 className="font-medium text-blue-300 mb-2">Executive Reporting</h4>
-                          <ul className="list-disc list-inside space-y-1 ml-2 text-xs">
-                            <li>Impact assessment and scoring</li>
-                            <li>Executive summary generation</li>
-                            <li>Report compilation and export</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
+              
+              <div className="space-y-4">
+                {/* Research Action */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Research Portal</span>
+                    <span>{articles.filter(a => a.markedForReporting).length} processed</span>
                   </div>
-                </div>
-
-                {/* Capsule Research Section */}
-                <div className="lg:col-span-1">
-                  <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <Plus className="h-5 w-5 text-purple-400" />
-                      <span className="text-base font-medium text-purple-400">Capsule Research</span>
-                    </div>
-                    <div className="text-sm text-slate-300 mb-3">
-                      <div className="grid grid-cols-2 gap-3 mb-2">
-                        <div className="flex items-center gap-2 text-slate-400">
-                          <FileText className="h-4 w-4" />
-                          <span className="text-sm">
-                            {reports.length} reports
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-400">
-                          <CheckCircle2 className="h-4 w-4" />
-                          <span className="text-sm">
-                            {articles.filter(a => a.markedForReporting).length} in reports
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs">
-                        Analyze articles for meaningful insights by submitting URLs for AI-powered processing.
-                      </p>
-                    </div>
-                    <Link 
-                      to="/dashboard/news-capsule/research" 
-                      className="inline-flex items-center justify-center w-full h-9 text-sm px-4 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md transition-all duration-200"
-                    >
-                      <Plus className="mr-2 h-4 w-4" />
-                      Begin Research
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Executive Reports Section */}
-                <div className="lg:col-span-1">
-                  <div className="bg-green-500/10 border border-green-500/20 rounded-md p-6">
-                    <div className="flex items-center gap-2 mb-3">
-                      <BarChart3 className="h-5 w-5 text-green-400" />
-                      <span className="text-base font-medium text-green-400">Executive Reports</span>
-                    </div>
-                    <div className="text-sm text-slate-300 mb-3">
-                      <div className="grid grid-cols-2 gap-3 mb-2">
-                        <div className="flex items-center gap-2 text-slate-400">
-                          <BarChart3 className="h-4 w-4" />
-                          <span className="text-sm">
-                            Reports ready
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 text-slate-400">
-                          <AlertTriangle className="h-4 w-4" />
-                          <span className="text-sm">
-                            {articles.filter(a => a.threatName !== "Low").length} high priority
-                          </span>
-                        </div>
-                      </div>
-                      <p className="text-xs">
-                        Create comprehensive daily reports from analyzed articles for executive review.
-                      </p>
-                    </div>
-                    <Link 
-                      to="/dashboard/news-capsule/reports" 
-                      className="inline-flex items-center justify-center w-full h-9 text-sm px-4 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md transition-all duration-200"
-                    >
-                      <BarChart3 className="mr-2 h-4 w-4" />
-                      View Reports
-                    </Link>
-                  </div>
-                </div>
-              </div>
-
-              {/* Search & Filter Bar */}
-              <div className="bg-orange-500/10 border border-orange-500/20 rounded-md p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-3">
-                    <Search className="h-5 w-5 text-orange-400" />
-                    <span className="text-base font-medium text-orange-400">Search & Filter Reports</span>
-                    <div className="flex items-center gap-2 ml-4">
-                      <div className="h-4 w-px bg-slate-600"></div>
-                      <span className="text-sm text-slate-400">
-                        {sortedReports.length} {sortedReports.length === 1 ? 'result' : 'results'}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <div className="flex items-center gap-1">
-                      <UserCheck className="h-3 w-3" />
-                      <span>{reports.length} executive ready</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <FileText className="h-3 w-3" />
-                      <span>Export available</span>
-                    </div>
-                  </div>
+                  <Link 
+                    to="/dashboard/news-capsule/research" 
+                    className="inline-flex items-center justify-center w-full h-8 text-sm px-3 font-medium bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] rounded-md transition-all duration-200"
+                  >
+                    <Plus className="mr-2 h-3 w-3" />
+                    Begin Research
+                  </Link>
                 </div>
                 
-                <div className="grid gap-4 lg:grid-cols-4 mt-2">
-                  {/* Search Input */}
-                  <div className="lg:col-span-1">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-orange-300">Search</h4>
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          placeholder="search reports"
-                          className="pl-10 h-8 text-xs bg-slate-800/70 border border-slate-700 text-white placeholder:text-slate-500"
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                        />
-                      </div>
-                    </div>
+                {/* Reports Action */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Executive Reports</span>
+                    <span>{reports.length} ready</span>
                   </div>
-
-                  {/* Time Range Quick Filters */}
-                  <div className="lg:col-span-1">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-orange-300">Quick Filters</h4>
-                      <div className="space-y-1">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-3 text-xs w-full transition-colors justify-center border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                          onClick={() => {
-                            const today = new Date();
-                            const sevenDaysAgo = new Date();
-                            sevenDaysAgo.setDate(today.getDate() - 7);
-                            handleDateRangeChange({ startDate: sevenDaysAgo, endDate: today });
-                          }}
-                        >
-                          Past 7 Days
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-8 px-3 text-xs w-full transition-colors justify-center border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                          onClick={() => {
-                            const today = new Date();
-                            const thirtyDaysAgo = new Date();
-                            thirtyDaysAgo.setDate(today.getDate() - 30);
-                            handleDateRangeChange({ startDate: thirtyDaysAgo, endDate: today });
-                          }}
-                        >
-                          Past 30 Days
-                        </Button>
-                      </div>
+                  <Link 
+                    to="/dashboard/news-capsule/reports" 
+                    className="inline-flex items-center justify-center w-full h-8 text-sm px-3 font-medium bg-[#9333EA] hover:bg-[#9333EA]/80 text-white hover:text-[#00FFFF] rounded-md transition-all duration-200"
+                  >
+                    <BarChart3 className="mr-2 h-3 w-3" />
+                    View Reports
+                  </Link>
+                </div>
+                
+                {/* Status Overview */}
+                <div className="pt-2 border-t border-purple-500/20">
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <AlertTriangle className="h-3 w-3" />
+                      <span>{articles.filter(a => a.threatName !== "Low").length} priority</span>
                     </div>
-                  </div>
-
-                  {/* Date Range Filter */}
-                  <div className="lg:col-span-1">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-orange-300">Date Range</h4>
-                      <div className="space-y-1">
-                        <div className="relative">
-                          <Input 
-                            type="date"
-                            placeholder="From Date"
-                            value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
-                            onChange={(e) => {
-                              const date = e.target.value ? new Date(e.target.value) : undefined;
-                              handleDateRangeChange({...dateRange, startDate: date});
-                            }}
-                            className="h-8 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                          />
-                          <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-white pointer-events-none" />
-                        </div>
-                        <div className="relative">
-                          <Input 
-                            type="date"
-                            placeholder="To Date"
-                            value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
-                            onChange={(e) => {
-                              const date = e.target.value ? new Date(e.target.value) : undefined;
-                              handleDateRangeChange({...dateRange, endDate: date});
-                            }}
-                            className="h-8 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-10 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-10 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
-                          />
-                          <Calendar className="absolute right-3 top-1/2 transform -translate-y-1/2 h-3 w-3 text-white pointer-events-none" />
-                        </div>
-
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Clear Filters */}
-                  <div className="lg:col-span-1">
-                    <div className="space-y-2">
-                      <h4 className="text-sm font-medium text-orange-300">Actions</h4>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-8 px-3 text-xs w-full justify-center border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                        onClick={() => {
-                          setSearchTerm("");
-                          setDateRange({});
-                          setCurrentPage(1);
-                        }}
-                      >
-                        Clear Filters
-                      </Button>
+                    <div className="flex items-center gap-1 text-slate-400">
+                      <UserCheck className="h-3 w-3" />
+                      <span>{reports.length} executive</span>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
+
+            {/* Column 2: Search & Filter */}
+            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Search className="h-5 w-5 text-purple-400" />
+                <span className="text-base font-medium text-purple-300">Search & Filter</span>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Search Input */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-purple-300">Search Reports</h4>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="search reports..."
+                      className="pl-10 h-8 text-xs bg-slate-800/70 border border-slate-700 text-white placeholder:text-slate-500"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Quick Filters */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-purple-300">Quick Filters</h4>
+                  <div className="space-y-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-3 text-xs w-full transition-colors justify-center border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                      onClick={() => {
+                        const today = new Date();
+                        const sevenDaysAgo = new Date();
+                        sevenDaysAgo.setDate(today.getDate() - 7);
+                        handleDateRangeChange({ startDate: sevenDaysAgo, endDate: today });
+                      }}
+                    >
+                      Past 7 Days
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-3 text-xs w-full transition-colors justify-center border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                      onClick={() => {
+                        const today = new Date();
+                        const thirtyDaysAgo = new Date();
+                        thirtyDaysAgo.setDate(today.getDate() - 30);
+                        handleDateRangeChange({ startDate: thirtyDaysAgo, endDate: today });
+                      }}
+                    >
+                      Past 30 Days
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Results Status */}
+                <div className="pt-2 border-t border-purple-500/20">
+                  <div className="text-xs text-slate-400 text-center">
+                    {sortedReports.length} {sortedReports.length === 1 ? 'result' : 'results'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Column 3: Date Range & Actions */}
+            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar className="h-5 w-5 text-purple-400" />
+                <span className="text-base font-medium text-purple-300">Date Range</span>
+              </div>
+              
+              <div className="space-y-4">
+                {/* Date Range Inputs */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-purple-300">Custom Range</h4>
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <Input 
+                        type="date"
+                        placeholder="From Date"
+                        value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined;
+                          handleDateRangeChange({...dateRange, startDate: date});
+                        }}
+                        className="h-8 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      />
+                      <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                    </div>
+                    <div className="relative">
+                      <Input 
+                        type="date"
+                        placeholder="To Date"
+                        value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
+                        onChange={(e) => {
+                          const date = e.target.value ? new Date(e.target.value) : undefined;
+                          handleDateRangeChange({...dateRange, endDate: date});
+                        }}
+                        className="h-8 text-xs bg-slate-800/70 border-slate-700/50 text-white pl-3 pr-8 [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer"
+                      />
+                      <Calendar className="absolute right-2 top-1/2 transform -translate-y-1/2 h-3 w-3 text-slate-400 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-purple-300">Actions</h4>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 px-3 text-xs w-full justify-center border border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                    onClick={() => {
+                      setSearchTerm("");
+                      setDateRange({});
+                      setCurrentPage(1);
+                    }}
+                  >
+                    Clear Filters
+                  </Button>
+                </div>
+
+                {/* Export Status */}
+                <div className="pt-2 border-t border-purple-500/20">
+                  <div className="flex items-center gap-1 text-xs text-slate-400 justify-center">
+                    <FileText className="h-3 w-3" />
+                    <span>Export available</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
-        )}
+        </div>
       </div>
 
       {/* Results Container */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
-            <FileText className="h-5 w-5 text-orange-400" />
+            <FileText className="h-5 w-5 text-purple-400" />
             <span className="text-lg font-medium text-white">Executive Reports</span>
             <div className="flex items-center gap-2 ml-4">
               <div className="h-4 w-px bg-slate-600"></div>
@@ -493,8 +378,8 @@ export default function Home() {
                   {/* Priority Items */}
                   <div className="mb-4">
                     <div className="flex items-center gap-2 mb-3">
-                      <BarChart3 className="h-4 w-4 text-orange-400" />
-                      <span className="text-sm font-medium text-orange-400">Key Priority Items</span>
+                      <BarChart3 className="h-4 w-4 text-purple-400" />
+                      <span className="text-sm font-medium text-purple-400">Key Priority Items</span>
                     </div>
                     {report.articles.length > 0 ? (
                       <div className="space-y-2">
@@ -556,8 +441,8 @@ export default function Home() {
                           
                           return displayItems.map((item, index) => (
                             <div key={index} className="flex items-center gap-2 text-xs">
-                              <div className="w-1 h-1 bg-orange-400 rounded-full flex-shrink-0"></div>
-                              <span className={`truncate ${item.type === 'threat' ? 'text-slate-300' : 'text-orange-400'}`}>
+                              <div className="w-1 h-1 bg-purple-400 rounded-full flex-shrink-0"></div>
+                              <span className={`truncate ${item.type === 'threat' ? 'text-slate-300' : 'text-purple-400'}`}>
                                 {item.text}
                               </span>
                             </div>
@@ -592,7 +477,7 @@ export default function Home() {
                     <Link 
                       to="/dashboard/news-capsule/reports" 
                       onClick={() => handleViewReport(report)}
-                      className="flex items-center justify-center w-full h-9 text-sm px-4 font-semibold bg-orange-500 hover:bg-orange-600 text-white rounded-md transition-all duration-200"
+                      className="flex items-center justify-center w-full h-9 text-sm px-4 font-semibold bg-purple-500 hover:bg-purple-600 text-white rounded-md transition-all duration-200"
                     >
                       <FileText className="mr-2 h-4 w-4" />
                       View Full Report
