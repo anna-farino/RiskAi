@@ -483,6 +483,32 @@ threatRouter.delete("/admin/sources/:id", async (req, res) => {
   }
 });
 
+// Threat Actors API
+threatRouter.get("/threat-actors", async (req, res) => {
+  reqLog(req, "GET /threat-actors");
+  try {
+    const actors = await storage.getThreatActors();
+    res.json(actors);
+  } catch (error: any) {
+    console.error("Error fetching threat actors:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch threat actors" });
+  }
+});
+
+threatRouter.get("/threat-actors/:id", async (req, res) => {
+  reqLog(req, `GET /threat-actors/${req.params.id}`);
+  try {
+    const actor = await storage.getThreatActor(req.params.id);
+    if (!actor) {
+      return res.status(404).json({ error: "Threat actor not found" });
+    }
+    res.json(actor);
+  } catch (error: any) {
+    console.error("Error fetching threat actor:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch threat actor" });
+  }
+});
+
 // Keywords API
 threatRouter.get("/keywords", async (req, res) => {
   reqLog(req, "GET /keywords");

@@ -172,6 +172,10 @@ export interface IStorage {
     userId?: string,
   ): Promise<ThreatSetting>;
   getAllAutoScrapeSettings(): Promise<ThreatSetting[]>;
+
+  // Threat Actors
+  getThreatActors(): Promise<any[]>;
+  getThreatActor(id: string): Promise<any | undefined>;
 }
 
 export const storage: IStorage = {
@@ -1217,6 +1221,40 @@ export const storage: IStorage = {
     } catch (error) {
       console.error("Error getting source article count:", error);
       return 0;
+    }
+  },
+
+  // THREAT ACTORS
+  getThreatActors: async () => {
+    try {
+      const { threatActors } = await import('@shared/db/schema/threat-tracker/entities');
+      
+      const actors = await db
+        .select()
+        .from(threatActors)
+        .orderBy(desc(threatActors.createdAt));
+      
+      return actors;
+    } catch (error) {
+      console.error("Error fetching threat actors:", error);
+      return [];
+    }
+  },
+
+  getThreatActor: async (id: string) => {
+    try {
+      const { threatActors } = await import('@shared/db/schema/threat-tracker/entities');
+      
+      const results = await db
+        .select()
+        .from(threatActors)
+        .where(eq(threatActors.id, id))
+        .limit(1);
+      
+      return results[0];
+    } catch (error) {
+      console.error("Error fetching threat actor:", error);
+      return undefined;
     }
   },
 };

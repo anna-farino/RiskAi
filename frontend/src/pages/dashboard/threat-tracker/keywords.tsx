@@ -174,6 +174,27 @@ export default function Keywords() {
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
+  // Fetch threat actors
+  const threatActors = useQuery<any[]>({
+    queryKey: ["/api/threat-tracker/threat-actors"],
+    queryFn: async () => {
+      try {
+        const response = await fetchWithAuth("/api/threat-tracker/threat-actors", {
+            method: "GET",
+          });
+        if (!response.ok) throw new Error("Failed to fetch threat actors");
+        const data = await response.json();
+        return data || [];
+      } catch (error) {
+        console.error(error);
+        return [];
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  });
+
   // Update local state whenever query data changes
   useEffect(() => {
     if (keywords.data) {
@@ -1167,6 +1188,72 @@ export default function Keywords() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Threat Actors Section */}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="text-lg">Threat Actors</CardTitle>
+          <CardDescription>
+            Known threat actors, APT groups, and ransomware gangs discovered in articles
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {threatActors.isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : threatActors.data && threatActors.data.length > 0 ? (
+            <div className="space-y-2">
+              {threatActors.data.map((actor: any) => (
+                <div key={actor.id} className="p-3 border rounded-md bg-slate-900/40">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h4 className="font-medium">{actor.name}</h4>
+                      {actor.type && (
+                        <Badge variant="outline" className="mt-1 text-xs">
+                          {actor.type}
+                        </Badge>
+                      )}
+                      {actor.origin && (
+                        <span className="text-xs text-muted-foreground ml-2">
+                          Origin: {actor.origin}
+                        </span>
+                      )}
+                    </div>
+                    {actor.isVerified && (
+                      <CheckCircle className="h-4 w-4 text-green-500" title="Verified threat actor" />
+                    )}
+                  </div>
+                  {actor.aliases && actor.aliases.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-muted-foreground">Also known as: </span>
+                      {actor.aliases.map((alias: string, idx: number) => (
+                        <Badge key={idx} variant="secondary" className="text-xs mr-1">
+                          {alias}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                  {actor.targets && actor.targets.length > 0 && (
+                    <div className="mt-2">
+                      <span className="text-xs text-muted-foreground">Targets: </span>
+                      <span className="text-xs">{actor.targets.join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
+              <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
+              <h3 className="text-lg font-medium">No threat actors discovered yet</h3>
+              <p className="text-sm text-muted-foreground mb-4 text-center px-4">
+                Threat actors will appear here as they're discovered from analyzed articles
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Single keyword dialog */}
       <Dialog open={keywordDialogOpen} onOpenChange={setKeywordDialogOpen}>
