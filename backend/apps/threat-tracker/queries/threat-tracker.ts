@@ -754,6 +754,11 @@ export const storage: IStorage = {
       ]);
 
       const hasTechStack = hasSoftware.length > 0 || hasHardware.length > 0 || hasCompanies.length > 0;
+      
+      // REQUIRE tech stack to be configured - no articles without it
+      if (!hasTechStack) {
+        return []; // Return empty array if no tech stack configured
+      }
 
       // Step 3: Get active threat keywords for cross-referencing
       const userKeywords = await storage.getKeywords(undefined, userId);
@@ -793,58 +798,55 @@ export const storage: IStorage = {
         conditions.push(searchCondition);
       }
 
-      // NEW: Technology Stack entity filtering
-      // Only filter by Tech Stack if user has entities configured
-      if (hasTechStack) {
-        // Filter articles that have entities matching user's tech stack
-        const entityConditions = [];
-        
-        // Software match
-        if (hasSoftware.length > 0) {
-          entityConditions.push(sql`
-            EXISTS (
-              SELECT 1 FROM ${articleSoftware} AS art_sw
-              INNER JOIN ${usersSoftware} AS user_sw 
-                ON art_sw.software_id = user_sw.software_id
-              WHERE art_sw.article_id = ${globalArticles.id}
-                AND user_sw.user_id = ${userId}
-                AND user_sw.is_active = true
-            )
-          `);
-        }
-        
-        // Hardware match
-        if (hasHardware.length > 0) {
-          entityConditions.push(sql`
-            EXISTS (
-              SELECT 1 FROM ${articleHardware} AS art_hw
-              INNER JOIN ${usersHardware} AS user_hw 
-                ON art_hw.hardware_id = user_hw.hardware_id
-              WHERE art_hw.article_id = ${globalArticles.id}
-                AND user_hw.user_id = ${userId}
-                AND user_hw.is_active = true
-            )
-          `);
-        }
-        
-        // Company match (vendors and clients)
-        if (hasCompanies.length > 0) {
-          entityConditions.push(sql`
-            EXISTS (
-              SELECT 1 FROM ${articleCompanies} AS art_co
-              INNER JOIN ${usersCompanies} AS user_co 
-                ON art_co.company_id = user_co.company_id
-              WHERE art_co.article_id = ${globalArticles.id}
-                AND user_co.user_id = ${userId}
-                AND user_co.is_active = true
-            )
-          `);
-        }
-        
-        // Articles must match at least one tech stack entity
-        if (entityConditions.length > 0) {
-          conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
-        }
+      // Technology Stack entity filtering is REQUIRED
+      // Build the tech stack filtering conditions
+      const entityConditions = [];
+      
+      // Software match
+      if (hasSoftware.length > 0) {
+        entityConditions.push(sql`
+          EXISTS (
+            SELECT 1 FROM ${articleSoftware} AS art_sw
+            INNER JOIN ${usersSoftware} AS user_sw 
+              ON art_sw.software_id = user_sw.software_id
+            WHERE art_sw.article_id = ${globalArticles.id}
+              AND user_sw.user_id = ${userId}
+              AND user_sw.is_active = true
+          )
+        `);
+      }
+      
+      // Hardware match
+      if (hasHardware.length > 0) {
+        entityConditions.push(sql`
+          EXISTS (
+            SELECT 1 FROM ${articleHardware} AS art_hw
+            INNER JOIN ${usersHardware} AS user_hw 
+              ON art_hw.hardware_id = user_hw.hardware_id
+            WHERE art_hw.article_id = ${globalArticles.id}
+              AND user_hw.user_id = ${userId}
+              AND user_hw.is_active = true
+          )
+        `);
+      }
+      
+      // Company match (vendors and clients)
+      if (hasCompanies.length > 0) {
+        entityConditions.push(sql`
+          EXISTS (
+            SELECT 1 FROM ${articleCompanies} AS art_co
+            INNER JOIN ${usersCompanies} AS user_co 
+              ON art_co.company_id = user_co.company_id
+            WHERE art_co.article_id = ${globalArticles.id}
+              AND user_co.user_id = ${userId}
+              AND user_co.is_active = true
+          )
+        `);
+      }
+      
+      // Articles must match at least one tech stack entity
+      if (entityConditions.length > 0) {
+        conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
       }
 
       // Apply threat keyword filtering for cross-referencing
@@ -885,14 +887,14 @@ export const storage: IStorage = {
 
       // Determine sort order
       let orderByClause;
-      if (sortBy === 'relevance' && hasTechStack) {
+      if (sortBy === 'relevance') {
         // Sort by relevance score (nulls last), then by date
         orderByClause = [
           desc(sql`COALESCE(${articleRelevanceScores.relevanceScore}, 0)`),
           desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`)
         ];
       } else {
-        // Default to date sorting
+        // Date sorting
         orderByClause = [
           desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`),
           desc(globalArticles.scrapedAt)
