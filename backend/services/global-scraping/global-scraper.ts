@@ -274,6 +274,10 @@ async function scrapeGlobalSource(
             detectedKeywords: detectedKeywords,
             isCybersecurity: isCybersecurity, // Mark if it's a cybersecurity article
             securityScore: securityScore, // Add security score if it's a cybersecurity article
+            threatSeverityScore: threatSeverityScore ? threatSeverityScore.toString() : null, // Add threat severity score
+            threatMetadata: threatMetadata || null, // Add threat metadata
+            threatLevel: threatLevel || null, // Add threat level
+            entitiesExtracted: entitiesExtracted, // Mark if entities were extracted
           })
           .returning();
 
