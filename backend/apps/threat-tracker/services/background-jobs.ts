@@ -1,7 +1,9 @@
 import { storage } from "../queries/threat-tracker";
-import { analyzeContent } from "./openai";
+import { analyzeContent, extractArticleEntities } from "./openai";
 import { scrapingService } from "./scraper";
 import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai"; // Phase 2.2: AI Processing
+import { EntityManager } from "backend/services/entity-manager";
+import { ThreatAnalyzer } from "backend/services/threat-analysis";
 
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
@@ -170,17 +172,57 @@ async function processArticle(
       url: articleUrl
     });
     
-    // Calculate the risk score for cybersecurity articles
-    let securityScore = analysis.severityScore?.toString() || "0";
+    // Initialize severity score and entity data
+    let severityScore = 0;
+    let threatSeverityScore = 0;
+    let severityLevel = 'low';
+    let extractedEntities = null;
+    
     if (cyberAnalysis.isCybersecurity) {
       log(`[Global ThreatTracker] Article identified as cybersecurity-related (confidence: ${cyberAnalysis.confidence})`, "scraper");
+      
+      // Extract entities from the article using AI
+      log(`[Global ThreatTracker] Extracting entities from article`, "scraper");
+      extractedEntities = await extractArticleEntities(
+        articleData.content,
+        articleData.title
+      );
+      
+      // Resolve and store entities in database
+      const entityManager = new EntityManager();
+      const storedEntities = await entityManager.processArticleEntities(
+        articleUrl, // We'll use URL as article ID for now
+        extractedEntities
+      );
+      
+      // Calculate threat severity score (user-independent)
+      const threatAnalyzer = new ThreatAnalyzer();
+      const severityResult = await threatAnalyzer.calculateSeverityScore(
+        {
+          title: articleData.title,
+          content: articleData.content,
+          publishDate: articleData.publishDate,
+          url: articleUrl
+        },
+        extractedEntities
+      );
+      
+      threatSeverityScore = severityResult.score;
+      severityLevel = severityResult.severityLevel;
+      
+      log(`[Global ThreatTracker] Threat severity score: ${threatSeverityScore} (${severityLevel})`, "scraper");
+      
+      // Keep backward compatibility with old risk analysis
       const riskAnalysis = await calculateSecurityRisk({
         title: articleData.title,
         content: articleData.content,
         detectedKeywords: analysis.detectedKeywords
       });
-      securityScore = riskAnalysis.score.toString();
-      log(`[Global ThreatTracker] Security risk score: ${securityScore} (${riskAnalysis.severity})`, "scraper");
+      severityScore = parseInt(riskAnalysis.score);
+    } else {
+      // Not cybersecurity related - set minimal scores
+      threatSeverityScore = 0;
+      severityScore = 0;
     }
 
     // Store cybersecurity metadata in detectedKeywords object
@@ -189,7 +231,15 @@ async function processArticle(
       ...analysis.detectedKeywords,
       _cyber: cyberAnalysis.isCybersecurity ? "true" : "false",
       _confidence: cyberAnalysis.confidence.toString(),
-      _categories: (cyberAnalysis.categories || []).join(",")
+      _categories: (cyberAnalysis.categories || []).join(","),
+      _severityLevel: severityLevel,
+      _entities: extractedEntities ? JSON.stringify({
+        software: extractedEntities.software?.length || 0,
+        hardware: extractedEntities.hardware?.length || 0,
+        companies: extractedEntities.companies?.length || 0,
+        cves: extractedEntities.cves?.length || 0,
+        threatActors: extractedEntities.threatActors?.length || 0
+      }) : null
     };
 
     // Store the article in the GLOBAL database (no userId)
@@ -202,7 +252,8 @@ async function processArticle(
       publishDate: publishDate,
       summary: analysis.summary,
       relevanceScore: analysis.relevanceScore.toString(),
-      securityScore: securityScore, // Use calculated security score
+      securityScore: severityScore.toString(), // Use calculated security score
+      threatSeverityScore: threatSeverityScore, // Add new severity score
       detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
       userId: undefined, // No userId for global articles
     });

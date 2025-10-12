@@ -24,6 +24,17 @@ interface ExtendedThreatArticle extends ThreatArticle {
   securityScore: string | null;
   sourceName?: string | null;
   matchedKeywords?: string[];
+  threatSeverityScore?: string | number | null;
+  threatLevel?: string | null;
+  threatMetadata?: any;
+  cves?: string[];
+  affectedSoftware?: Array<{
+    name: string;
+    confidence: number;
+    specificity: string;
+  }>;
+  attackVectors?: string[];
+  threatActors?: string[];
 }
 
 interface ThreatArticleCardProps {
@@ -77,10 +88,19 @@ export function ThreatArticleCard({
     typeof article.securityScore === "string"
       ? parseInt(article.securityScore, 10)
       : article.securityScore || 0;
+      
+  // Parse the new threat severity score (0-100 scale)
+  const threatSeverityScore = 
+    typeof article.threatSeverityScore === "string"
+      ? parseFloat(article.threatSeverityScore)
+      : typeof article.threatSeverityScore === "number"
+      ? article.threatSeverityScore
+      : 0;
 
   // Safety check in case scores are NaN
   const normalizedRelevanceScore = isNaN(relevanceScore) ? 0 : relevanceScore;
   const normalizedSecurityScore = isNaN(securityScore) ? 0 : securityScore;
+  const normalizedThreatSeverity = isNaN(threatSeverityScore) ? 0 : threatSeverityScore;
 
   // Calculate color based on score (0-10 scale)
   const getScoreColor = (score: number) => {
@@ -97,6 +117,25 @@ export function ThreatArticleCard({
     if (score >= 4) return "bg-yellow-500";
     return "bg-green-500";
   };
+  
+  // Get threat level badge color and styling
+  const getThreatLevelColor = (level: string) => {
+    switch(level?.toLowerCase()) {
+      case 'critical': return 'bg-red-500 text-white';
+      case 'high': return 'bg-orange-500 text-white';
+      case 'medium': return 'bg-yellow-500 text-black';
+      case 'low': return 'bg-green-500 text-white';
+      default: return 'bg-gray-500 text-white';
+    }
+  };
+  
+  // Determine which score to use for display
+  const displayScore = normalizedThreatSeverity > 0 ? normalizedThreatSeverity / 10 : normalizedSecurityScore;
+  const threatLevel = article.threatLevel || (
+    displayScore >= 8 ? 'critical' :
+    displayScore >= 6 ? 'high' :
+    displayScore >= 4 ? 'medium' : 'low'
+  );
 
   // Get all detected keywords from the different categories
   const getDetectedKeywords = (): KeywordCategories => {
@@ -176,22 +215,37 @@ export function ThreatArticleCard({
               </a>
             </h3>
 
-            {/* Threat severity score badge */}
-            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full flex-shrink-0">
-              <Zap
-                className={cn(
-                  "h-3.5 w-3.5",
-                  getScoreColor(normalizedSecurityScore),
-                )}
-              />
-              <span
-                className={cn(
-                  "text-xs font-semibold leading-4",
-                  getScoreColor(normalizedSecurityScore),
-                )}
-              >
-                {normalizedSecurityScore}/10
-              </span>
+            {/* Threat level and severity score badges */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Threat level badge */}
+              {threatLevel && (
+                <Badge
+                  className={cn(
+                    "text-xs px-2 py-0.5",
+                    getThreatLevelColor(threatLevel)
+                  )}
+                >
+                  {threatLevel.toUpperCase()}
+                </Badge>
+              )}
+              
+              {/* Threat severity score */}
+              <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
+                <Zap
+                  className={cn(
+                    "h-3.5 w-3.5",
+                    getScoreColor(displayScore),
+                  )}
+                />
+                <span
+                  className={cn(
+                    "text-xs font-semibold leading-4",
+                    getScoreColor(displayScore),
+                  )}
+                >
+                  {displayScore.toFixed(1)}/10
+                </span>
+              </div>
             </div>
           </div>
 

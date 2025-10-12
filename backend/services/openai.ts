@@ -233,3 +233,324 @@ Respond in JSON format:
     };
   }
 }
+
+// Phase 3: Comprehensive Entity Extraction for Threat Intelligence
+export async function extractArticleEntities(article: {
+  title: string;
+  content: string;
+  url?: string;
+}): Promise<{
+  software: Array<{
+    name: string;
+    version?: string; // Single version if no range
+    versionFrom?: string; // Start of version range
+    versionTo?: string; // End of version range
+    vendor?: string;
+    category?: string;
+    specificity: 'generic' | 'partial' | 'specific'; // How specific is this mention?
+    confidence: number;
+    context: string;
+  }>;
+  hardware: Array<{
+    name: string;
+    model?: string;
+    manufacturer?: string;
+    category?: string;
+    specificity: 'generic' | 'partial' | 'specific'; // How specific is this mention?
+    confidence: number;
+    context: string;
+  }>;
+  companies: Array<{
+    name: string;
+    type: 'vendor' | 'client' | 'affected' | 'mentioned';
+    specificity: 'generic' | 'specific'; // Is this a broad mention or specific reference?
+    confidence: number;
+    context: string;
+  }>;
+  cves: Array<{
+    id: string;
+    cvss?: string;
+    confidence: number;
+    context: string;
+  }>;
+  threatActors: Array<{
+    name: string;
+    type?: 'apt' | 'ransomware' | 'hacktivist' | 'criminal' | 'nation-state' | 'unknown';
+    aliases?: string[];
+    activityType?: 'attributed' | 'suspected' | 'mentioned';
+    confidence: number;
+    context: string;
+  }>;
+  attackVectors: string[];
+}> {
+  const prompt = `
+    Analyze this article and extract ALL mentioned entities with high precision.
+    
+    **IMPORTANT: Extract PARTIAL entities too - don't skip mentions just because they lack details.**
+    
+    For SOFTWARE, extract:
+    - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
+    - Versions if specified - distinguish between:
+      * Single versions (e.g., "version 2.14.1")
+      * Version ranges (e.g., "versions 2.14.0 through 2.17.0", "2.x before 2.17.1")
+    - For ranges, extract versionFrom (start) and versionTo (end)
+    - Vendor/company that makes it
+    - Category (os, application, library, framework, etc.)
+    - Specificity level:
+      * "generic" - Broad mention (e.g., "Microsoft products", "routers", "cloud services")
+      * "partial" - Some details (e.g., "Cisco Catalyst switches", "Apache web server")
+      * "specific" - Full details (e.g., "Cisco Catalyst 9300 v16.12", "Apache HTTP Server 2.4.49")
+    - The sentence/context where mentioned
+    
+    For HARDWARE, extract:
+    - Device names/models (e.g., "Cisco ASA 5500", "Netgear R7000")
+    - Manufacturer
+    - Category (router, iot, server, workstation, etc.)
+    - Specificity level:
+      * "generic" - Broad mention (e.g., "routers", "IoT devices", "network equipment")
+      * "partial" - Brand/series (e.g., "Cisco routers", "Netgear devices")
+      * "specific" - Exact model (e.g., "Cisco ASA 5500-X", "Netgear R7000")
+    - The context where mentioned
+    
+    For COMPANIES, extract:
+    - Company names and classify as:
+      - vendor (makes products/services)
+      - client (affected organization)
+      - affected (impacted by issue)
+      - mentioned (referenced but not directly affected)
+    - Specificity level:
+      * "generic" - Broad mention (e.g., "cloud providers", "tech companies")
+      * "specific" - Named entity (e.g., "Amazon", "Microsoft Azure")
+    
+    For CVEs, extract:
+    - CVE identifiers (format: CVE-YYYY-NNNNN)
+    - CVSS scores if mentioned
+    - Context of the vulnerability
+    
+    For THREAT ACTORS, extract:
+    - Actor/group names (e.g., "APT28", "Lazarus Group", "LockBit")
+    - Type (apt, ransomware, hacktivist, criminal, nation-state)
+    - Any aliases mentioned
+    - Activity type (attributed, suspected, mentioned)
+    - Context where mentioned
+    
+    Also identify:
+    - Attack vectors used (network, email, physical, supply chain, etc.)
+    
+    Be very precise - only extract entities explicitly mentioned, not implied.
+    Include confidence score (0-1) for each extraction.
+    
+    Article Title: ${article.title}
+    Article Content: ${article.content.substring(0, 8000)}
+    
+    Return as structured JSON with this exact format:
+    {
+      "software": [
+        {
+          "name": "product name",
+          "version": "single version if not a range",
+          "versionFrom": "start of range (e.g., 2.14.0)",
+          "versionTo": "end of range (e.g., 2.17.0)",
+          "vendor": "company that makes it",
+          "category": "category type",
+          "specificity": "generic|partial|specific",
+          "confidence": 0.95,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "hardware": [
+        {
+          "name": "device name",
+          "model": "model number",
+          "manufacturer": "company name",
+          "category": "device type",
+          "specificity": "generic|partial|specific",
+          "confidence": 0.9,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "companies": [
+        {
+          "name": "company name",
+          "type": "vendor|client|affected|mentioned",
+          "specificity": "generic|specific",
+          "confidence": 0.85,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "cves": [
+        {
+          "id": "CVE-YYYY-NNNNN",
+          "cvss": "score if mentioned",
+          "confidence": 1.0,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "threatActors": [
+        {
+          "name": "actor name",
+          "type": "apt|ransomware|etc",
+          "aliases": ["alias1", "alias2"],
+          "activityType": "attributed|suspected|mentioned",
+          "confidence": 0.9,
+          "context": "sentence where mentioned"
+        }
+      ],
+      "attackVectors": ["vector1", "vector2"]
+    }
+  `;
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a cybersecurity analyst extracting entities from articles with high precision. Only extract entities that are explicitly mentioned in the text."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-4-turbo-preview",
+      response_format: { type: "json_object" },
+      temperature: 0.3, // Lower temperature for more consistent extraction
+      max_tokens: 4000
+    });
+    
+    const responseContent = completion.choices[0].message.content;
+    
+    if (!responseContent || responseContent.trim() === '') {
+      console.error('Empty response from OpenAI API in extractArticleEntities');
+      return {
+        software: [],
+        hardware: [],
+        companies: [],
+        cves: [],
+        threatActors: [],
+        attackVectors: []
+      };
+    }
+    
+    let result;
+    try {
+      result = JSON.parse(responseContent);
+    } catch (parseError) {
+      console.error('Failed to parse JSON response from OpenAI:', parseError);
+      console.error('Response content:', responseContent);
+      return {
+        software: [],
+        hardware: [],
+        companies: [],
+        cves: [],
+        threatActors: [],
+        attackVectors: []
+      };
+    }
+    
+    // Validate and normalize the response
+    return {
+      software: Array.isArray(result.software) ? result.software : [],
+      hardware: Array.isArray(result.hardware) ? result.hardware : [],
+      companies: Array.isArray(result.companies) ? result.companies : [],
+      cves: Array.isArray(result.cves) ? result.cves : [],
+      threatActors: Array.isArray(result.threatActors) ? result.threatActors : [],
+      attackVectors: Array.isArray(result.attackVectors) ? result.attackVectors : []
+    };
+    
+  } catch (error) {
+    console.error('Error extracting entities with OpenAI:', error);
+    // Return empty arrays if extraction fails
+    return {
+      software: [],
+      hardware: [],
+      companies: [],
+      cves: [],
+      threatActors: [],
+      attackVectors: []
+    };
+  }
+}
+
+/**
+ * AI-powered entity resolution to match new entities against existing ones
+ * Handles variations, abbreviations, typos, and aliases
+ */
+export async function resolveEntity(
+  newName: string,
+  existingEntities: Array<{
+    id: string;
+    name: string; 
+    aliases?: string[];
+  }>,
+  entityType: 'company' | 'software' | 'hardware' | 'threat_actor'
+): Promise<{
+  matchedId: string | null;
+  canonicalName: string;
+  confidence: number;
+  aliases: string[];
+  reasoning: string;
+}> {
+  const prompt = `
+    Determine if the new ${entityType} name matches any existing entities.
+    
+    New name: "${newName}"
+    
+    Existing entities:
+    ${existingEntities.map(e => `- ID: ${e.id}, Name: ${e.name}${e.aliases ? `, Aliases: ${e.aliases.join(', ')}` : ''}`).join('\n')}
+    
+    Consider:
+    - Abbreviations (e.g., MSFT → Microsoft, GCP → Google Cloud Platform)
+    - Common variations (e.g., MS → Microsoft, Chrome → Google Chrome)
+    - Subsidiaries and acquisitions (e.g., YouTube → Google subsidiary)
+    - Typos and common misspellings
+    - Different legal entity suffixes (Inc, Corp, Ltd, LLC)
+    - Version-less references (e.g., "Windows" matches "Windows 10")
+    ${entityType === 'threat_actor' ? '- Known APT group aliases and campaign names' : ''}
+    ${entityType === 'software' ? '- Product suite relationships (Office 365 → Microsoft Office)' : ''}
+    
+    Return a JSON object with:
+    {
+      "matchedId": "existing entity ID if match found, null if new entity",
+      "canonicalName": "most official/common form of the name",
+      "confidence": 0.0 to 1.0 confidence in the match,
+      "aliases": ["list", "of", "known", "variations"],
+      "reasoning": "brief explanation of the decision"
+    }
+    
+    Be conservative - only match if confidence is high. When in doubt, treat as new entity.
+  `;
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an entity resolution expert specializing in cybersecurity entities. Your job is to accurately determine if entities are the same while avoiding false matches."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-4-turbo-preview",
+      response_format: { type: "json_object" },
+      temperature: 0.2, // Lower temperature for consistent matching
+      max_tokens: 1000
+    });
+    
+    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    
+    return {
+      matchedId: result.matchedId || null,
+      canonicalName: result.canonicalName || newName,
+      confidence: result.confidence || 0,
+      aliases: result.aliases || [],
+      reasoning: result.reasoning || ''
+    };
+  } catch (error) {
+    console.error('Error in entity resolution:', error);
+    // Fallback to treating as new entity
+    return {
+      matchedId: null,
+      canonicalName: newName,
+      confidence: 0,
+      aliases: [],
+      reasoning: 'Error in resolution, treating as new entity'
+    };
+  }
+}

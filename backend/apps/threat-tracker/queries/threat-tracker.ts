@@ -965,6 +965,7 @@ export const storage: IStorage = {
     summary?: string;
     relevanceScore?: string;
     securityScore?: string;
+    threatSeverityScore?: number;
     detectedKeywords?: any;
     markedForCapsule?: boolean;
   }) => {
@@ -990,6 +991,7 @@ export const storage: IStorage = {
             securityScore: article.securityScore
               ? parseInt(article.securityScore)
               : null,
+            threatSeverityScore: article.threatSeverityScore ? article.threatSeverityScore.toString() : null,
             isCybersecurity: true, // Threat tracker articles are always cybersecurity
             scrapedAt: new Date(),
           })

@@ -2,6 +2,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
+import { useRelevanceTrigger } from "@/hooks/use-relevance-trigger";
 import type {
   ThreatArticle,
   ThreatKeyword,
@@ -28,6 +29,9 @@ import { ThreatArticleCard } from "./components/threat-article-card";
 export default function ThreatHome() {
   const { toast } = useToast();
   const fetchWithAuth = useFetch();
+  
+  // Trigger relevance score calculation when user enters the page
+  useRelevanceTrigger();
 
   // Filter state
   const [searchTerm, setSearchTerm] = useState<string>("");
