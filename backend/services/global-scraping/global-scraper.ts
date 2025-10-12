@@ -14,8 +14,10 @@ import { detectHtmlStructure } from "backend/services/scraping/extractors/struct
 // Global strategy
 import { GlobalStrategy } from "backend/services/scraping/strategies/global-strategy";
 // AI services
-import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai";
+import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities } from "backend/services/openai";
 import { analyzeContent } from "../../apps/news-radar/services/openai";
+import { EntityManager } from "backend/services/entity-manager";
+import { ThreatAnalyzer } from "backend/services/threat-analysis";
 // Content validation
 import { isValidArticleContent, isValidTitle, extractTitleFromUrl } from "../scraping/validators/content-validator";
 // Error logging
