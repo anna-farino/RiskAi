@@ -19,6 +19,17 @@ import {
   globalSources,
   userSourcePreferences,
 } from "@shared/db/schema/global-tables";
+import { articleRelevanceScores } from "@shared/db/schema/threat-tracker/relevance-scoring";
+import {
+  articleSoftware,
+  articleHardware,
+  articleCompanies,
+} from "@shared/db/schema/threat-tracker/entity-associations";
+import {
+  usersSoftware,
+  usersHardware,
+  usersCompanies,
+} from "@shared/db/schema/threat-tracker/user-associations";
 import { db, pool } from "backend/db/db";
 import {
   eq,
@@ -32,6 +43,7 @@ import {
   lte,
   or,
   ilike,
+  exists,
 } from "drizzle-orm";
 import {
   envelopeDecryptAndRotate,
@@ -700,43 +712,57 @@ export const storage: IStorage = {
   // ARTICLES
   getArticles: async (options = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId, limit, page } =
+      const { search, keywordIds, startDate, endDate, userId, limit, page, sortBy = 'relevance' } =
         options;
       const pageNum = page || 1;
       const pageSize = limit || 50;
 
-      // Phase 3: Query-time filtering from global article pool
-      // Step 1: Get user's enabled sources from user_source_preferences table
+      // Step 1: Get user's enabled sources
       const sourceIds = await getUserEnabledSources(userId, "threat_tracker");
+      if (sourceIds.length === 0) {
+        return [];
+      }
 
-      // Step 2: Get user's active keywords for filtering with categories
+      // Step 2: Check if user has Technology Stack entities configured
+      const [hasSoftware, hasHardware, hasCompanies] = await Promise.all([
+        db.select({ id: usersSoftware.softwareId })
+          .from(usersSoftware)
+          .where(and(
+            eq(usersSoftware.userId, userId),
+            eq(usersSoftware.isActive, true)
+          ))
+          .limit(1),
+        db.select({ id: usersHardware.hardwareId })
+          .from(usersHardware)
+          .where(and(
+            eq(usersHardware.userId, userId),
+            eq(usersHardware.isActive, true)
+          ))
+          .limit(1),
+        db.select({ id: usersCompanies.companyId })
+          .from(usersCompanies)
+          .where(and(
+            eq(usersCompanies.userId, userId),
+            eq(usersCompanies.isActive, true)
+          ))
+          .limit(1)
+      ]);
+
+      const hasTechStack = hasSoftware.length > 0 || hasHardware.length > 0 || hasCompanies.length > 0;
+
+      // Step 3: Get active threat keywords for cross-referencing
       const userKeywords = await storage.getKeywords(undefined, userId);
-      const activeKeywordsWithCategories = userKeywords
-        .filter((k) => k.active !== false);
-      
-      // Separate keywords by category for proper filtering logic
-      // Use different variable names to avoid shadowing the imported threatKeywords table
-      const threatTerms = activeKeywordsWithCategories
-        .filter((k) => k.category === 'threat')
-        .map((k) => k.term.toLowerCase());
-      
-      const entityTerms = activeKeywordsWithCategories
-        .filter((k) => k.category === 'vendor' || k.category === 'client' || k.category === 'hardware')
+      const threatTerms = userKeywords
+        .filter((k) => k.active !== false && k.category === 'threat')
         .map((k) => k.term.toLowerCase());
 
       // Build WHERE clause based on search parameters
       const conditions = [];
 
-      // Filter by user's enabled sources only
-      if (sourceIds.length > 0) {
-        conditions.push(inArray(globalArticles.sourceId, sourceIds));
-      } else {
-        // If user has no sources, return empty results
-        return [];
-      }
-
-      // Phase 2.2: Filter for cybersecurity articles only
-      // Use the isCybersecurity field from global articles
+      // Filter by user's enabled sources
+      conditions.push(inArray(globalArticles.sourceId, sourceIds));
+      
+      // Only cybersecurity articles
       conditions.push(eq(globalArticles.isCybersecurity, true));
 
       // Add search term filter
@@ -750,77 +776,83 @@ export const storage: IStorage = {
           // Exact word matching using regex word boundaries
           searchCondition = sql`(
             ${globalArticles.title} ~* ${`\\y${searchTerm}\\y`} OR 
-            ${globalArticles.content} ~* ${`\\y${searchTerm}\\y`} OR
-            ${globalArticles.detectedKeywords}->>'threats' ~* ${`\\y${searchTerm}\\y`} OR
-            ${globalArticles.detectedKeywords}->>'vendors' ~* ${`\\y${searchTerm}\\y`} OR
-            ${globalArticles.detectedKeywords}->>'clients' ~* ${`\\y${searchTerm}\\y`} OR
-            ${globalArticles.detectedKeywords}->>'hardware' ~* ${`\\y${searchTerm}\\y`}
+            ${globalArticles.content} ~* ${`\\y${searchTerm}\\y`}
           )`;
         } else {
           // Partial matching for longer terms
           searchCondition = sql`(
             ${globalArticles.title} ILIKE ${"%" + searchTerm + "%"} OR 
-            ${globalArticles.content} ILIKE ${"%" + searchTerm + "%"} OR
-            ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + searchTerm + "%"} OR
-            ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + searchTerm + "%"} OR
-            ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + searchTerm + "%"} OR
-            ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + searchTerm + "%"}
+            ${globalArticles.content} ILIKE ${"%" + searchTerm + "%"}
           )`;
         }
         conditions.push(searchCondition);
       }
 
-      // Add keyword filter using detected keywords JSON
-      if (keywordIds && keywordIds.length > 0) {
-        // Get the keywords terms for these IDs - handle both default and user keywords
-        // Default keywords don't need decryption, user keywords do
-        const keywordResults = await db
-          .select()
-          .from(threatKeywords)
-          .where(inArray(threatKeywords.id, keywordIds));
-
-        if (keywordResults.length) {
-          // Process keywords - decrypt user keywords if needed
-          const keywordTermsPromises = keywordResults.map(async (k) => {
-            if (k.isDefault) {
-              return k.term.toLowerCase();
-            } else if (userId) {
-              // User keyword - needs decryption
-              try {
-                const decryptedTerm = await envelopeDecryptAndRotate(
-                  threatKeywords,
-                  k.id,
-                  "term",
-                  userId
-                );
-                return decryptedTerm.toLowerCase();
-              } catch (error) {
-                console.error(`Failed to decrypt keyword ${k.id}:`, error);
-                return null;
-              }
-            }
-            return null;
-          });
-          
-          const keywordTerms = (await Promise.all(keywordTermsPromises))
-            .filter(term => term !== null) as string[];
-
-          if (keywordTerms.length > 0) {
-            // Search within the detectedKeywords JSON structure
-            const keywordConditions = keywordTerms.map((term) => {
-              return sql`(
-                ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
-                ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
-                ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
-                ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
-              )`;
-            });
-
-            // Combine all keyword conditions with OR (matches any selected keyword)
-            const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
-            conditions.push(combinedKeywordCondition);
-          }
+      // NEW: Technology Stack entity filtering
+      // Only filter by Tech Stack if user has entities configured
+      if (hasTechStack) {
+        // Filter articles that have entities matching user's tech stack
+        const entityConditions = [];
+        
+        // Software match
+        if (hasSoftware.length > 0) {
+          entityConditions.push(sql`
+            EXISTS (
+              SELECT 1 FROM ${articleSoftware} AS art_sw
+              INNER JOIN ${usersSoftware} AS user_sw 
+                ON art_sw.software_id = user_sw.software_id
+              WHERE art_sw.article_id = ${globalArticles.id}
+                AND user_sw.user_id = ${userId}
+                AND user_sw.is_active = true
+            )
+          `);
         }
+        
+        // Hardware match
+        if (hasHardware.length > 0) {
+          entityConditions.push(sql`
+            EXISTS (
+              SELECT 1 FROM ${articleHardware} AS art_hw
+              INNER JOIN ${usersHardware} AS user_hw 
+                ON art_hw.hardware_id = user_hw.hardware_id
+              WHERE art_hw.article_id = ${globalArticles.id}
+                AND user_hw.user_id = ${userId}
+                AND user_hw.is_active = true
+            )
+          `);
+        }
+        
+        // Company match (vendors and clients)
+        if (hasCompanies.length > 0) {
+          entityConditions.push(sql`
+            EXISTS (
+              SELECT 1 FROM ${articleCompanies} AS art_co
+              INNER JOIN ${usersCompanies} AS user_co 
+                ON art_co.company_id = user_co.company_id
+              WHERE art_co.article_id = ${globalArticles.id}
+                AND user_co.user_id = ${userId}
+                AND user_co.is_active = true
+            )
+          `);
+        }
+        
+        // Articles must match at least one tech stack entity
+        if (entityConditions.length > 0) {
+          conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
+        }
+      }
+
+      // Apply threat keyword filtering for cross-referencing
+      if (threatTerms.length > 0) {
+        const threatConditions = threatTerms.map((term) => {
+          return sql`(
+            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
+            ${globalArticles.content} ILIKE ${"%" + term + "%"}
+          )`;
+        });
+        
+        const combinedThreatCondition = sql`(${sql.join(threatConditions, sql` OR `)})`;
+        conditions.push(combinedThreatCondition);
       }
 
       // Add date range filters - use publishDate for filtering
@@ -830,78 +862,48 @@ export const storage: IStorage = {
       if (endDate) {
         conditions.push(lte(globalArticles.publishDate, endDate));
       }
-      
-      // Step 3: Apply keyword AND filtering in SQL (before pagination)
-      // This ensures we get correct results even with pagination
-      if (threatTerms.length > 0 && entityTerms.length > 0) {
-        // Build conditions for threat keywords
-        const threatConditions = threatTerms.map((term) => {
-          return sql`(
-            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
-            ${globalArticles.content} ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"}
-          )`;
-        });
-        
-        // Build conditions for entity keywords (vendor/client/hardware)
-        const entityConditions = entityTerms.map((term) => {
-          return sql`(
-            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
-            ${globalArticles.content} ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
-          )`;
-        });
-        
-        // Combine with AND: must match at least one threat AND at least one entity
-        const threatOrCondition = sql`(${sql.join(threatConditions, sql` OR `)})`;
-        const entityOrCondition = sql`(${sql.join(entityConditions, sql` OR `)})`;
-        conditions.push(sql`(${threatOrCondition} AND ${entityOrCondition})`);
-      } else if (threatTerms.length > 0 || entityTerms.length > 0) {
-        // If user only has keywords in one category, filter by those
-        // Note: This is a fallback behavior - strict requirement would return empty
-        const allTerms = [...threatTerms, ...entityTerms];
-        const keywordConditions = allTerms.map((term) => {
-          return sql`(
-            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
-            ${globalArticles.content} ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'threats' ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'vendors' ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'clients' ILIKE ${"%" + term + "%"} OR
-            ${globalArticles.detectedKeywords}->>'hardware' ILIKE ${"%" + term + "%"}
-          )`;
-        });
-        
-        if (keywordConditions.length > 0) {
-          const combinedKeywordCondition = sql`(${sql.join(keywordConditions, sql` OR `)})`;
-          conditions.push(combinedKeywordCondition);
-        }
-      }
 
-      // Build the query for global articles with proper chaining
-      const baseQuery = db.select().from(globalArticles);
+      // Build the query with relevance scores
+      const baseQuery = db.select({
+        article: globalArticles,
+        relevanceScore: articleRelevanceScores.total,
+        relevanceMetadata: articleRelevanceScores.metadata
+      })
+      .from(globalArticles)
+      .leftJoin(
+        articleRelevanceScores,
+        and(
+          eq(articleRelevanceScores.articleId, globalArticles.id),
+          eq(articleRelevanceScores.userId, userId)
+        )
+      );
+
+      // Determine sort order
+      let orderByClause;
+      if (sortBy === 'relevance' && hasTechStack) {
+        // Sort by relevance score (nulls last), then by date
+        orderByClause = [
+          desc(sql`COALESCE(${articleRelevanceScores.total}, 0)`),
+          desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`)
+        ];
+      } else {
+        // Default to date sorting
+        orderByClause = [
+          desc(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`),
+          desc(globalArticles.scrapedAt)
+        ];
+      }
 
       // Apply conditions and build complete query
       const finalQuery =
         conditions.length > 0
           ? baseQuery
               .where(and(...conditions))
-              .orderBy(
-                desc(
-                  sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`,
-                ),
-                desc(globalArticles.scrapedAt),
-              )
+              .orderBy(...orderByClause)
               .limit(pageSize)
               .offset((pageNum - 1) * pageSize)
           : baseQuery
-              .orderBy(
-                desc(
-                  sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt})`,
-                ),
-                desc(globalArticles.scrapedAt),
-              )
+              .orderBy(...orderByClause)
               .limit(pageSize)
               .offset((pageNum - 1) * pageSize);
 
@@ -909,22 +911,25 @@ export const storage: IStorage = {
       const result = await finalQuery.execute();
 
       // Map global articles to ThreatArticle format for compatibility
-      // Note: Filtering is already done in SQL, no need for additional in-memory filtering
-      const mappedArticles = result.map((article) => ({
-        id: article.id,
-        sourceId: article.sourceId,
-        title: article.title,
-        content: article.content,
-        url: article.url,
-        author: article.author || null,
-        publishDate: article.publishDate,
-        summary: article.summary || null,
-        relevanceScore: null, // Global articles don't have relevance score
-        securityScore: article.securityScore ? String(article.securityScore) : null,
-        detectedKeywords: article.detectedKeywords || {},
-        scrapeDate: article.scrapedAt || new Date(),
-        userId: userId || null, // Add the user context
-        markedForCapsule: false, // Global articles aren't marked for capsule
+      const mappedArticles = result.map((row) => ({
+        id: row.article.id,
+        sourceId: row.article.sourceId,
+        title: row.article.title,
+        content: row.article.content,
+        url: row.article.url,
+        author: row.article.author || null,
+        publishDate: row.article.publishDate,
+        summary: row.article.summary || null,
+        relevanceScore: row.relevanceScore || null,
+        relevanceMetadata: row.relevanceMetadata || null,
+        securityScore: row.article.securityScore ? String(row.article.securityScore) : null,
+        threatSeverityScore: row.article.threatSeverityScore || null,
+        threatLevel: row.article.threatLevel || null,
+        threatMetadata: row.article.threatMetadata || null,
+        detectedKeywords: row.article.detectedKeywords || {},
+        scrapeDate: row.article.scrapedAt || new Date(),
+        userId: userId || null,
+        markedForCapsule: false,
       }));
 
       return mappedArticles as ThreatArticle[];
