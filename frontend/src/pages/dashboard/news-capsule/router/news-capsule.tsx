@@ -19,5 +19,9 @@ export const newsCapsuleRouter = {
       path: "reports",
       element: <Reports/>,
     },
+    {
+      path: "reports/:reportId",
+      element: <Reports/>,
+    },
   ]
 }

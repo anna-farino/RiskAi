@@ -97,6 +97,14 @@ export default function Research() {
   const [articlesPerPage] = useState(5);
   const [reportTopic, setReportTopic] = useState("");
   
+  // Filter and sort state
+  const [sortMode, setSortMode] = useState<'newest' | 'a-z' | null>(null);
+  const [selectionFilter, setSelectionFilter] = useState<'selected' | 'all'>('all');
+  const [timeFilter, setTimeFilter] = useState<'today' | 'week' | 'all'>('all');
+  const [contentFilter, setContentFilter] = useState<'with-cve' | 'all'>('all');
+  const [keywordSearch, setKeywordSearch] = useState("");
+  const [activeKeywords, setActiveKeywords] = useState("");
+  
   // Phase 2: Enhanced state management for responsive behavior
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isViewportMobile, setIsViewportMobile] = useState(false);
@@ -118,11 +126,19 @@ export default function Research() {
   // State for delete confirmation dialog
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState<CapsuleArticle | null>(null);
+  
+  // State for clear all articles dialog
+  const [showClearAllDialog, setShowClearAllDialog] = useState(false);
 
   // Sync selectedArticles with localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('news-capsule-selected-articles', JSON.stringify(selectedArticles));
   }, [selectedArticles]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [sortMode, selectionFilter, timeFilter, contentFilter, activeKeywords]);
 
   // Phase 2: Responsive viewport detection
   useEffect(() => {
@@ -162,6 +178,69 @@ export default function Research() {
       return response.json();
     },
   });
+
+  // Apply filters and sorting to articles
+  const filteredAndSortedArticles = React.useMemo(() => {
+    let result = [...processedArticles];
+
+    // Apply keyword search filter
+    if (activeKeywords.trim()) {
+      const keywords = activeKeywords.toLowerCase().split(/\s+/).filter(k => k.length > 0);
+      result = result.filter(article => {
+        const searchableText = [
+          article.title,
+          article.threatName,
+          article.vulnerabilityId,
+          article.summary,
+          article.impacts,
+          article.attackVector,
+          article.sourcePublication,
+          article.targetOS
+        ].join(' ').toLowerCase();
+        
+        return keywords.some(keyword => searchableText.includes(keyword));
+      });
+    }
+
+    // Apply selection filter
+    if (selectionFilter === 'selected') {
+      const selectedIds = new Set(selectedArticles.map(a => a.id));
+      result = result.filter(article => selectedIds.has(article.id));
+    }
+
+    // Apply time filter
+    if (timeFilter === 'today') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      result = result.filter(article => {
+        const articleDate = new Date(article.createdAt);
+        articleDate.setHours(0, 0, 0, 0);
+        return articleDate.getTime() === today.getTime();
+      });
+    } else if (timeFilter === 'week') {
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      result = result.filter(article => new Date(article.createdAt) >= weekAgo);
+    }
+
+    // Apply content filter
+    if (contentFilter === 'with-cve') {
+      result = result.filter(article => 
+        article.vulnerabilityId && 
+        article.vulnerabilityId.trim() !== '' && 
+        article.vulnerabilityId.toLowerCase() !== 'n/a'
+      );
+    }
+
+    // Apply sorting
+    if (sortMode === 'newest') {
+      result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } else if (sortMode === 'a-z') {
+      result.sort((a, b) => a.title.localeCompare(b.title));
+    }
+
+    return result;
+  }, [processedArticles, selectionFilter, timeFilter, contentFilter, sortMode, selectedArticles, activeKeywords]);
 
   // Create report mutation
   const createReportMutation = useMutation({
@@ -399,16 +478,19 @@ export default function Research() {
   };
   
   const selectForReport = (article: CapsuleArticle) => {
-    // Check if article with same title already exists
-    const alreadySelected = selectedArticles.some(selected => selected.title === article.title);
-    
-    if (alreadySelected) {
-      console.log("Article already selected:", article.title);
-      return; // Don't add duplicate
-    }
-    
-    const newSelectedArticles = [...selectedArticles, article];
-    setSelectedArticles(newSelectedArticles);
+    // Use functional update to avoid race conditions when clicking multiple articles quickly
+    setSelectedArticles(prev => {
+      // Check if article with same title already exists
+      const alreadySelected = prev.some(selected => selected.title === article.title);
+      
+      if (alreadySelected) {
+        console.log("Article already selected:", article.title);
+        return prev; // Return unchanged if duplicate
+      }
+      
+      // Add article to selection
+      return [...prev, article];
+    });
   };
   
   const sendToExecutiveReport = () => {
@@ -438,8 +520,8 @@ export default function Research() {
   };
   
   const removeSelectedArticle = (id: string) => {
-    const newSelectedArticles = selectedArticles.filter(article => article.id !== id);
-    setSelectedArticles(newSelectedArticles);
+    // Use functional update to ensure we have the latest state
+    setSelectedArticles(prev => prev.filter(article => article.id !== id));
   };
   
   // Delete article mutation
@@ -500,16 +582,131 @@ export default function Research() {
       setArticleToDelete(null);
     }
   };
+
+  // Clear all articles mutation
+  const clearAllArticlesMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetchWithAuth('/api/news-capsule/articles/clear-all', {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to clear all articles');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/articles"] });
+      setSelectedArticles([]);
+      localStorage.removeItem('news-capsule-selected-articles');
+      toast({
+        title: "Success",
+        description: "Articles from prior to today have been cleared",
+      });
+    },
+    onError: (error) => {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to clear all articles",
+      });
+    },
+  });
+
+  // Calculate articles from prior to today
+  const getArticlesPriorToToday = () => {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    
+    return processedArticles.filter(article => {
+      const articleDate = new Date(article.createdAt);
+      return articleDate < startOfToday;
+    });
+  };
+
+  const articlesPriorToToday = getArticlesPriorToToday();
+  const priorArticlesCount = articlesPriorToToday.length;
+
+  const handleClearAllArticles = () => {
+    setShowClearAllDialog(true);
+  };
+
+  const confirmClearAllArticles = async () => {
+    try {
+      await clearAllArticlesMutation.mutateAsync();
+      setShowClearAllDialog(false);
+    } catch (error) {
+      setShowClearAllDialog(false);
+    }
+  };
+
+  // Helper functions for new filter buttons
+  const handleSelectAllVisible = () => {
+    const startIdx = (currentPage - 1) * articlesPerPage;
+    const endIdx = currentPage * articlesPerPage;
+    const visibleArticles = filteredAndSortedArticles.slice(startIdx, endIdx);
+    
+    visibleArticles.forEach(article => {
+      if (!selectedArticles.some(selected => selected.title === article.title)) {
+        selectForReport(article);
+      }
+    });
+  };
+
+  const handleClearSelection = () => {
+    setSelectedArticles([]);
+    localStorage.removeItem('news-capsule-selected-articles');
+  };
+
+  const handleCopyUrls = () => {
+    if (selectedArticles.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Selection",
+        description: "Please select articles first",
+      });
+      return;
+    }
+
+    const urls = selectedArticles.map(article => article.originalUrl).join('\n');
+    navigator.clipboard.writeText(urls).then(() => {
+      toast({
+        title: "URLs Copied",
+        description: `${selectedArticles.length} article URLs copied to clipboard`,
+      });
+    }).catch(() => {
+      toast({
+        variant: "destructive",
+        title: "Copy Failed",
+        description: "Failed to copy URLs to clipboard",
+      });
+    });
+  };
+
+  const handleSearchKeywords = () => {
+    const trimmedKeywords = keywordSearch.trim();
+    if (!trimmedKeywords) {
+      toast({
+        variant: "destructive",
+        title: "No Keywords",
+        description: "Please enter keywords to search",
+      });
+      return;
+    }
+    
+    setActiveKeywords(trimmedKeywords);
+    toast({
+      title: "Search Applied",
+      description: `Filtering articles by: ${trimmedKeywords}`,
+    });
+  };
   
   return (
     <>
       {/* Unified Toolbar Container */}
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-px transition-all duration-300">
         <div className="p-6">
           {/* Header */}
           <div className="flex items-center gap-3 mb-6">
             <FileText className="h-6 w-6 text-purple-400" />
-            <span className="text-xl font-semibold text-white">Research Tools and Processing</span>
+            <span className="text-xl font-semibold text-white">Article Tools and Processing</span>
           </div>
 
           {/* 3-Column Compact Layout */}
@@ -539,9 +736,9 @@ export default function Research() {
                     onChange={(e) => setUrl(e.target.value)}
                     onFocus={() => setShowUrlDropdown(true)}
                     onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
-                    placeholder="Enter single URL or multiple URLs (one per line)&#10;https://example.com/article1&#10;https://example.com/article2"
+                    placeholder="Enter single URL or multiple URLs&#10;https://example.com/article1&#10;https://example.com/article2"
                     rows={3}
-                    className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:ring-1 focus:ring-purple-500/50 focus:border-purple-500/50 text-slate-200"
+                    className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:outline-none focus:border-purple-500/50 text-slate-200"
                   />
                   
                   {/* URL Dropdown */}
@@ -573,167 +770,93 @@ export default function Research() {
             </div>
 
             {/* Column 2: Research Tools */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-3">
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
               <div className="flex items-center gap-2 mb-3">
                 <Search className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Research Tools</span>
+                <span className="text-sm font-medium text-purple-400">Research Tools</span>
               </div>
               
               <div className="space-y-2">
-                {/* Report Topic Input */}
-                <input
-                  type="text"
-                  value={reportTopic}
-                  onChange={(e) => setReportTopic(e.target.value)}
-                  placeholder="Enter report topic (optional)"
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-600/50 rounded-md text-xs text-slate-200 focus:ring-1 focus:ring-purple-500/50"
+                {/* Search Keywords Button - Row 1 */}
+                <button
+                  onClick={handleSearchKeywords}
+                  disabled={!keywordSearch.trim()}
+                  className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  Search Keywords
+                </button>
+
+                {/* Keyword Input */}
+                <textarea
+                  value={keywordSearch}
+                  onChange={(e) => setKeywordSearch(e.target.value)}
+                  placeholder="Enter keywords to search (e.g., ransomware, CVE-2024, Windows)&#10;Separate multiple keywords with spaces"
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:outline-none focus:border-purple-500/50 text-slate-200"
                 />
 
-                {/* Analysis Tools Row */}
-                <div className="grid grid-cols-2 gap-1">
+                {/* Clear Button */}
+                {keywordSearch && (
                   <button
                     onClick={() => {
-                      toast({
-                        title: "Analysis Tool",
-                        description: "Keyword analysis feature coming soon...",
-                      });
+                      setKeywordSearch("");
+                      setActiveKeywords("");
                     }}
-                    className="h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
+                    className="w-full h-8 px-3 text-xs font-medium bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded border border-slate-600/50 transition-colors flex items-center justify-center"
                   >
-                    Keywords
+                    Clear
                   </button>
-                  <button
-                    onClick={() => {
-                      toast({
-                        title: "Analysis Tool", 
-                        description: "Summary analysis feature coming soon...",
-                      });
-                    }}
-                    className="h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                  >
-                    Summary
-                  </button>
-                </div>
-
-                {/* Report Actions Row */}
-                <div className="grid grid-cols-1 gap-1">
-                  <button
-                    onClick={sendToExecutiveReport}
-                    disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-                    className="h-8 px-3 text-xs font-medium bg-green-500/20 hover:bg-green-500/30 text-green-300 hover:text-white rounded border border-green-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
-                  >
-                    {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
-                  </button>
-                </div>
-
-                {/* Clear Selection */}
-                {selectedArticles.length > 0 && (
-                  <div className="pt-1 border-t border-purple-500/20">
-                    <div className="flex items-center justify-between text-xs text-purple-300">
-                      <span>{selectedArticles.length} selected</span>
-                      <button
-                        onClick={() => {
-                          setSelectedArticles([]);
-                          localStorage.removeItem('news-capsule-selected-articles');
-                        }}
-                        className="text-slate-400 hover:text-red-400 transition-colors"
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
                 )}
               </div>
             </div>
 
-            {/* Column 3: Export Research */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/30 rounded-md p-3">
+            {/* Column 3: Report Management */}
+            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-300">Export Research</span>
+                <span className="text-sm font-medium text-purple-400">Report Management</span>
               </div>
               
               <div className="space-y-2">
-                {selectedArticles.length > 0 ? (
-                  <>
-                    {/* Export Options Row 1 */}
-                    <div className="flex gap-1">
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "Export to PDF",
-                            description: "PDF export of selected articles coming soon...",
-                          });
-                        }}
-                        className="flex-1 h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        PDF
-                      </button>
-                      <button
-                        onClick={() => {
-                          toast({
-                            title: "Export to Word",
-                            description: "Word export of selected articles coming soon...",
-                          });
-                        }}
-                        className="flex-1 h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                      >
-                        Word
-                      </button>
-                    </div>
+                {/* Set Report Topic Button - Row 1 */}
+                <button
+                  onClick={() => {
+                    if (!reportTopic.trim()) {
+                      toast({
+                        variant: "destructive",
+                        title: "No Topic",
+                        description: "Please enter a report topic first",
+                      });
+                      return;
+                    }
+                    toast({
+                      title: "Topic Set",
+                      description: `Report topic: ${reportTopic}`,
+                    });
+                  }}
+                  disabled={!reportTopic.trim()}
+                  className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  Set Report Topic
+                </button>
 
-                    {/* Export Options Row 2 */}
-                    <button
-                      onClick={() => {
-                        const exportData = {
-                          timestamp: new Date().toISOString(),
-                          selectedArticles: selectedArticles.length,
-                          articles: selectedArticles.map(article => ({
-                            title: article.title,
-                            threatName: article.threatName,
-                            vulnerabilityId: article.vulnerabilityId,
-                            summary: article.summary,
-                            impacts: article.impacts,
-                            attackVector: article.attackVector,
-                            sourcePublication: article.sourcePublication,
-                            originalUrl: article.originalUrl,
-                            createdAt: article.createdAt
-                          }))
-                        };
-                        
-                        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-                        const url = URL.createObjectURL(blob);
-                        const link = document.createElement('a');
-                        link.href = url;
-                        link.download = `Research_Export_${new Date().toISOString().split('T')[0]}.json`;
-                        document.body.appendChild(link);
-                        link.click();
-                        document.body.removeChild(link);
-                        URL.revokeObjectURL(url);
-                        
-                        toast({
-                          title: "Export Complete",
-                          description: `${selectedArticles.length} articles exported to JSON.`,
-                        });
-                      }}
-                      className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors flex items-center justify-center"
-                    >
-                      JSON Export
-                    </button>
+                {/* Report Topic Input */}
+                <textarea
+                  value={reportTopic}
+                  onChange={(e) => setReportTopic(e.target.value)}
+                  placeholder="Enter report topic and notes (optional)&#10;e.g., Q1 2025 Ransomware Threats&#10;Microsoft Windows Zero-Day Summary"
+                  rows={3}
+                  className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:outline-none focus:border-purple-500/50 text-slate-200"
+                />
 
-                    {/* Statistics */}
-                    <div className="pt-1 border-t border-purple-500/20">
-                      <div className="flex items-center justify-between text-xs text-purple-300">
-                        <span>Total: {processedArticles?.length || 0}</span>
-                        <span>Selected: {selectedArticles.length}</span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="text-center py-4 text-slate-400">
-                    <FileText className="h-6 w-6 mx-auto mb-1 opacity-50" />
-                    <p className="text-xs">Select articles to export</p>
-                  </div>
+                {/* Clear Button */}
+                {reportTopic && (
+                  <button
+                    onClick={() => setReportTopic("")}
+                    className="w-full h-8 px-3 text-xs font-medium bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded border border-slate-600/50 transition-colors flex items-center justify-center"
+                  >
+                    Clear
+                  </button>
                 )}
               </div>
             </div>
@@ -764,8 +887,24 @@ export default function Research() {
             <h2 className="text-xl font-semibold text-white">Processed Articles</h2>
             <div className="flex items-center gap-4">
               <span className="text-sm text-slate-400">
-                {processedArticles?.length || 0} total articles
+                {filteredAndSortedArticles?.length || 0} articles
               </span>
+              <button
+                onClick={handleClearAllArticles}
+                disabled={priorArticlesCount === 0 || clearAllArticlesMutation.isPending}
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-white rounded-md border border-red-500/40 disabled:opacity-50 text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                Clear Past ({priorArticlesCount}) Articles
+              </button>
+              <button
+                onClick={sendToExecutiveReport}
+                disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
+                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded-md border border-purple-500/40 disabled:opacity-50 text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                <FileText className="h-4 w-4" />
+                Send to Report ({selectedArticles.length})
+              </button>
             </div>
           </div>
           {articlesLoading ? (
@@ -773,15 +912,15 @@ export default function Research() {
               <div className="w-8 h-8 border-4 border-slate-600 border-t-purple-500 rounded-full animate-spin mb-4"></div>
               <p className="text-slate-400">Loading articles...</p>
             </div>
-          ) : processedArticles.length === 0 ? (
+          ) : filteredAndSortedArticles.length === 0 ? (
             <div className="text-center py-12 text-slate-400">
               <FileText className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No articles processed yet. Add URLs above to get started.</p>
+              <p>No articles match your filters. Try adjusting the filters above.</p>
             </div>
           ) : (
             <>
               {/* Top Pagination Controls */}
-              {processedArticles.length > articlesPerPage && (
+              {filteredAndSortedArticles.length > articlesPerPage && (
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4 mb-6 p-4 bg-slate-800/30 border border-slate-700/40 rounded-md">
                   <div className="flex items-center gap-3 order-2 sm:order-1">
                     <button
@@ -793,8 +932,8 @@ export default function Research() {
                     </button>
                     
                     <button
-                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(processedArticles.length / articlesPerPage)))}
-                      disabled={currentPage === Math.ceil(processedArticles.length / articlesPerPage)}
+                      onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredAndSortedArticles.length / articlesPerPage)))}
+                      disabled={currentPage === Math.ceil(filteredAndSortedArticles.length / articlesPerPage)}
                       className="px-4 py-2 bg-slate-700 text-white hover:bg-slate-600 rounded-md disabled:opacity-50 disabled:cursor-not-allowed text-sm transition-colors"
                     >
                       Next
@@ -803,13 +942,13 @@ export default function Research() {
                   
                   <div className="flex flex-col sm:flex-row items-center gap-2 sm:gap-4 order-1 sm:order-2">
                     <span className="text-sm text-slate-400">
-                      Page {currentPage} of {Math.ceil(processedArticles.length / articlesPerPage)}
+                      Page {currentPage} of {Math.ceil(filteredAndSortedArticles.length / articlesPerPage)}
                     </span>
                     
                     <div className="flex items-center gap-1">
-                      {Array.from({ length: Math.ceil(processedArticles.length / articlesPerPage) }, (_, i) => i + 1)
+                      {Array.from({ length: Math.ceil(filteredAndSortedArticles.length / articlesPerPage) }, (_, i) => i + 1)
                         .filter(page => {
-                          const totalPages = Math.ceil(processedArticles.length / articlesPerPage);
+                          const totalPages = Math.ceil(filteredAndSortedArticles.length / articlesPerPage);
                           const isMobile = window.innerWidth < 640;
                           const range = isMobile ? 1 : 2;
                           return page === 1 || page === totalPages || Math.abs(page - currentPage) <= range;
@@ -825,7 +964,7 @@ export default function Research() {
                                 onClick={() => setCurrentPage(page)}
                                 className={`px-2 py-1 rounded-md min-w-[28px] text-xs transition-colors ${
                                   currentPage === page
-                                    ? 'bg-purple-600 text-white'
+                                    ? 'bg-purple-500/30 text-purple-300 border border-purple-500/40'
                                     : 'bg-slate-700 text-white hover:bg-slate-600'
                                 }`}
                               >
@@ -839,11 +978,11 @@ export default function Research() {
                 </div>
               )}
               
-              <div className="grid gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {(() => {
                   const startIdx = (currentPage - 1) * articlesPerPage;
                   const endIdx = currentPage * articlesPerPage;
-                  const articlesToShow = processedArticles.slice(startIdx, endIdx);
+                  const articlesToShow = filteredAndSortedArticles.slice(startIdx, endIdx);
                   
                   return articlesToShow.map((article, index) => (
                     <motion.div
@@ -853,40 +992,57 @@ export default function Research() {
                       className="p-5 bg-slate-800/50 border border-slate-700/40 rounded-md hover:border-slate-600/60 transition-colors"
                     >
                       <div className="flex flex-col gap-4">
-                        <div className="flex justify-between items-start">
-                          <h3 className="text-lg font-medium flex-1 leading-tight text-slate-100">{article.title}</h3>
-                          <span className="text-xs text-slate-400 ml-3 px-2 py-1 border border-slate-600 rounded whitespace-nowrap">
-                            News Capsule
-                          </span>
-                        </div>
-                        
-                        {/* Action buttons */}
-                        <div className="flex gap-2">
+                        {/* Action buttons at top */}
+                        <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={() => {
-                              const isSelected = selectedArticles.some(selected => selected.title === article.title);
-                              if (isSelected) {
-                                const newSelected = selectedArticles.filter(selected => selected.title !== article.title);
-                                setSelectedArticles(newSelected);
-                              } else {
-                                selectForReport(article);
-                              }
+                              // Use functional update to check and toggle selection atomically
+                              setSelectedArticles(prev => {
+                                const isSelected = prev.some(selected => selected.title === article.title);
+                                if (isSelected) {
+                                  // Remove from selection
+                                  return prev.filter(selected => selected.title !== article.title);
+                                } else {
+                                  // Check if already selected to prevent duplicates
+                                  if (prev.some(selected => selected.title === article.title)) {
+                                    return prev;
+                                  }
+                                  // Add to selection
+                                  return [...prev, article];
+                                }
+                              });
                             }}
-                            className={`flex-1 px-4 py-2 text-sm rounded-md border transition-all duration-200 ${
+                            className={`px-3 py-1.5 text-xs rounded-md border transition-all duration-200 ${
                               selectedArticles.some(selected => selected.title === article.title) 
                                 ? "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-500/50" 
-                                : "bg-green-500/20 hover:bg-green-500/30 text-green-300 border-green-500/50"
+                                : "bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/50"
                             }`}
                           >
                             {selectedArticles.some(selected => selected.title === article.title) ? "Selected for Report" : "Select for Report"}
                           </button>
                           <button
                             onClick={() => removeProcessedArticle(article)}
-                            className="px-3 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-md border border-red-500/50 transition-all duration-200"
-                            title="Delete article"
+                            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-md border border-red-500/50 transition-all duration-200 text-xs flex items-center justify-center gap-1.5"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Trash2 className="h-3.5 w-3.5" />
+                            Delete Article
                           </button>
+                        </div>
+                        
+                        <div className="flex justify-between items-start gap-3">
+                          <div className="flex-1">
+                            <h3 className="text-lg font-medium leading-tight text-slate-100 mb-1">{article.title}</h3>
+                            <p className="text-xs text-purple-400">
+                              Article sent on {new Date(article.createdAt).toLocaleDateString('en-US', { 
+                                month: 'short', 
+                                day: 'numeric', 
+                                year: 'numeric',
+                              })}, {new Date(article.createdAt).toLocaleTimeString('en-US', { 
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })}
+                            </p>
+                          </div>
                         </div>
                         
                         {/* Article details */}
@@ -937,7 +1093,7 @@ export default function Research() {
               <button
                 onClick={sendToExecutiveReport}
                 disabled={selectedArticles.length === 0 || createReportMutation.isPending || addToExistingReportMutation.isPending}
-                className="px-3 py-1 bg-purple-600 hover:bg-purple-500 text-white rounded-md disabled:opacity-50 text-sm font-medium transition-colors"
+                className="px-3 py-1 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded-md border border-purple-500/40 disabled:opacity-50 text-sm font-medium transition-colors"
               >
                 {(createReportMutation.isPending || addToExistingReportMutation.isPending) ? "Processing..." : "Send to Report"}
               </button>
@@ -1042,7 +1198,7 @@ export default function Research() {
                         onClick={() => setCurrentPage(page)}
                         className={`px-2 sm:px-3 py-2 sm:py-3 rounded-md min-w-[36px] sm:min-w-[44px] text-xs sm:text-sm touch-manipulation ${
                           currentPage === page
-                            ? 'bg-purple-600 text-white'
+                            ? 'bg-purple-500/30 text-purple-300 border border-purple-500/40'
                             : 'bg-slate-700 text-white hover:bg-slate-600'
                         }`}
                       >
@@ -1122,7 +1278,7 @@ export default function Research() {
                     value={reportTopic}
                     onChange={(e) => setReportTopic(e.target.value)}
                     placeholder="Enter a topic (Optional)"
-                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-[#BF00FF]/50 focus:border-[#BF00FF]/50 min-h-[48px]"
+                    className="w-full px-4 py-3 bg-slate-800/50 border border-slate-700/40 rounded-md text-slate-200 placeholder-slate-500 focus:outline-none focus:border-[#BF00FF]/50 min-h-[48px]"
                   />
                 </div>
 
@@ -1291,6 +1447,48 @@ export default function Research() {
                 </div>
               ) : (
                 "Yes"
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Clear All Articles Confirmation Dialog */}
+      <AlertDialog 
+        open={showClearAllDialog} 
+        onOpenChange={(open) => {
+          if (!open && clearAllArticlesMutation.isPending) {
+            return;
+          }
+          setShowClearAllDialog(open);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Clear All Articles</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete {priorArticlesCount} article{priorArticlesCount !== 1 ? 's' : ''} from prior to today? This action cannot be undone. Articles sent today will be preserved.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => setShowClearAllDialog(false)}
+              disabled={clearAllArticlesMutation.isPending}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <Button 
+              onClick={confirmClearAllArticles}
+              disabled={clearAllArticlesMutation.isPending}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {clearAllArticlesMutation.isPending ? (
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Clearing...
+                </div>
+              ) : (
+                "Yes, Clear All"
               )}
             </Button>
           </AlertDialogFooter>

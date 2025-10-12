@@ -221,31 +221,6 @@ export function ThreatArticleCard({
                 )}
               />
             </div>
-
-            {/* Relevance score indicator */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-400 flex items-center gap-1 leading-4">
-                  <AlertTriangle className="h-3 w-3" /> Relevance Score
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium leading-4",
-                    getScoreColor(normalizedRelevanceScore),
-                  )}
-                >
-                  {normalizedRelevanceScore * 10}%
-                </span>
-              </div>
-              <Progress
-                value={normalizedRelevanceScore * 10}
-                className="h-1.5 bg-slate-700/50"
-                indicatorClassName={cn(
-                  "transition-all",
-                  getProgressColor(normalizedRelevanceScore),
-                )}
-              />
-            </div>
           </div>
 
           <div className="flex items-center gap-3 mb-3">

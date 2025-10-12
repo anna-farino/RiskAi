@@ -41,8 +41,8 @@ export default function NewsHome() {
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [selectedKeywordIds, setSelectedKeywordIds] = useState<string[]>([]);
   const [dateRange, setDateRange] = useState<{
-    startDate?: Date;
-    endDate?: Date;
+    startDate?: string;
+    endDate?: string;
   }>({});
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
   const [relevanceFilter, setRelevanceFilter] = useState<"all" | "high" | "medium" | "low">("all");
@@ -60,10 +60,16 @@ export default function NewsHome() {
   // Track selected article from dashboard
   const [highlightedArticleId, setHighlightedArticleId] = useState<string | null>(null);
   
-  // Three-tier toolbar state with localStorage persistence
-  const [isToolbarExpanded, setIsToolbarExpanded] = useState<boolean>(() => {
-    const saved = localStorage.getItem('news-radar-toolbar-expanded');
-    return saved !== null ? JSON.parse(saved) : true;
+  // Track sent articles to Report Center
+  const [sentArticleUrls, setSentArticleUrls] = useState<Set<string>>(() => {
+    const saved = localStorage.getItem('news-radar-sent-articles');
+    return saved ? new Set(JSON.parse(saved)) : new Set();
+  });
+  
+  // Keyword panel expansion state
+  const [isKeywordPanelExpanded, setIsKeywordPanelExpanded] = useState<boolean>(() => {
+    const saved = localStorage.getItem('news-radar-keyword-panel-expanded');
+    return saved !== null ? JSON.parse(saved) : false;
   });
   
   // Tier-specific expansion states
@@ -116,11 +122,11 @@ export default function NewsHome() {
     }
     
     if (dateRange.startDate) {
-      params.append("startDate", dateRange.startDate.toISOString());
+      params.append("startDate", `${dateRange.startDate}T00:00:00.000Z`);
     }
     
     if (dateRange.endDate) {
-      params.append("endDate", dateRange.endDate.toISOString());
+      params.append("endDate", `${dateRange.endDate}T23:59:59.999Z`);
     }
     
     params.append("sort", sortOrder);
@@ -184,7 +190,7 @@ export default function NewsHome() {
   };
   
   // Set date range
-  const handleDateRangeChange = (range: {startDate?: Date; endDate?: Date}) => {
+  const handleDateRangeChange = (range: {startDate?: string; endDate?: string}) => {
     setDateRange(range);
   };
 
@@ -256,23 +262,17 @@ export default function NewsHome() {
     }
   }, [toast]);
 
-  // Save toolbar expanded state to localStorage
+  // Save keyword panel expansion state to localStorage
   useEffect(() => {
-    localStorage.setItem('news-radar-toolbar-expanded', JSON.stringify(isToolbarExpanded));
-  }, [isToolbarExpanded]);
-  
-  // Save tier expansion states to localStorage
-  useEffect(() => {
-    localStorage.setItem('news-radar-tier2-expanded', JSON.stringify(isTier2Expanded));
-  }, [isTier2Expanded]);
-  
-  useEffect(() => {
-    localStorage.setItem('news-radar-tier3-expanded', JSON.stringify(isTier3Expanded));
-  }, [isTier3Expanded]);
+    localStorage.setItem('news-radar-keyword-panel-expanded', JSON.stringify(isKeywordPanelExpanded));
+  }, [isKeywordPanelExpanded]);
 
-  // Toggle toolbar expanded state
-  const toggleToolbar = () => {
-    setIsToolbarExpanded(!isToolbarExpanded);
+  // Clear all filters
+  const clearAllFilters = () => {
+    setSearchTerm("");
+    setDateRange({});
+    setSelectedKeywordIds([]);
+    setRelevanceFilter("all");
   };
 
   // Sync local state with query data when it changes
@@ -398,15 +398,23 @@ export default function NewsHome() {
         throw new Error(`Failed to send to capsule: ${response.statusText}`);
       }
 
+      // Mark article as sent
+      setSentArticleUrls(prev => {
+        const newSet = new Set(prev);
+        newSet.add(url);
+        localStorage.setItem('news-radar-sent-articles', JSON.stringify([...newSet]));
+        return newSet;
+      });
+
       toast({
-        title: "Article sent to News Capsule",
+        title: "Article sent to Report Center",
         description: "The article has been successfully sent for processing.",
       });
     } catch (error) {
       console.error("Send to capsule error:", error);
       toast({
         title: "Error",
-        description: "Failed to send article to News Capsule. Please try again.",
+        description: "Failed to send article to Report Center. Please try again.",
         variant: "destructive",
       });
     }
@@ -510,266 +518,189 @@ export default function NewsHome() {
 
   return (
     <>
-      {/* Three-Tier Unified Toolbar Container */}
-      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-4 transition-all duration-300">
-        {!isToolbarExpanded ? (
-          /* Completely Collapsed State */
-          <div className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Newspaper className="h-5 w-5 text-[#A855F7]" />
-                  <span className="text-base font-medium text-slate-200">News Radar Controls</span>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-slate-400">
-                  <div className="flex items-center gap-1">
-                    <FileText className="h-4 w-4" />
-                    <span>{localArticles.length} articles</span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-400">click to expand</span>
-                <Button
-                  onClick={toggleToolbar}
-                  variant="ghost"
-                  size="sm"
-                  className="text-[#A855F7] hover:text-white hover:bg-[#9333EA]/20 border border-[#9333EA]/30 hover:border-[#9333EA]/50 transition-all duration-200"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </Button>
-              </div>
+      {/* Efficient 2-Tier Toolbar Container */}
+      <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-px transition-all duration-300">
+        <div className="p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Newspaper className="h-6 w-6 text-purple-400" />
+              <span className="text-xl font-semibold text-white">News Radar Controls</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30 text-xs px-2 py-0.5">
+                {localArticles.length}
+              </Badge>
+              <span className="text-xs text-slate-400">Found Articles</span>
             </div>
           </div>
-        ) : (
-          /* Three-Tier Progressive Layout */
-          <div className="p-4 space-y-4">
-            {/* Tier 1: Quick Actions Bar (Always Visible) */}
-            <div className="bg-[#9333EA]/10 border border-[#9333EA]/20 rounded-md p-4">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <Search className="h-5 w-5 text-[#A855F7]" />
-                  <span className="text-base font-medium text-slate-200">Search and Filter Controls</span>
+
+            {/* Tier 1: Unified Filter Controls - 3 Column Standard */}
+            <div className="grid gap-4 lg:grid-cols-3">
+              
+              {/* Column 1: Search & Filter */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Search className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Search & Filter</span>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-slate-400">
-                  <Badge className="bg-[#00FFFF]/20 text-[#00FFFF] border-[#00FFFF]/30 text-xs px-2 py-0.5">
-                    {localArticles.length}
-                  </Badge>
-                  <span>Found Articles</span>
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      placeholder="Search articles..."
+                      className="pl-10 h-8 text-sm bg-slate-800/85 border-slate-600 text-white placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF] transition-all duration-200"
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      className={cn(
+                        "h-8 px-2 text-xs transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                        sortOrder === "newest"
+                          ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                          : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                      )}
+                      onClick={() => setSortOrder("newest")}
+                    >
+                      Newest
+                    </button>
+                    <button
+                      className={cn(
+                        "h-8 px-2 text-xs transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                        sortOrder === "oldest"
+                          ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                          : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                      )}
+                      onClick={() => setSortOrder("oldest")}
+                    >
+                      Oldest
+                    </button>
+                  </div>
                 </div>
               </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
-                {/* Smart Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                  <Input
-                    placeholder="Search"
-                    className="pl-10 h-10 text-sm bg-slate-800/85 border border-slate-700 text-white placeholder:text-slate-400 hover:border-[#9333EA]/50 hover:text-white focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:ring-offset-0 transition-all duration-200"
-                    value={searchTerm}
-                    onChange={handleSearchChange}
-                  />
+
+              {/* Column 2: Date Range */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <Calendar className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Date Range</span>
                 </div>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-4 gap-1">
+                    {[
+                      { label: "Today", days: 1 },
+                      { label: "24hrs", days: 1 },
+                      { label: "Week", days: 7 },
+                      { label: "Month", days: 30 }
+                    ].map(({ label, days }) => (
+                      <button
+                        key={label}
+                        onClick={() => {
+                          const now = new Date();
+                          const pastDate = new Date();
+                          pastDate.setDate(now.getDate() - days);
+                          handleDateRangeChange({ 
+                            startDate: pastDate.toISOString().split('T')[0], 
+                            endDate: now.toISOString().split('T')[0] 
+                          });
+                        }}
+                        className={cn(
+                          "h-8 px-1 text-xs transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                          dateRange.startDate && dateRange.endDate &&
+                          Math.abs(new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (1000 * 60 * 60 * 24) <= days &&
+                          Math.abs(new Date(dateRange.endDate).getTime() - new Date(dateRange.startDate).getTime()) / (1000 * 60 * 60 * 24) > days - 2
+                            ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                            : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                        )}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-1">
+                    <Input
+                      type="date"
+                      value={dateRange.startDate || ''}
+                      onChange={(e) => {
+                        const dateStr = e.target.value || undefined;
+                        handleDateRangeChange({...dateRange, startDate: dateStr});
+                      }}
+                      className="h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 focus:border-[#00FFFF] focus:ring-0"
+                      placeholder="From"
+                    />
+                    <Input
+                      type="date"
+                      value={dateRange.endDate || ''}
+                      onChange={(e) => {
+                        const dateStr = e.target.value || undefined;
+                        handleDateRangeChange({...dateRange, endDate: dateStr});
+                      }}
+                      className="h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 focus:border-[#00FFFF] focus:ring-0"
+                      placeholder="To"
+                    />
+                  </div>
+                </div>
+              </div>
 
-                {/* Quick Date Filter */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-10 px-4 text-sm border transition-all duration-200 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30 hover:bg-transparent",
-                    (dateRange.startDate || dateRange.endDate)
-                      ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                      : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                  )}
-                  onClick={() => {
-                    if (dateRange.startDate || dateRange.endDate) {
-                      handleDateRangeChange({});
-                    } else {
-                      const now = new Date();
-                      const twentyFourHoursAgo = new Date();
-                      twentyFourHoursAgo.setHours(now.getHours() - 24);
-                      handleDateRangeChange({ startDate: twentyFourHoursAgo, endDate: now });
-                    }
-                  }}
-                >
-                  <Calendar className="h-4 w-4 mr-2" />
-                  {(dateRange.startDate || dateRange.endDate) ? "Reset" : "Past 24hrs"}
-                </Button>
-
-                {/* More Filters Toggle */}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsTier2Expanded(!isTier2Expanded)}
-                  className={cn(
-                    "h-10 px-4 text-sm border transition-all duration-200 w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30 hover:bg-transparent",
-                    isTier2Expanded
-                      ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                      : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                  )}
-                >
-                  <Filter className="h-4 w-4 mr-2" />
-                  More Filters
-                  {isTier2Expanded ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-                </Button>
-
+              {/* Column 3: Keywords */}
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm font-medium text-purple-400">Keywords</span>
+                </div>
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-1">
+                    <button
+                      className={cn(
+                        "h-8 px-2 text-xs transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                        selectedKeywordIds.length > 0
+                          ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                          : "border-slate-700 bg-slate-800/70 text-white"
+                      )}
+                      disabled
+                    >
+                      {selectedKeywordIds.length} Selected
+                    </button>
+                    <button
+                      onClick={() => setSelectedKeywordIds([])}
+                      disabled={selectedKeywordIds.length === 0}
+                      className="h-8 px-2 text-xs transition-colors duration-200 whitespace-nowrap rounded-md border border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center justify-center"
+                    >
+                      <X className="h-3 w-3 mr-1" />
+                      Clear
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => setIsKeywordPanelExpanded(!isKeywordPanelExpanded)}
+                    className={cn(
+                      "w-full h-8 px-3 text-sm transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
+                      isKeywordPanelExpanded || selectedKeywordIds.length > 0
+                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                    )}
+                  >
+                    <Filter className="h-3 w-3 mr-2" />
+                    {isKeywordPanelExpanded ? "Hide" : "Show"} Keywords
+                    {isKeywordPanelExpanded ? <ChevronUp className="h-3 w-3 ml-2" /> : <ChevronDown className="h-3 w-3 ml-2" />}
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Tier 2: Enhanced Filters (Expandable) */}
-            {isTier2Expanded && (
-              <div className="bg-[#9333EA]/5 border border-[#9333EA]/20 rounded-md p-4 space-y-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <Filter className="h-4 w-4 text-[#A855F7]" />
-                  <span className="text-sm font-medium text-slate-400">Advanced Filters</span>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-1 lg:grid-cols-3">
-
-                  {/* Sort Options & Time Period */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Time Range</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        { key: "newest", label: "Newest First" },
-                        { key: "oldest", label: "Oldest First" }
-                      ].map(({ key, label }) => (
-                        <Badge
-                          key={key}
-                          variant="outline"
-                          className={cn(
-                            "cursor-pointer text-xs px-3 py-2 transition-all duration-200 flex-1",
-                            sortOrder === key
-                              ? "bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30"
-                              : "bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7]"
-                          )}
-                          onClick={() => setSortOrder(key as any)}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
+            {/* Tier 2: Keyword Panel (Expandable) */}
+            {isKeywordPanelExpanded && (
+              <div className="mt-4 pt-4 border-t border-slate-700/50">
+                <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-4 w-4 text-purple-400" />
+                      <span className="text-sm font-medium text-purple-400">Keyword Filters</span>
+                      <Badge variant="outline" className="text-xs px-2 py-0.5 text-slate-400 border-slate-600">
+                        {selectedKeywordIds.length} of {keywords.data?.length || 0} selected
+                      </Badge>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {[
-                        { label: "Today", days: 1 },
-                        { label: "Week", days: 7 },
-                        { label: "Month", days: 30 }
-                      ].map(({ label, days }) => (
-                        <Badge
-                          key={label}
-                          variant="outline"
-                          className="cursor-pointer text-xs px-3 py-2 bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7] transition-all duration-200 whitespace-nowrap flex-1"
-                          onClick={() => {
-                            const now = new Date();
-                            const pastDate = new Date();
-                            pastDate.setDate(now.getDate() - days);
-                            handleDateRangeChange({ startDate: pastDate, endDate: now });
-                          }}
-                        >
-                          {label}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-
-                  {/* Custom Date Range */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Custom Range</h4>
-                    <div className="grid grid-cols-2 gap-1">
-                      <Input
-                        type="date"
-                        value={dateRange.startDate ? new Date(dateRange.startDate).toISOString().split('T')[0] : ''}
-                        onChange={(e) => {
-                          const date = e.target.value ? new Date(e.target.value) : undefined;
-                          handleDateRangeChange({...dateRange, startDate: date});
-                        }}
-                        className="h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 hover:border-[#9333EA]/30 hover:text-[#A855F7] transition-all duration-200 rounded-full [&::-webkit-calendar-picker-indicator]:filter-[invert(100%)] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator:hover]:opacity-100"
-                        placeholder="From Date"
-                      />
-                      <Input
-                        type="date"
-                        value={dateRange.endDate ? new Date(dateRange.endDate).toISOString().split('T')[0] : ''}
-                        onChange={(e) => {
-                          const date = e.target.value ? new Date(e.target.value) : undefined;
-                          handleDateRangeChange({...dateRange, endDate: date});
-                        }}
-                        className="h-8 text-xs bg-slate-800/85 border-slate-600 text-slate-200 hover:border-[#9333EA]/30 hover:text-[#A855F7] transition-all duration-200 rounded-full [&::-webkit-calendar-picker-indicator]:filter-[invert(100%)] [&::-webkit-calendar-picker-indicator]:opacity-80 [&::-webkit-calendar-picker-indicator:hover]:opacity-100"
-                        placeholder="To Date"
-                      />
-                    </div>
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "cursor-pointer text-xs px-3 py-2 transition-all duration-200 whitespace-nowrap w-full",
-                        (() => {
-                          const now = new Date();
-                          const yearStart = new Date(now.getFullYear(), 0, 1);
-                          const isYearToDate = dateRange.startDate && dateRange.endDate &&
-                            new Date(dateRange.startDate).toDateString() === yearStart.toDateString() &&
-                            new Date(dateRange.endDate).toDateString() === now.toDateString();
-                          return isYearToDate
-                            ? "bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30 hover:bg-[#9333EA]/30"
-                            : "bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7]";
-                        })()
-                      )}
-                      onClick={() => {
-                        const now = new Date();
-                        const yearStart = new Date(now.getFullYear(), 0, 1); // January 1st of current year
-                        handleDateRangeChange({ startDate: yearStart, endDate: now });
-                      }}
-                    >
-                      Year to Date
-                    </Badge>
-                  </div>
-
-                  {/* Keywords Toggle */}
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Keywords</h4>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsTier3Expanded(!isTier3Expanded)}
-                      className={cn(
-                        "w-full h-10 px-4 text-sm border transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                        isTier3Expanded || selectedKeywordIds.length > 0
-                          ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30"
-                          : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white"
-                      )}
-                    >
-                      <AlertTriangle className="h-4 w-4 mr-2" />
-                      Keywords ({selectedKeywordIds.length})
-                      {isTier3Expanded ? <ChevronUp className="h-4 w-4 ml-2" /> : <ChevronDown className="h-4 w-4 ml-2" />}
-                    </Button>
-                  </div>
-                </div>
-
-              </div>
-            )}
-
-            {/* Tier 3: Keyword Management (Expandable) */}
-            {isTier3Expanded && (
-              <div className="bg-[#9333EA]/5 border border-[#9333EA]/20 rounded-md p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-[#A855F7]" />
-                    <span className="text-sm font-medium text-slate-400">Keyword Management</span>
-                    <Badge variant="outline" className="text-xs px-2 py-0.5 text-slate-400 border-slate-600">
-                      {selectedKeywordIds.length} of {keywords.data?.length || 0} selected
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {selectedKeywordIds.length > 0 && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setSelectedKeywordIds([])}
-                        className="h-7 px-2 text-xs text-slate-400 hover:text-white hover:bg-white/10"
-                      >
-                        Clear All
-                      </Button>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
@@ -781,65 +712,64 @@ export default function NewsHome() {
                       </Link>
                     </Button>
                   </div>
+
+                  {/* Selected Keywords */}
+                  {selectedKeywordIds.length > 0 && (
+                    <div className="space-y-2 mb-3">
+                      <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Selected</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedKeywordIds.map((keywordId) => {
+                          const keyword = keywords.data?.find(k => k.id === keywordId);
+                          return keyword ? (
+                            <Badge 
+                              key={keyword.id}
+                              className="bg-purple-500/20 text-purple-400 border-purple-500 text-xs px-2 py-1 cursor-pointer group hover:bg-purple-500/30 transition-colors duration-200"
+                              onClick={() => toggleKeywordSelection(keyword.id)}
+                            >
+                              {keyword.term}
+                              <X className="ml-1 h-2.5 w-2.5 group-hover:text-red-300" />
+                            </Badge>
+                          ) : null;
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Available Keywords */}
+                  {keywords.data && keywords.data.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Available</h4>
+                      <div className="flex flex-wrap gap-1">
+                        {keywords.data
+                          .filter(keyword => !selectedKeywordIds.includes(keyword.id))
+                          .slice(0, showAllAvailableKeywords ? undefined : 20)
+                          .map((keyword: Keyword) => (
+                            <Badge 
+                              key={keyword.id}
+                              variant="outline"
+                              className="cursor-pointer text-xs px-2 py-1 transition-colors duration-200 bg-slate-800/70 text-white border-slate-700 hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
+                              onClick={() => toggleKeywordSelection(keyword.id)}
+                            >
+                              {keyword.term}
+                            </Badge>
+                          ))}
+                        {keywords.data.filter(k => !selectedKeywordIds.includes(k.id)).length > 20 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowAllAvailableKeywords(!showAllAvailableKeywords)}
+                            className="h-7 px-2 text-xs text-slate-400 hover:text-white transition-colors"
+                          >
+                            {showAllAvailableKeywords ? 'Show Less' : `+${keywords.data.filter(k => !selectedKeywordIds.includes(k.id)).length - 20} more`}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-
-                {/* Selected Keywords */}
-                {selectedKeywordIds.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Selected Keywords</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {selectedKeywordIds.map((keywordId) => {
-                        const keyword = keywords.data?.find(k => k.id === keywordId);
-                        return keyword ? (
-                          <Badge 
-                            key={keyword.id}
-                            className="bg-[#9333EA]/20 text-[#A855F7] border-[#9333EA]/30 text-xs px-2 py-1 cursor-pointer group hover:bg-[#9333EA]/30 transition-all duration-200"
-                            onClick={() => toggleKeywordSelection(keyword.id)}
-                          >
-                            {keyword.term}
-                            <X className="ml-1 h-2.5 w-2.5 group-hover:text-red-300" />
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* Available Keywords */}
-                {keywords.data && keywords.data.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-xs font-medium text-slate-500 uppercase tracking-wide">Available Keywords</h4>
-                    <div className="flex flex-wrap gap-1">
-                      {keywords.data
-                        .filter(keyword => !selectedKeywordIds.includes(keyword.id))
-                        .slice(0, showAllAvailableKeywords ? undefined : 20)
-                        .map((keyword: Keyword) => (
-                          <Badge 
-                            key={keyword.id}
-                            variant="outline"
-                            className="cursor-pointer hover:bg-[#9333EA]/10 text-xs px-2 py-1 transition-colors bg-slate-800/85 text-slate-200 border-slate-600 hover:border-[#9333EA]/30 hover:text-[#A855F7]"
-                            onClick={() => toggleKeywordSelection(keyword.id)}
-                          >
-                            {keyword.term}
-                          </Badge>
-                        ))}
-                      {keywords.data.filter(k => !selectedKeywordIds.includes(k.id)).length > 20 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowAllAvailableKeywords(!showAllAvailableKeywords)}
-                          className="h-7 px-2 text-xs text-slate-400 hover:text-[#A855F7] transition-colors"
-                        >
-                          {showAllAvailableKeywords ? 'Show Less' : `+${keywords.data.filter(k => !selectedKeywordIds.includes(k.id)).length - 20} more`}
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Articles Container - Separate from actions */}
@@ -924,6 +854,7 @@ export default function NewsHome() {
                         isPending={pendingItems.has(article.id)}
                         onKeywordClick={handleKeywordClick}
                         onSendToCapsule={sendToCapsule}
+                        isSentToCapsule={sentArticleUrls.has(article.url)}
                       />
                     </a>
                   </div>
