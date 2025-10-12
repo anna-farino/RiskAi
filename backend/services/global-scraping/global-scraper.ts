@@ -282,6 +282,20 @@ async function scrapeGlobalSource(
           .returning();
 
         log(`[Global Scraping] Saved article: ${savedArticle.title} - ${articleContent.content.length} chars (Cyber: ${isCybersecurity}, Risk: ${securityScore || 'N/A'})`, "scraper");
+        
+        // Link entities to the article if we extracted them
+        if (isCybersecurity && extractedEntities && savedArticle?.id) {
+          try {
+            log(`[Global Scraping] Linking entities to article ${savedArticle.id}`, "scraper");
+            const entityManager = new EntityManager();
+            await entityManager.linkArticleToEntities(savedArticle.id, extractedEntities);
+            log(`[Global Scraping] Successfully linked entities to article`, "scraper");
+          } catch (error) {
+            log(`[Global Scraping] Failed to link entities: ${error.message}`, "scraper");
+            // Don't fail the whole article processing if entity linking fails
+          }
+        }
+        
         savedCount++;
         newArticleIds.push(savedArticle.id);
       } catch (error) {
