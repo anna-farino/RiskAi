@@ -371,8 +371,25 @@ router.post("/add", async (req: any, res) => {
     console.error('Tech stack ADD endpoint error:', error);
     console.error('Error stack:', error.stack);
     log(`Error adding tech stack item: ${error.message || error}`, 'error');
-    res.status(500).json({ 
-      error: "Failed to add item to tech stack",
+    
+    // Provide more specific error messages based on error type
+    let userMessage = "Failed to add item to tech stack";
+    let statusCode = 500;
+    
+    if (error.code === '23505') { // Duplicate key violation
+      // This shouldn't happen with our onConflictDoUpdate, but handle it gracefully
+      userMessage = `${name} is already in your ${type} stack`;
+      statusCode = 409;
+    } else if (error.message?.includes('Invalid type')) {
+      userMessage = "Invalid entity type. Must be 'software', 'hardware', 'vendor', or 'client'";
+      statusCode = 400;
+    } else if (error.message?.includes('AI resolution')) {
+      userMessage = "Unable to process entity at this time. Please try again";
+      statusCode = 503;
+    }
+    
+    res.status(statusCode).json({ 
+      error: userMessage,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
