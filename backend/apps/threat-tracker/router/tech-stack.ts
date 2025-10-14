@@ -63,7 +63,7 @@ router.get("/", async (req: any, res) => {
         eq(usersSoftware.userId, userId),
         eq(usersSoftware.isActive, true)
       ))
-      .groupBy(software.id, software.name, usersSoftware.version, usersSoftware.priority);
+      .groupBy(software.id, software.name, usersSoftware.version, usersSoftware.priority, companies.name);
     
     // Fetch hardware with threat counts
     const hardwareResults = await db
