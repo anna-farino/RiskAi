@@ -38,13 +38,13 @@ router.get("/", async (req: any, res) => {
         name: software.name,
         version: usersSoftware.version,
         priority: usersSoftware.priority,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -69,13 +69,13 @@ router.get("/", async (req: any, res) => {
         name: hardware.name,
         version: sql<string>`NULL`,
         priority: usersHardware.priority,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -100,13 +100,13 @@ router.get("/", async (req: any, res) => {
         name: companies.name,
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -132,13 +132,13 @@ router.get("/", async (req: any, res) => {
         name: companies.name,
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
