@@ -123,6 +123,7 @@ export default function Keywords() {
     Record<string, boolean>
   >({
     threat: true,
+    threatActors: true,
   });
 
   // Toolbar state management - matching News Radar design
@@ -1189,71 +1190,101 @@ export default function Keywords() {
         </TabsContent>
       </Tabs>
 
-      {/* Threat Actors Section */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle className="text-lg">Threat Actors</CardTitle>
-          <CardDescription>
-            Known threat actors, APT groups, and ransomware gangs discovered in articles
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {threatActors.isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : threatActors.data && threatActors.data.length > 0 ? (
-            <div className="space-y-2">
-              {threatActors.data.map((actor: any) => (
-                <div key={actor.id} className="p-3 border rounded-md bg-slate-900/40">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium">{actor.name}</h4>
-                      {actor.type && (
-                        <Badge variant="outline" className="mt-1 text-xs">
-                          {actor.type}
-                        </Badge>
-                      )}
-                      {actor.origin && (
-                        <span className="text-xs text-muted-foreground ml-2">
-                          Origin: {actor.origin}
-                        </span>
-                      )}
-                    </div>
-                    {actor.isVerified && (
-                      <CheckCircle className="h-4 w-4 text-green-500" title="Verified threat actor" />
-                    )}
-                  </div>
-                  {actor.aliases && actor.aliases.length > 0 && (
-                    <div className="mt-2">
-                      <span className="text-xs text-muted-foreground">Also known as: </span>
-                      {actor.aliases.map((alias: string, idx: number) => (
-                        <Badge key={idx} variant="secondary" className="text-xs mr-1">
-                          {alias}
-                        </Badge>
-                      ))}
-                    </div>
+      {/* Threat Actors Section - Collapsible dropdown matching System Keywords */}
+      <div className="mt-6 space-y-4">
+        <Collapsible
+          open={!isDefaultKeywordsCollapsed.threatActors}
+          onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({...prev, threatActors: !open}))}
+        >
+          <CollapsibleTrigger asChild>
+            <button className="flex items-center justify-between w-full p-3 bg-slate-800/40 hover:bg-slate-800/60 rounded-md border border-orange-500/20 hover:border-orange-500/30 transition-all duration-200">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
+                  {isDefaultKeywordsCollapsed.threatActors ? (
+                    <ChevronRight className="h-4 w-4 text-orange-400" />
+                  ) : (
+                    <ChevronDown className="h-4 w-4 text-orange-400" />
                   )}
-                  {actor.targets && actor.targets.length > 0 && (
-                    <div className="mt-2">
-                      <span className="text-xs text-muted-foreground">Targets: </span>
-                      <span className="text-xs">{actor.targets.join(", ")}</span>
-                    </div>
-                  )}
+                  <Shield className="h-4 w-4 text-orange-400" />
+                  <h3 className="text-sm font-medium text-orange-300">
+                    Threat Actors
+                  </h3>
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-400 border-orange-500/30">
+                    {threatActors.data?.length || 0} total
+                  </Badge>
+                  <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/30">
+                    {threatActors.data?.filter((a: any) => a.isVerified).length || 0} verified
+                  </Badge>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span className="capitalize">
+                  APT Groups & Ransomware
+                </span>
+                <ChevronDown className={cn(
+                  "h-3 w-3 transition-transform duration-200",
+                  isDefaultKeywordsCollapsed.threatActors && "rotate-180"
+                )} />
+              </div>
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-3">
+            <div className="p-4 bg-slate-900/40 rounded-md border border-orange-500/10">
+              {threatActors.isLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-orange-400" />
+                </div>
+              ) : threatActors.data && threatActors.data.length > 0 ? (
+                <>
+                  <div className="mb-3">
+                    <p className="text-xs text-slate-400 leading-relaxed">
+                      Known threat actors, APT groups, and ransomware gangs discovered in articles
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {threatActors.data.map((actor: any) => (
+                      <Badge
+                        key={actor.id}
+                        variant={actor.isVerified ? "default" : "outline"}
+                        className={cn(
+                          "text-xs whitespace-nowrap px-3 py-1.5 transition-all duration-200 cursor-pointer",
+                          actor.isVerified
+                            ? "bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30"
+                            : "bg-slate-800/60 text-slate-400 border-slate-600/50 hover:bg-slate-700/60"
+                        )}
+                        title={`${actor.name}${actor.type ? ` (${actor.type})` : ''}${actor.origin ? ` - Origin: ${actor.origin}` : ''}`}
+                      >
+                        <Shield className="h-3 w-3 mr-1.5" />
+                        {actor.name}
+                        {actor.type && (
+                          <span className="text-xs ml-1.5 opacity-70">
+                            {actor.type}
+                          </span>
+                        )}
+                        {actor.isVerified && (
+                          <CheckCircle className="h-3 w-3 ml-1.5 text-orange-400" />
+                        )}
+                      </Badge>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-4">
+                  <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground text-center">
+                    No threat actors discovered yet
+                  </p>
+                  <p className="text-xs text-muted-foreground text-center mt-1">
+                    They will appear here as they're discovered from analyzed articles
+                  </p>
+                </div>
+              )}
             </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 border rounded-md border-dashed">
-              <AlertCircle className="h-12 w-12 text-muted-foreground mb-2" />
-              <h3 className="text-lg font-medium">No threat actors discovered yet</h3>
-              <p className="text-sm text-muted-foreground mb-4 text-center px-4">
-                Threat actors will appear here as they're discovered from analyzed articles
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
 
       {/* Single keyword dialog */}
       <Dialog open={keywordDialogOpen} onOpenChange={setKeywordDialogOpen}>
