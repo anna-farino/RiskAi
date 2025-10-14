@@ -334,28 +334,13 @@ router.post("/add", async (req: any, res) => {
       case 'client':
         console.log(`Processing ${type}:`, name);
         
-        // First check if company already exists by normalized name
-        const normalizedCompanyName = name.toLowerCase().trim().replace(/\s+/g, ' ');
-        const [existingCompany] = await tx
-          .select()
-          .from(companies)
-          .where(eq(companies.normalizedName, normalizedCompanyName))
-          .limit(1);
-        
-        if (existingCompany) {
-          entityId = existingCompany.id;
-          console.log(`Found existing company: ${name} (ID: ${entityId})`);
-        } else {
-          // Create new company if it doesn't exist
-          const [newCompany] = await tx.insert(companies).values({
-            name: name,
-            normalizedName: normalizedCompanyName,
-            type: type === 'vendor' ? 'vendor' : 'client',
-            createdBy: userId
-          }).returning();
-          entityId = newCompany.id;
-          console.log(`Created new company: ${name} (ID: ${entityId})`);
-        }
+        // Use EntityManager's findOrCreateCompany which handles normalization and AI resolution
+        entityId = await entityManager.findOrCreateCompany({
+          name: name,
+          type: type === 'vendor' ? 'vendor' : 'client',
+          createdBy: userId
+        });
+        console.log(`Processed company: ${name} (ID: ${entityId})`);
         
         // Add to user's companies
         await tx.insert(usersCompanies).values({
