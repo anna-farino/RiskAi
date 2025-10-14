@@ -105,7 +105,7 @@ router.get("/", async (req: any, res) => {
         name: companies.name,
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
-        source: usersCompanies.source,
+        metadata: usersCompanies.metadata,
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
@@ -129,7 +129,7 @@ router.get("/", async (req: any, res) => {
         eq(usersCompanies.relationshipType, 'vendor'),
         eq(usersCompanies.isActive, true)
       ))
-      .groupBy(companies.id, companies.name, usersCompanies.priority, usersCompanies.source);
+      .groupBy(companies.id, companies.name, usersCompanies.priority, usersCompanies.metadata);
     
     // Fetch clients with threat counts
     const clientResults = await db
@@ -193,7 +193,7 @@ router.get("/", async (req: any, res) => {
         name: v.name,
         version: v.version,
         priority: v.priority,
-        source: v.source || 'manual',
+        source: (v.metadata as any)?.source || 'manual', // Extract source from metadata
         threats: parseInt(v.threatCount?.toString() || '0') > 0 ? {
           count: parseInt(v.threatCount?.toString() || '0'),
           highestLevel: v.highestLevel || 'low'
@@ -331,7 +331,7 @@ router.post("/add", async (req: any, res) => {
                 userId,
                 companyId,
                 relationshipType: 'vendor',
-                source: 'auto-software',
+                metadata: { source: 'auto-software' },
                 priority: 50, // Default priority for auto-added
                 isActive: true,
                 addedAt: new Date()
@@ -339,7 +339,7 @@ router.post("/add", async (req: any, res) => {
                 target: [usersCompanies.userId, usersCompanies.companyId],
                 set: {
                   isActive: true, // Reactivate if previously disabled
-                  source: 'auto-software', // Update source to show it's auto-added
+                  metadata: { source: 'auto-software' }, // Update source to show it's auto-added
                   addedAt: new Date()
                 }
               });
@@ -401,7 +401,7 @@ router.post("/add", async (req: any, res) => {
                 userId,
                 companyId,
                 relationshipType: 'vendor',
-                source: 'auto-hardware',
+                metadata: { source: 'auto-hardware' },
                 priority: 50, // Default priority for auto-added
                 isActive: true,
                 addedAt: new Date()
@@ -409,7 +409,7 @@ router.post("/add", async (req: any, res) => {
                 target: [usersCompanies.userId, usersCompanies.companyId],
                 set: {
                   isActive: true, // Reactivate if previously disabled
-                  source: 'auto-hardware', // Update source to show it's auto-added
+                  metadata: { source: 'auto-hardware' }, // Update source to show it's auto-added
                   addedAt: new Date()
                 }
               });
@@ -625,7 +625,7 @@ router.delete("/:itemId", async (req: any, res) => {
       case 'client':
         // Check if vendor is auto-added (warn user about dependent items)
         const vendorInfo = await db.select({
-          source: usersCompanies.source
+          metadata: usersCompanies.metadata
         })
         .from(usersCompanies)
         .where(and(
@@ -634,7 +634,8 @@ router.delete("/:itemId", async (req: any, res) => {
         ))
         .limit(1);
         
-        if (vendorInfo.length > 0 && vendorInfo[0].source?.includes('auto-')) {
+        const source = (vendorInfo[0]?.metadata as any)?.source;
+        if (vendorInfo.length > 0 && source?.includes('auto-')) {
           // Check for dependent software/hardware
           const companyDetails = await db.select({
             name: companies.name
