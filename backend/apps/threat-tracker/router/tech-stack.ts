@@ -20,6 +20,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { log } from "../../../utils/log";
 import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
+import { extractVersion, findSoftwareCompany } from "../../../utils/entity-processing";
 
 const router = Router();
 
@@ -238,9 +239,36 @@ router.post("/add", async (req: any, res) => {
       
       switch (type) {
         case 'software':
-          console.log('Creating/finding software entity:', name);
+          console.log('Processing software entity:', name);
+          
+          // Extract version from name if not provided separately
+          let finalName = name;
+          let finalVersion = version;
+          
+          if (!version) {
+            const extracted = extractVersion(name);
+            finalName = extracted.name;
+            finalVersion = extracted.version;
+            console.log('Extracted version:', { original: name, name: finalName, version: finalVersion });
+          }
+          
+          // Find associated company
+          let companyId: string | null = null;
+          const companyName = findSoftwareCompany(finalName);
+          
+          if (companyName) {
+            console.log('Found company association:', { software: finalName, company: companyName });
+            companyId = await entityManager.findOrCreateCompany({
+              name: companyName,
+              type: 'vendor',
+              createdBy: userId
+            });
+          }
+          
+          // Create or find software with company association
           entityId = await entityManager.findOrCreateSoftware({
-            name: name,
+            name: finalName,
+            companyId: companyId,
             createdBy: userId
           });
           console.log('Software entity created/found with ID:', entityId);
@@ -255,21 +283,22 @@ router.post("/add", async (req: any, res) => {
           console.log('Created/found entity details:', {
             id: createdEntity?.id,
             name: createdEntity?.name,
-            normalizedName: createdEntity?.normalizedName
+            normalizedName: createdEntity?.normalizedName,
+            companyId: createdEntity?.companyId
           });
           
-          // Add to user's software
+          // Add to user's software with extracted version
           await tx.insert(usersSoftware).values({
             userId,
             softwareId: entityId,
-            version: version || null,
+            version: finalVersion || null,
             priority: priority || null,
             isActive: true,
             addedAt: new Date()
           }).onConflictDoUpdate({
             target: [usersSoftware.userId, usersSoftware.softwareId],
             set: {
-              version: version || null,
+              version: finalVersion || null,
               priority: priority || null,
               isActive: true,
               addedAt: new Date()
