@@ -5,12 +5,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/query-client";
 import { useFetch } from "@/hooks/use-fetch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // Type definitions
 interface TechStackItem {
@@ -18,6 +25,7 @@ interface TechStackItem {
   name: string;
   version?: string | null;
   priority?: number | null;
+  isActive?: boolean;
   threats?: {
     count: number;
     highestLevel: 'critical' | 'high' | 'medium' | 'low';
@@ -78,7 +86,7 @@ export default function TechStackPage() {
     }
   });
 
-  // Remove item mutation
+  // Remove item mutation (hard delete - permanently removes the relation)
   const removeItem = useMutation({
     mutationFn: async ({ itemId, type }: { itemId: string; type: string }) => {
       const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/${itemId}`, {
@@ -93,7 +101,27 @@ export default function TechStackPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       toast({
         title: "Item removed",
-        description: "Technology stack item has been removed successfully"
+        description: "Technology stack item has been permanently removed"
+      });
+    }
+  });
+
+  // Toggle item mutation (soft delete - enables/disables the item)
+  const toggleItem = useMutation({
+    mutationFn: async ({ itemId, type, isActive }: { itemId: string; type: string; isActive: boolean }) => {
+      const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/${itemId}/toggle`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type, isActive })
+      });
+      if (!response.ok) throw new Error('Failed to toggle item');
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      toast({
+        title: data.isActive ? "Item enabled" : "Item disabled",
+        description: `Technology stack item has been ${data.isActive ? 'enabled' : 'disabled'}`
       });
     }
   });
@@ -120,13 +148,25 @@ export default function TechStackPage() {
       return level.charAt(0).toUpperCase() + level.slice(1);
     };
 
+    // Default to active if not specified
+    const isActive = item.isActive !== false;
+
     return (
       <div 
-        className="flex items-center justify-between py-3 px-4 hover:bg-muted/50 rounded-md transition-colors"
+        className={cn(
+          "flex items-center justify-between py-3 px-4 rounded-md transition-colors",
+          isActive ? "hover:bg-muted/50" : "opacity-50 hover:bg-muted/30"
+        )}
         data-testid={`tech-item-${item.id}`}
       >
         <div className="flex items-center gap-3 flex-1">
-          <span className="font-medium" data-testid={`text-item-name-${item.id}`}>
+          <span 
+            className={cn(
+              "font-medium",
+              !isActive && "line-through text-muted-foreground"
+            )} 
+            data-testid={`text-item-name-${item.id}`}
+          >
             {item.name}
           </span>
           {item.version && (
@@ -136,8 +176,8 @@ export default function TechStackPage() {
           )}
         </div>
 
-        {/* Threat indicator - only shows if threats exist */}
-        {item.threats && item.threats.count > 0 && (
+        {/* Threat indicator - only shows if threats exist and item is active */}
+        {isActive && item.threats && item.threats.count > 0 && (
           <button
             onClick={() => {
               // Navigate to threats page with filter
@@ -159,14 +199,54 @@ export default function TechStackPage() {
           </button>
         )}
 
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => removeItem.mutate({ itemId: item.id, type })}
-          data-testid={`button-remove-${item.id}`}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Enable/Disable Toggle */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center">
+                  <Switch
+                    checked={isActive}
+                    onCheckedChange={(checked) => {
+                      toggleItem.mutate({ 
+                        itemId: item.id, 
+                        type, 
+                        isActive: checked 
+                      });
+                    }}
+                    data-testid={`switch-toggle-${item.id}`}
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>{isActive ? 'Disable' : 'Enable'} monitoring for this item</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {/* Delete Button */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (confirm(`Are you sure you want to permanently remove ${item.name}? This cannot be undone.`)) {
+                      removeItem.mutate({ itemId: item.id, type });
+                    }
+                  }}
+                  data-testid={`button-remove-${item.id}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Permanently delete this item</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
       </div>
     );
   };
