@@ -172,27 +172,28 @@ export default function TechStackPage() {
                 )} 
                 data-testid={`text-item-name-${item.id}`}
               >
-                {/* For hardware with manufacturer, display as "Manufacturer Name" (e.g., "Microsoft SurfaceBook 3") */}
-                {type === 'hardware' && item.manufacturer ? `${item.manufacturer} ${item.name}` : item.name}
+                {/* Display with styled prefix for both hardware and software */}
+                {type === 'hardware' && item.manufacturer && (
+                  <>
+                    <span className="text-muted-foreground">{item.manufacturer}</span>
+                    {' '}
+                  </>
+                )}
+                {type === 'software' && item.company && (
+                  <>
+                    <span className="text-muted-foreground">{item.company}</span>
+                    {' '}
+                  </>
+                )}
+                <span>{item.name}</span>
               </span>
-              {/* Show version for software, or model for hardware if it exists */}
+              {/* Show version for software */}
               {item.version && (
                 <span className="text-sm text-muted-foreground" data-testid={`text-item-version-${item.id}`}>
                   v{item.version}
                 </span>
               )}
-              {type === 'hardware' && item.model && (
-                <span className="text-sm text-muted-foreground" data-testid={`text-item-model-${item.id}`}>
-                  {item.model}
-                </span>
-              )}
             </div>
-            {/* Show company for software items */}
-            {type === 'software' && item.company && (
-              <span className="text-xs text-muted-foreground" data-testid={`text-item-company-${item.id}`}>
-                by {item.company}
-              </span>
-            )}
           </div>
         </div>
 
