@@ -232,43 +232,58 @@ router.post("/add", async (req: any, res) => {
     
     const entityManager = new EntityManager();
     
-    // Find or create the entity based on type
-    let entityId: string;
-    
-    switch (type) {
-      case 'software':
-        console.log('Creating/finding software entity:', name);
-        entityId = await entityManager.findOrCreateSoftware({
-          name: name,
-          createdBy: userId
-        });
-        console.log('Software entity created/found with ID:', entityId);
-        // Add to user's software
-        await db.insert(usersSoftware).values({
-          userId,
-          softwareId: entityId,
-          version: version || null,
-          priority: priority || null,
-          isActive: true,
-          addedAt: new Date()
-        }).onConflictDoUpdate({
-          target: [usersSoftware.userId, usersSoftware.softwareId],
-          set: {
+    // Use transaction to ensure consistency
+    const result = await db.transaction(async (tx) => {
+      let entityId: string;
+      
+      switch (type) {
+        case 'software':
+          console.log('Creating/finding software entity:', name);
+          entityId = await entityManager.findOrCreateSoftware({
+            name: name,
+            createdBy: userId
+          });
+          console.log('Software entity created/found with ID:', entityId);
+          
+          // Verify entity was created with normalized_name
+          const [createdEntity] = await tx
+            .select()
+            .from(software)
+            .where(eq(software.id, entityId))
+            .limit(1);
+          
+          console.log('Created/found entity details:', {
+            id: createdEntity?.id,
+            name: createdEntity?.name,
+            normalizedName: createdEntity?.normalizedName
+          });
+          
+          // Add to user's software
+          await tx.insert(usersSoftware).values({
+            userId,
+            softwareId: entityId,
             version: version || null,
             priority: priority || null,
             isActive: true,
             addedAt: new Date()
-          }
-        });
-        break;
+          }).onConflictDoUpdate({
+            target: [usersSoftware.userId, usersSoftware.softwareId],
+            set: {
+              version: version || null,
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }
+          });
+          break;
         
-      case 'hardware':
-        entityId = await entityManager.findOrCreateHardware({
-          name: name,
-          createdBy: userId
-        });
-        // Add to user's hardware
-        await db.insert(usersHardware).values({
+        case 'hardware':
+          entityId = await entityManager.findOrCreateHardware({
+            name: name,
+            createdBy: userId
+          });
+          // Add to user's hardware
+          await tx.insert(usersHardware).values({
           userId,
           hardwareId: entityId,
           priority: priority || null,
@@ -292,7 +307,7 @@ router.post("/add", async (req: any, res) => {
           createdBy: userId
         });
         // Add to user's companies
-        await db.insert(usersCompanies).values({
+        await tx.insert(usersCompanies).values({
           userId,
           companyId: entityId,
           relationshipType: type === 'vendor' ? 'vendor' : 'client',
@@ -311,23 +326,31 @@ router.post("/add", async (req: any, res) => {
         break;
         
       default:
-        return res.status(400).json({ error: "Invalid type" });
+        throw new Error("Invalid type");
     }
     
-    // Trigger relevance score recalculation
+    return entityId;
+    });
+    
+    // Trigger relevance score recalculation outside of transaction
     relevanceScorer.onTechStackChange(userId).catch(error => {
       log(`Error triggering relevance recalculation: ${error}`, 'error');
     });
     
     res.json({ 
       success: true, 
-      entityId,
+      entityId: result,
       message: `Added ${name} to ${type} stack` 
     });
     
-  } catch (error) {
-    log(`Error adding tech stack item: ${error}`, 'error');
-    res.status(500).json({ error: "Failed to add item to tech stack" });
+  } catch (error: any) {
+    console.error('Tech stack ADD endpoint error:', error);
+    console.error('Error stack:', error.stack);
+    log(`Error adding tech stack item: ${error.message || error}`, 'error');
+    res.status(500).json({ 
+      error: "Failed to add item to tech stack",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
