@@ -32,7 +32,7 @@ interface TechStackResponse {
 }
 
 export default function TechStackPage() {
-  const { fetchWithAuth } = useFetch();
+  const fetchWithAuth = useFetch();
   const [softwareOpen, setSoftwareOpen] = useState(true);
   const [hardwareOpen, setHardwareOpen] = useState(false);
   const [vendorsOpen, setVendorsOpen] = useState(false);
@@ -45,9 +45,9 @@ export default function TechStackPage() {
 
   // Fetch tech stack data
   const { data: techStack, isLoading } = useQuery<TechStackResponse>({
-    queryKey: ['/api/tech-stack'],
+    queryKey: ['/api/threat-tracker/tech-stack'],
     queryFn: async () => {
-      const response = await fetchWithAuth('/api/tech-stack');
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack');
       if (!response.ok) throw new Error('Failed to fetch tech stack');
       return response.json();
     }
@@ -61,7 +61,7 @@ export default function TechStackPage() {
       version?: string;
       priority?: number;
     }) => {
-      const response = await fetchWithAuth('/api/tech-stack/add', {
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/add', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type, name, version, priority })
@@ -70,7 +70,7 @@ export default function TechStackPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tech-stack'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       toast({
         title: "Item added",
         description: "Technology stack item has been added successfully"
@@ -81,7 +81,7 @@ export default function TechStackPage() {
   // Remove item mutation
   const removeItem = useMutation({
     mutationFn: async ({ itemId, type }: { itemId: string; type: string }) => {
-      const response = await fetchWithAuth(`/api/tech-stack/${itemId}`, {
+      const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/${itemId}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type })
@@ -90,7 +90,7 @@ export default function TechStackPage() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/tech-stack'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       toast({
         title: "Item removed",
         description: "Technology stack item has been removed successfully"
