@@ -105,6 +105,7 @@ router.get("/", async (req: any, res) => {
         name: companies.name,
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
+        source: usersCompanies.source,
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
@@ -128,7 +129,7 @@ router.get("/", async (req: any, res) => {
         eq(usersCompanies.relationshipType, 'vendor'),
         eq(usersCompanies.isActive, true)
       ))
-      .groupBy(companies.id, companies.name, usersCompanies.priority);
+      .groupBy(companies.id, companies.name, usersCompanies.priority, usersCompanies.source);
     
     // Fetch clients with threat counts
     const clientResults = await db
@@ -192,6 +193,7 @@ router.get("/", async (req: any, res) => {
         name: v.name,
         version: v.version,
         priority: v.priority,
+        source: v.source || 'manual',
         threats: parseInt(v.threatCount?.toString() || '0') > 0 ? {
           count: parseInt(v.threatCount?.toString() || '0'),
           highestLevel: v.highestLevel || 'low'
@@ -315,6 +317,35 @@ router.post("/add", async (req: any, res) => {
                 addedAt: new Date()
               }
             });
+            
+            // Auto-add vendor if we have a company from AI extraction
+            if (extracted.software && extracted.software[0]?.vendor) {
+              const companyId = await entityManager.findOrCreateCompany({
+                name: extracted.software[0].vendor,
+                type: 'vendor',
+                createdBy: userId
+              });
+              
+              // Add vendor relationship (reactivate if already exists but disabled)
+              await tx.insert(usersCompanies).values({
+                userId,
+                companyId,
+                relationshipType: 'vendor',
+                source: 'auto-software',
+                priority: 50, // Default priority for auto-added
+                isActive: true,
+                addedAt: new Date()
+              }).onConflictDoUpdate({
+                target: [usersCompanies.userId, usersCompanies.companyId],
+                set: {
+                  isActive: true, // Reactivate if previously disabled
+                  source: 'auto-software', // Update source to show it's auto-added
+                  addedAt: new Date()
+                }
+              });
+              
+              console.log(`Auto-added vendor ${extracted.software[0].vendor} for software ${processedName}`);
+            }
           });
           break;
           
@@ -356,6 +387,35 @@ router.post("/add", async (req: any, res) => {
                 addedAt: new Date()
               }
             });
+            
+            // Auto-add vendor if we have a manufacturer from AI extraction
+            if (extracted.hardware && extracted.hardware[0]?.manufacturer) {
+              const companyId = await entityManager.findOrCreateCompany({
+                name: extracted.hardware[0].manufacturer,
+                type: 'vendor',
+                createdBy: userId
+              });
+              
+              // Add vendor relationship (reactivate if already exists but disabled)
+              await tx.insert(usersCompanies).values({
+                userId,
+                companyId,
+                relationshipType: 'vendor',
+                source: 'auto-hardware',
+                priority: 50, // Default priority for auto-added
+                isActive: true,
+                addedAt: new Date()
+              }).onConflictDoUpdate({
+                target: [usersCompanies.userId, usersCompanies.companyId],
+                set: {
+                  isActive: true, // Reactivate if previously disabled
+                  source: 'auto-hardware', // Update source to show it's auto-added
+                  addedAt: new Date()
+                }
+              });
+              
+              console.log(`Auto-added vendor ${extracted.hardware[0].manufacturer} for hardware ${processedName}`);
+            }
           });
           break;
           
@@ -563,6 +623,57 @@ router.delete("/:itemId", async (req: any, res) => {
         
       case 'vendor':
       case 'client':
+        // Check if vendor is auto-added (warn user about dependent items)
+        const vendorInfo = await db.select({
+          source: usersCompanies.source
+        })
+        .from(usersCompanies)
+        .where(and(
+          eq(usersCompanies.userId, userId),
+          eq(usersCompanies.companyId, itemId)
+        ))
+        .limit(1);
+        
+        if (vendorInfo.length > 0 && vendorInfo[0].source?.includes('auto-')) {
+          // Check for dependent software/hardware
+          const companyDetails = await db.select({
+            name: companies.name
+          })
+          .from(companies)
+          .where(eq(companies.id, itemId))
+          .limit(1);
+          
+          const dependentSoftware = await db.select({
+            name: software.name
+          })
+          .from(software)
+          .innerJoin(usersSoftware, eq(usersSoftware.softwareId, software.id))
+          .where(and(
+            eq(usersSoftware.userId, userId),
+            eq(software.companyId, itemId),
+            eq(usersSoftware.isActive, true)
+          ));
+          
+          const dependentHardware = await db.select({
+            name: hardware.name,
+            manufacturer: hardware.manufacturer
+          })
+          .from(hardware)
+          .innerJoin(usersHardware, eq(usersHardware.hardwareId, hardware.id))
+          .where(and(
+            eq(usersHardware.userId, userId),
+            eq(hardware.manufacturer, companyDetails[0]?.name),
+            eq(usersHardware.isActive, true)
+          ));
+          
+          if (dependentSoftware.length > 0 || dependentHardware.length > 0) {
+            console.log(`Warning: Removing auto-added vendor ${itemId} with dependencies:`, {
+              software: dependentSoftware.map(s => s.name),
+              hardware: dependentHardware.map(h => h.name)
+            });
+          }
+        }
+        
         await db.delete(usersCompanies)
           .where(and(
             eq(usersCompanies.userId, userId),

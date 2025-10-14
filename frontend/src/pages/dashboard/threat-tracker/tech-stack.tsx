@@ -29,6 +29,7 @@ interface TechStackItem {
   company?: string | null;
   manufacturer?: string | null; // For hardware items
   model?: string | null; // For hardware items
+  source?: string | null; // For tracking auto-added vendors
   threats?: {
     count: number;
     highestLevel: 'critical' | 'high' | 'medium' | 'low';
@@ -191,6 +192,13 @@ export default function TechStackPage() {
               {item.version && (
                 <span className="text-sm text-muted-foreground" data-testid={`text-item-version-${item.id}`}>
                   v{item.version}
+                </span>
+              )}
+              {/* Show auto-added indicator for vendors */}
+              {type === 'vendor' && item.source && item.source !== 'manual' && (
+                <span className="text-xs bg-muted px-2 py-0.5 rounded-md text-muted-foreground" data-testid={`text-auto-added-${item.id}`}>
+                  {item.source === 'auto-software' ? 'from software' : 
+                   item.source === 'auto-hardware' ? 'from hardware' : 'auto'}
                 </span>
               )}
             </div>

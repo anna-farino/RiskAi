@@ -42,6 +42,7 @@ export const usersCompanies = pgTable('users_companies', {
   userId: uuid('user_id').notNull().references(() => users.id), // references users.id
   companyId: uuid('company_id').notNull().references(() => companies.id),
   relationshipType: text('relationship_type'), // 'vendor', 'client', 'partner', etc.
+  source: text('source').default('manual'), // 'manual', 'auto-software', 'auto-hardware'
   addedAt: timestamp('added_at').defaultNow(),
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(50), // For relevance scoring (1-100)

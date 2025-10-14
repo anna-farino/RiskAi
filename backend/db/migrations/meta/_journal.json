@@ -295,6 +295,13 @@
       "when": 1759773165411,
       "tag": "0041_keen_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1760474500549,
+      "tag": "0042_watery_revanche",
+      "breakpoints": true
     }
   ]
 }
