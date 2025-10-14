@@ -22,7 +22,6 @@ import { globalArticles } from '../../shared/db/schema/global-tables';
 import { cveData } from '../../shared/db/schema/cve-data';
 import { eq, and, isNull, ilike, sql, gte } from 'drizzle-orm';
 import { extractArticleEntities, resolveEntity } from './openai';
-import { extractVersion } from '../utils/entity-processing';
 
 // Types for extracted entities
 interface SoftwareExtraction {
@@ -569,10 +568,75 @@ export class EntityManager {
    */
   private normalizeEntityName(name: string): string {
     // First extract and remove any version information
-    const { name: cleanName } = extractVersion(name);
+    const { name: cleanName } = this.extractVersion(name);
     
     // Then normalize: lowercase, trim, and single spaces
     return cleanName.toLowerCase().trim().replace(/\s+/g, ' ');
+  }
+  
+  /**
+   * Extracts version from a software name string
+   * @returns Object with cleaned name and extracted version
+   * 
+   * Examples:
+   * - "macOS Big Sur 11.7.10" -> { name: "macOS Big Sur", version: "11.7.10" }
+   * - "Apache 2.4.54" -> { name: "Apache", version: "2.4.54" }
+   * - "nginx/1.22.0" -> { name: "nginx", version: "1.22.0" }
+   * - "Redis v7.0.5" -> { name: "Redis", version: "7.0.5" }
+   * - "PostgreSQL 15 beta 2" -> { name: "PostgreSQL", version: "15 beta 2" }
+   */
+  private extractVersion(input: string): { name: string; version: string | null } {
+    // Common version patterns
+    const versionPatterns = [
+      // Standard version numbers (1.0, 2.4.3, 10.5.8)
+      /\s+v?(\d+(?:\.\d+)*(?:[-\s]?(?:alpha|beta|rc|release|final|stable|dev|preview|snapshot)(?:[-\s]?\d+)?)?)/gi,
+      // Version with forward slash (nginx/1.22.0)
+      /\/v?(\d+(?:\.\d+)*)/gi,
+      // Version in parentheses (Software (1.2.3))
+      /\s*\(v?(\d+(?:\.\d+)*)\)/gi,
+      // Version with dash (software-1.2.3)
+      /-v?(\d+(?:\.\d+)*(?:[-\s]?(?:alpha|beta|rc|release|final|stable|dev|preview|snapshot)(?:[-\s]?\d+)?)?)/gi,
+      // Year-based versions (Office 2019, Visual Studio 2022)
+      /\s+(20\d{2})(?:\s|$)/gi,
+      // Single major version (Python 3, Java 17)
+      /\s+(\d{1,2})(?:\s|$)/gi,
+    ];
+
+    let cleanedName = input;
+    let extractedVersion: string | null = null;
+
+    // Try each pattern in order of specificity
+    for (const pattern of versionPatterns) {
+      const matches = input.match(pattern);
+      if (matches && matches.length > 0) {
+        // Get the last match (usually the most specific version)
+        const versionMatch = matches[matches.length - 1];
+        
+        // Extract just the version number part
+        const versionOnly = versionMatch.replace(/^[\s\/\-\(]+|[\s\)]+$/g, '').replace(/^v/i, '');
+        
+        // Only accept versions that look valid
+        if (versionOnly && /\d/.test(versionOnly)) {
+          extractedVersion = versionOnly;
+          // Remove the version from the name
+          cleanedName = input.replace(versionMatch, '').trim();
+          break;
+        }
+      }
+    }
+
+    // Clean up the name
+    cleanedName = cleanedName
+      .replace(/\s+/g, ' ')  // Normalize whitespace
+      .replace(/[\(\)]/g, '') // Remove stray parentheses
+      .replace(/\s*-\s*$/, '') // Remove trailing dash
+      .replace(/\s*\/\s*$/, '') // Remove trailing slash
+      .trim();
+
+    return {
+      name: cleanedName || input,
+      version: extractedVersion
+    };
   }
   
   /**
