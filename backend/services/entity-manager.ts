@@ -22,6 +22,7 @@ import { globalArticles } from '../../shared/db/schema/global-tables';
 import { cveData } from '../../shared/db/schema/cve-data';
 import { eq, and, isNull, ilike, sql, gte } from 'drizzle-orm';
 import { extractArticleEntities, resolveEntity } from './openai';
+import { extractVersion } from '../utils/entity-processing';
 
 // Types for extracted entities
 interface SoftwareExtraction {
@@ -567,7 +568,11 @@ export class EntityManager {
    * Normalize an entity name for consistent comparison
    */
   private normalizeEntityName(name: string): string {
-    return name.toLowerCase().trim().replace(/\s+/g, ' ');
+    // First extract and remove any version information
+    const { name: cleanName } = extractVersion(name);
+    
+    // Then normalize: lowercase, trim, and single spaces
+    return cleanName.toLowerCase().trim().replace(/\s+/g, ' ');
   }
   
   /**
