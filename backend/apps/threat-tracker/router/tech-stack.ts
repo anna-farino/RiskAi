@@ -220,6 +220,8 @@ router.post("/add", async (req: any, res) => {
     const { type, name, version, priority } = req.body;
     const userId = req.user?.id;
     
+    console.log('Tech stack ADD request:', { type, name, version, priority, userId });
+    
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -235,10 +237,12 @@ router.post("/add", async (req: any, res) => {
     
     switch (type) {
       case 'software':
+        console.log('Creating/finding software entity:', name);
         entityId = await entityManager.findOrCreateSoftware({
           name: name,
           createdBy: userId
         });
+        console.log('Software entity created/found with ID:', entityId);
         // Add to user's software
         await db.insert(usersSoftware).values({
           userId,
