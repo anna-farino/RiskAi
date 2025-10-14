@@ -167,6 +167,7 @@ router.get("/", async (req: any, res) => {
       software: softwareResults.map(s => ({
         id: s.id,
         name: s.name,
+        company: s.company,
         version: s.version,
         priority: s.priority,
         threats: parseInt(s.threatCount?.toString() || '0') > 0 ? {
