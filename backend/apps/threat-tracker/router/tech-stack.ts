@@ -230,7 +230,10 @@ router.post("/add", async (req: any, res) => {
     
     switch (type) {
       case 'software':
-        entityId = await entityManager.findOrCreateSoftware(name, null, null, null);
+        entityId = await entityManager.findOrCreateSoftware({
+          name: name,
+          createdBy: userId
+        });
         // Add to user's software
         await db.insert(usersSoftware).values({
           userId,
@@ -251,7 +254,10 @@ router.post("/add", async (req: any, res) => {
         break;
         
       case 'hardware':
-        entityId = await entityManager.findOrCreateHardware(name, null, null);
+        entityId = await entityManager.findOrCreateHardware({
+          name: name,
+          createdBy: userId
+        });
         // Add to user's hardware
         await db.insert(usersHardware).values({
           userId,
@@ -271,7 +277,11 @@ router.post("/add", async (req: any, res) => {
         
       case 'vendor':
       case 'client':
-        entityId = await entityManager.findOrCreateCompany(name, type === 'vendor' ? 'vendor' : 'client', null, null);
+        entityId = await entityManager.findOrCreateCompany({
+          name: name,
+          type: type === 'vendor' ? 'vendor' : 'client',
+          createdBy: userId
+        });
         // Add to user's companies
         await db.insert(usersCompanies).values({
           userId,
