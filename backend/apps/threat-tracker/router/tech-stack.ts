@@ -506,7 +506,7 @@ router.post("/add", async (req: any, res) => {
     let statusCode = 500;
     
     if (error.code === '23505') { // Duplicate key violation
-      userMessage = `${name} is already in your ${type} stack`;
+      userMessage = `This item is already in your tech stack`;
       statusCode = 409;
     } else if (error.message?.includes('Invalid type')) {
       userMessage = "Invalid entity type. Must be 'software', 'hardware', 'vendor', or 'client'";
