@@ -41,10 +41,10 @@ router.get("/", async (req: any, res) => {
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'critical') > 0 THEN 'critical'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'high') > 0 THEN 'high'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'medium') > 0 THEN 'medium'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'low') > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -72,10 +72,10 @@ router.get("/", async (req: any, res) => {
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'critical') > 0 THEN 'critical'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'high') > 0 THEN 'high'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'medium') > 0 THEN 'medium'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'low') > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -103,10 +103,10 @@ router.get("/", async (req: any, res) => {
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'critical') > 0 THEN 'critical'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'high') > 0 THEN 'high'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'medium') > 0 THEN 'medium'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'low') > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -135,10 +135,10 @@ router.get("/", async (req: any, res) => {
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ga.id), 0)`,
         highestLevel: sql<string>`
           CASE 
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'critical') > 0 THEN 'critical'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'high') > 0 THEN 'high'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'medium') > 0 THEN 'medium'
-            WHEN COUNT(ga.id) FILTER (WHERE ga.threat_level = 'low') > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ga.threat_level = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ga.threat_level = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ga.threat_level = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ga.threat_level = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `
@@ -203,9 +203,14 @@ router.get("/", async (req: any, res) => {
     
     res.json(response);
     
-  } catch (error) {
-    log(`Error fetching tech stack: ${error}`, 'error');
-    res.status(500).json({ error: "Failed to fetch tech stack" });
+  } catch (error: any) {
+    console.error('Tech stack GET endpoint error details:', error);
+    console.error('Error stack:', error.stack);
+    log(`Error fetching tech stack: ${error.message || error}`, 'error');
+    res.status(500).json({ 
+      error: "Failed to fetch tech stack",
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
