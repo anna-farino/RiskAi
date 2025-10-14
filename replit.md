@@ -2,7 +2,6 @@
 
 ## Overview
 RisqAi is a comprehensive threat intelligence and news monitoring platform providing automated web scraping, AI-powered content analysis, and intelligent threat detection. It comprises three core applications: News Radar for general news, Threat Tracker for cybersecurity intelligence, and News Capsule for reporting and analysis. The platform aims to offer a complete solution for staying informed on critical news and cybersecurity threats.
->>>>>>> origin/dev
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -42,6 +41,7 @@ The RisqAi platform employs a monorepo architecture, featuring a React 18 (TypeS
 - **Enhanced Bot Detection Bypass**: Implemented an error detection module, CycleTLS integration for TLS fingerprinting, and a tiered scraping strategy with progressive fallback.
 - **Link Count Validation**: Improved source scraping reliability by strictly enforcing a minimum of 10 links for source pages, ensuring proper escalation to Puppeteer when necessary.
 - **Advanced Turnstile Instrumentation**: Implemented comprehensive Cloudflare Turnstile API instrumentation that wraps render(), execute(), and getResponse() methods to capture real widget IDs and tokens. Fixed critical browser function execution bug and properly handles invisible challenges with automatic token capture and validation.
+- **MITRE ATT&CK Integration**: Implemented automated synchronization with MITRE ATT&CK framework data, fetching threat actor groups and techniques from STIX data twice daily at 12am and 12pm EST. Successfully enriched database with 181 verified threat actors including aliases and 76 MITRE techniques as threat keywords.
 
 ## External Dependencies
 - **Database**: PostgreSQL 16
