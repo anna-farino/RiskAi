@@ -304,13 +304,15 @@ export async function extractArticleEntities(article: {
     
     For HARDWARE, extract:
     - Device names WITHOUT the manufacturer prefix (e.g., "Microsoft SurfaceBook 3" → name: "SurfaceBook 3")
-    - Model field should contain the model number/generation (e.g., for "SurfaceBook 3", model: "3")
+    - Model field should contain the FULL model designation, not just the number
     - Manufacturer as separate field (e.g., "Microsoft", "Cisco", "Dell")
     - Category (router, iot, server, workstation, laptop, etc.)
     - IMPORTANT: If manufacturer appears at the start of the device name, remove it from the name field
-      * Example: "Cisco ASA 5500" → name: "ASA 5500", manufacturer: "Cisco", model: "5500"
-      * Example: "Microsoft SurfaceBook 3" → name: "SurfaceBook 3", manufacturer: "Microsoft", model: "3"
-      * Example: "Dell PowerEdge R740" → name: "PowerEdge R740", manufacturer: "Dell", model: "R740"
+      * Example: "Cisco ASA 5500" → name: "ASA 5500", manufacturer: "Cisco", model: "ASA 5500"
+      * Example: "Microsoft SurfaceBook 3" → name: "SurfaceBook 3", manufacturer: "Microsoft", model: "SurfaceBook 3"
+      * Example: "Dell PowerEdge R740" → name: "PowerEdge R740", manufacturer: "Dell", model: "PowerEdge R740"
+      * Example: "Apple MacBook Pro M2" → name: "MacBook Pro M2", manufacturer: "Apple", model: "MacBook Pro M2"
+    - The model field represents the complete model designation as it would appear in official documentation
     - Specificity level:
       * "generic" - Broad mention (e.g., "routers", "IoT devices", "network equipment")
       * "partial" - Brand/series (e.g., "Cisco routers", "Netgear devices")
