@@ -32,13 +32,14 @@ router.get("/", async (req: any, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
-    // Fetch software with threat counts
+    // Fetch software with threat counts and company info
     const softwareResults = await db
       .select({
         id: software.id,
         name: software.name,
         version: usersSoftware.version,
         priority: usersSoftware.priority,
+        company: companies.name,
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
         highestLevel: sql<string>`
           CASE 
@@ -52,6 +53,7 @@ router.get("/", async (req: any, res) => {
       })
       .from(usersSoftware)
       .innerJoin(software, eq(usersSoftware.softwareId, software.id))
+      .leftJoin(companies, eq(software.companyId, companies.id))
       .leftJoin(articleSoftware, eq(articleSoftware.softwareId, software.id))
       .leftJoin(globalArticles, and(
         eq(globalArticles.id, articleSoftware.articleId),

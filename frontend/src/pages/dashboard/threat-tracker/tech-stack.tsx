@@ -26,6 +26,7 @@ interface TechStackItem {
   version?: string | null;
   priority?: number | null;
   isActive?: boolean;
+  company?: string | null;
   threats?: {
     count: number;
     highestLevel: 'critical' | 'high' | 'medium' | 'low';
@@ -160,20 +161,29 @@ export default function TechStackPage() {
         data-testid={`tech-item-${item.id}`}
       >
         <div className="flex items-center gap-3 flex-1">
-          <span 
-            className={cn(
-              "font-medium",
-              !isActive && "line-through text-muted-foreground"
-            )} 
-            data-testid={`text-item-name-${item.id}`}
-          >
-            {item.name}
-          </span>
-          {item.version && (
-            <span className="text-sm text-muted-foreground" data-testid={`text-item-version-${item.id}`}>
-              v{item.version}
-            </span>
-          )}
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <span 
+                className={cn(
+                  "font-medium",
+                  !isActive && "line-through text-muted-foreground"
+                )} 
+                data-testid={`text-item-name-${item.id}`}
+              >
+                {item.name}
+              </span>
+              {item.version && (
+                <span className="text-sm text-muted-foreground" data-testid={`text-item-version-${item.id}`}>
+                  v{item.version}
+                </span>
+              )}
+            </div>
+            {item.company && (
+              <span className="text-xs text-muted-foreground" data-testid={`text-item-company-${item.id}`}>
+                by {item.company}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Threat indicator - only shows if threats exist and item is active */}

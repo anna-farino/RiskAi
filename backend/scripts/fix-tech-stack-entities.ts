@@ -35,13 +35,30 @@ async function fixExistingEntities() {
       let companyId: string | null = null;
       
       if (companyName && !sw.companyId) {
-        console.log(`  - Associating ${extracted.name} with ${companyName}`);
-        companyId = await entityManager.findOrCreateCompany({
-          name: companyName,
-          type: 'vendor',
-          createdBy: 'migration',
-          discoveredFrom: 'migration'
-        });
+        console.log(`  - Looking for company ${companyName} to associate with ${extracted.name}`);
+        
+        // First check if company already exists
+        const normalizedCompanyName = companyName.toLowerCase().trim().replace(/\s+/g, ' ');
+        const existingCompany = await db.select()
+          .from(companies)
+          .where(eq(companies.normalizedName, normalizedCompanyName))
+          .limit(1);
+          
+        if (existingCompany.length > 0) {
+          companyId = existingCompany[0].id;
+          console.log(`    - Found existing company: ${companyName}`);
+        } else {
+          // Create new company if it doesn't exist
+          const [newCompany] = await db.insert(companies)
+            .values({
+              name: companyName,
+              normalizedName: normalizedCompanyName,
+              type: 'vendor'
+            })
+            .returning();
+          companyId = newCompany.id;
+          console.log(`    - Created new company: ${companyName}`);
+        }
       }
       
       // Update software entry if needed
