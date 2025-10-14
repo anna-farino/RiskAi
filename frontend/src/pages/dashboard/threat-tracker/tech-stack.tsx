@@ -27,6 +27,8 @@ interface TechStackItem {
   priority?: number | null;
   isActive?: boolean;
   company?: string | null;
+  manufacturer?: string | null; // For hardware items
+  model?: string | null; // For hardware items
   threats?: {
     count: number;
     highestLevel: 'critical' | 'high' | 'medium' | 'low';
@@ -170,15 +172,23 @@ export default function TechStackPage() {
                 )} 
                 data-testid={`text-item-name-${item.id}`}
               >
-                {item.name}
+                {/* For hardware with manufacturer, display as "Manufacturer Name" (e.g., "Microsoft SurfaceBook 3") */}
+                {type === 'hardware' && item.manufacturer ? `${item.manufacturer} ${item.name}` : item.name}
               </span>
+              {/* Show version for software, or model for hardware if it exists */}
               {item.version && (
                 <span className="text-sm text-muted-foreground" data-testid={`text-item-version-${item.id}`}>
                   v{item.version}
                 </span>
               )}
+              {type === 'hardware' && item.model && (
+                <span className="text-sm text-muted-foreground" data-testid={`text-item-model-${item.id}`}>
+                  {item.model}
+                </span>
+              )}
             </div>
-            {item.company && (
+            {/* Show company for software items */}
+            {type === 'software' && item.company && (
               <span className="text-xs text-muted-foreground" data-testid={`text-item-company-${item.id}`}>
                 by {item.company}
               </span>

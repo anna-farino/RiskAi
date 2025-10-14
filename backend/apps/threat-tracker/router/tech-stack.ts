@@ -70,6 +70,8 @@ router.get("/", async (req: any, res) => {
       .select({
         id: hardware.id,
         name: hardware.name,
+        manufacturer: hardware.manufacturer,
+        model: hardware.model,
         version: sql<string>`NULL`,
         priority: usersHardware.priority,
         threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
@@ -94,7 +96,7 @@ router.get("/", async (req: any, res) => {
         eq(usersHardware.userId, userId),
         eq(usersHardware.isActive, true)
       ))
-      .groupBy(hardware.id, hardware.name, usersHardware.priority);
+      .groupBy(hardware.id, hardware.name, hardware.manufacturer, hardware.model, usersHardware.priority);
     
     // Fetch vendors with threat counts
     const vendorResults = await db
@@ -175,6 +177,8 @@ router.get("/", async (req: any, res) => {
       hardware: hardwareResults.map(h => ({
         id: h.id,
         name: h.name,
+        manufacturer: h.manufacturer,
+        model: h.model,
         version: h.version,
         priority: h.priority,
         threats: parseInt(h.threatCount?.toString() || '0') > 0 ? {
