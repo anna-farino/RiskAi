@@ -234,62 +234,47 @@ router.post("/add", async (req: any, res) => {
     }
     
     const entityManager = new EntityManager();
+    let entityId: string;
     
-    // Use transaction to ensure consistency
-    const result = await db.transaction(async (tx) => {
-      let entityId: string;
-      
-      switch (type) {
-        case 'software':
-          console.log('Processing software entity:', name);
-          
-          // Extract version from name if not provided separately
-          let finalName = name;
-          let finalVersion = version;
-          
-          if (!version) {
-            const extracted = extractVersion(name);
-            finalName = extracted.name;
-            finalVersion = extracted.version;
-            console.log('Extracted version:', { original: name, name: finalName, version: finalVersion });
-          }
-          
-          // Find associated company
-          let companyId: string | null = null;
-          const companyName = findSoftwareCompany(finalName);
-          
-          if (companyName) {
-            console.log('Found company association:', { software: finalName, company: companyName });
-            companyId = await entityManager.findOrCreateCompany({
-              name: companyName,
-              type: 'vendor',
-              createdBy: userId
-            });
-          }
-          
-          // Create or find software with company association
-          entityId = await entityManager.findOrCreateSoftware({
-            name: finalName,
-            companyId: companyId,
+    // Process entity creation outside transaction first (EntityManager handles its own transactions)
+    switch (type) {
+      case 'software':
+        console.log('Processing software entity:', name);
+        
+        // Extract version from name if not provided separately
+        let finalName = name;
+        let finalVersion = version;
+        
+        if (!version) {
+          const extracted = extractVersion(name);
+          finalName = extracted.name;
+          finalVersion = extracted.version;
+          console.log('Extracted version:', { original: name, name: finalName, version: finalVersion });
+        }
+        
+        // Find associated company
+        let companyId: string | null = null;
+        const companyName = findSoftwareCompany(finalName);
+        
+        if (companyName) {
+          console.log('Found company association:', { software: finalName, company: companyName });
+          companyId = await entityManager.findOrCreateCompany({
+            name: companyName,
+            type: 'vendor',
             createdBy: userId
           });
-          console.log('Software entity created/found with ID:', entityId);
-          
-          // Verify entity was created with normalized_name
-          const [createdEntity] = await tx
-            .select()
-            .from(software)
-            .where(eq(software.id, entityId))
-            .limit(1);
-          
-          console.log('Created/found entity details:', {
-            id: createdEntity?.id,
-            name: createdEntity?.name,
-            normalizedName: createdEntity?.normalizedName,
-            companyId: createdEntity?.companyId
-          });
-          
-          // Add to user's software with extracted version
+        }
+        
+        // Create or find software with company association
+        entityId = await entityManager.findOrCreateSoftware({
+          name: finalName,
+          companyId: companyId,
+          createdBy: userId
+        });
+        console.log('Software entity created/found with ID:', entityId);
+        
+        // Add to user's software with extracted version in a transaction
+        await db.transaction(async (tx) => {
           await tx.insert(usersSoftware).values({
             userId,
             softwareId: entityId,
@@ -306,27 +291,31 @@ router.post("/add", async (req: any, res) => {
               addedAt: new Date()
             }
           });
-          break;
+        });
+        break;
         
-        case 'hardware':
-          entityId = await entityManager.findOrCreateHardware({
-            name: name,
-            createdBy: userId
-          });
-          // Add to user's hardware
+      case 'hardware':
+        entityId = await entityManager.findOrCreateHardware({
+          name: name,
+          createdBy: userId
+        });
+        
+        // Add to user's hardware in a transaction
+        await db.transaction(async (tx) => {
           await tx.insert(usersHardware).values({
-          userId,
-          hardwareId: entityId,
-          priority: priority || null,
-          isActive: true,
-          addedAt: new Date()
-        }).onConflictDoUpdate({
-          target: [usersHardware.userId, usersHardware.hardwareId],
-          set: {
+            userId,
+            hardwareId: entityId,
             priority: priority || null,
             isActive: true,
             addedAt: new Date()
-          }
+          }).onConflictDoUpdate({
+            target: [usersHardware.userId, usersHardware.hardwareId],
+            set: {
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }
+          });
         });
         break;
         
@@ -342,22 +331,24 @@ router.post("/add", async (req: any, res) => {
         });
         console.log(`Processed company: ${name} (ID: ${entityId})`);
         
-        // Add to user's companies
-        await tx.insert(usersCompanies).values({
-          userId,
-          companyId: entityId,
-          relationshipType: type === 'vendor' ? 'vendor' : 'client',
-          priority: priority || null,
-          isActive: true,
-          addedAt: new Date()
-        }).onConflictDoUpdate({
-          target: [usersCompanies.userId, usersCompanies.companyId],
-          set: {
+        // Add to user's companies in a transaction
+        await db.transaction(async (tx) => {
+          await tx.insert(usersCompanies).values({
+            userId,
+            companyId: entityId,
             relationshipType: type === 'vendor' ? 'vendor' : 'client',
             priority: priority || null,
             isActive: true,
             addedAt: new Date()
-          }
+          }).onConflictDoUpdate({
+            target: [usersCompanies.userId, usersCompanies.companyId],
+            set: {
+              relationshipType: type === 'vendor' ? 'vendor' : 'client',
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }
+          });
         });
         break;
         
@@ -365,17 +356,14 @@ router.post("/add", async (req: any, res) => {
         throw new Error("Invalid type");
     }
     
-    return entityId;
-    });
-    
-    // Trigger relevance score recalculation outside of transaction
+    // Trigger relevance score recalculation
     relevanceScorer.onTechStackChange(userId).catch(error => {
       log(`Error triggering relevance recalculation: ${error}`, 'error');
     });
     
     res.json({ 
       success: true, 
-      entityId: result,
+      entityId: entityId,
       message: `Added ${name} to ${type} stack` 
     });
     
