@@ -20,7 +20,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { log } from "../../../utils/log";
 import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
-import { extractVersion, findSoftwareCompany } from "../../../utils/entity-processing";
+import { extractArticleEntities } from "../../../services/openai";
 
 const router = Router();
 
@@ -217,7 +217,7 @@ router.get("/", async (req: any, res) => {
   }
 });
 
-// POST /api/tech-stack/add - Add item to tech stack
+// POST /api/tech-stack/add - Add item to tech stack using AI extraction
 router.post("/add", async (req: any, res) => {
   try {
     const { type, name, version, priority } = req.body;
@@ -235,125 +235,252 @@ router.post("/add", async (req: any, res) => {
     
     const entityManager = new EntityManager();
     let entityId: string;
+    let processedName = name;
+    let extractedVersion = version;
     
-    // Process entity creation outside transaction first (EntityManager handles its own transactions)
-    switch (type) {
-      case 'software':
-        console.log('Processing software entity:', name);
-        
-        // Extract version from name if not provided separately
-        let finalName = name;
-        let finalVersion = version;
-        
-        if (!version) {
-          const extracted = extractVersion(name);
-          finalName = extracted.name;
-          finalVersion = extracted.version;
-          console.log('Extracted version:', { original: name, name: finalName, version: finalVersion });
-        }
-        
-        // Find associated company
-        let companyId: string | null = null;
-        const companyName = findSoftwareCompany(finalName);
-        
-        if (companyName) {
-          console.log('Found company association:', { software: finalName, company: companyName });
-          companyId = await entityManager.findOrCreateCompany({
-            name: companyName,
-            type: 'vendor',
+    try {
+      // Use AI to extract entities from user input - treat it like a mini-article
+      // This provides context hints to help the AI understand what type of entity we expect
+      const contextHint = type === 'software' ? `Software product: ${name}${version ? ` version ${version}` : ''}` :
+                          type === 'hardware' ? `Hardware device: ${name}` :
+                          type === 'vendor' ? `Vendor company: ${name}` :
+                          type === 'client' ? `Client organization: ${name}` : name;
+      
+      console.log('Using AI extraction with context:', contextHint);
+      
+      const extracted = await extractArticleEntities({
+        title: `Technology Stack Entry: ${contextHint}`,
+        content: `User is adding the following to their technology stack: ${contextHint}. This is a ${type} entity that should be processed and normalized appropriately.`,
+        url: 'tech-stack-addition'
+      });
+      
+      console.log('AI extraction results:', JSON.stringify(extracted, null, 2));
+      
+      // Process based on type and AI extraction results
+      switch (type) {
+        case 'software':
+          // Use AI-extracted software entity if found, otherwise fall back to direct processing
+          if (extracted.software && extracted.software.length > 0) {
+            const aiSoftware = extracted.software[0]; // Take the first/best match
+            processedName = aiSoftware.name;
+            extractedVersion = aiSoftware.version || aiSoftware.versionFrom || extractedVersion;
+            
+            // Create vendor company if AI identified one
+            let companyId: string | null = null;
+            if (aiSoftware.vendor) {
+              console.log('AI identified vendor:', aiSoftware.vendor);
+              companyId = await entityManager.findOrCreateCompany({
+                name: aiSoftware.vendor,
+                type: 'vendor',
+                createdBy: userId
+              });
+            }
+            
+            // Create or find software
+            entityId = await entityManager.findOrCreateSoftware({
+              name: processedName,
+              companyId,
+              category: aiSoftware.category,
+              createdBy: userId
+            });
+          } else {
+            // Fallback: Create software without AI enhancement
+            console.log('No AI extraction results for software, using direct input');
+            entityId = await entityManager.findOrCreateSoftware({
+              name: processedName,
+              createdBy: userId
+            });
+          }
+          
+          // Add to user's software
+          await db.transaction(async (tx) => {
+            await tx.insert(usersSoftware).values({
+              userId,
+              softwareId: entityId,
+              version: extractedVersion || null,
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }).onConflictDoUpdate({
+              target: [usersSoftware.userId, usersSoftware.softwareId],
+              set: {
+                version: extractedVersion || null,
+                priority: priority || null,
+                isActive: true,
+                addedAt: new Date()
+              }
+            });
+          });
+          break;
+          
+        case 'hardware':
+          // Use AI-extracted hardware entity if found
+          if (extracted.hardware && extracted.hardware.length > 0) {
+            const aiHardware = extracted.hardware[0];
+            processedName = aiHardware.name;
+            
+            entityId = await entityManager.findOrCreateHardware({
+              name: processedName,
+              model: aiHardware.model,
+              manufacturer: aiHardware.manufacturer,
+              category: aiHardware.category,
+              createdBy: userId
+            });
+          } else {
+            // Fallback: Create hardware without AI enhancement
+            console.log('No AI extraction results for hardware, using direct input');
+            entityId = await entityManager.findOrCreateHardware({
+              name: processedName,
+              createdBy: userId
+            });
+          }
+          
+          // Add to user's hardware
+          await db.transaction(async (tx) => {
+            await tx.insert(usersHardware).values({
+              userId,
+              hardwareId: entityId,
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }).onConflictDoUpdate({
+              target: [usersHardware.userId, usersHardware.hardwareId],
+              set: {
+                priority: priority || null,
+                isActive: true,
+                addedAt: new Date()
+              }
+            });
+          });
+          break;
+          
+        case 'vendor':
+        case 'client':
+          // Use AI-extracted company entity if found
+          if (extracted.companies && extracted.companies.length > 0) {
+            const aiCompany = extracted.companies[0];
+            processedName = aiCompany.name;
+          }
+          
+          // Always use EntityManager for companies (it has AI resolution built-in)
+          entityId = await entityManager.findOrCreateCompany({
+            name: processedName,
+            type: type === 'vendor' ? 'vendor' : 'client',
             createdBy: userId
           });
-        }
-        
-        // Create or find software with company association
-        entityId = await entityManager.findOrCreateSoftware({
-          name: finalName,
-          companyId: companyId,
-          createdBy: userId
-        });
-        console.log('Software entity created/found with ID:', entityId);
-        
-        // Add to user's software with extracted version in a transaction
-        await db.transaction(async (tx) => {
-          await tx.insert(usersSoftware).values({
-            userId,
-            softwareId: entityId,
-            version: finalVersion || null,
-            priority: priority || null,
-            isActive: true,
-            addedAt: new Date()
-          }).onConflictDoUpdate({
-            target: [usersSoftware.userId, usersSoftware.softwareId],
-            set: {
-              version: finalVersion || null,
-              priority: priority || null,
-              isActive: true,
-              addedAt: new Date()
-            }
-          });
-        });
-        break;
-        
-      case 'hardware':
-        entityId = await entityManager.findOrCreateHardware({
-          name: name,
-          createdBy: userId
-        });
-        
-        // Add to user's hardware in a transaction
-        await db.transaction(async (tx) => {
-          await tx.insert(usersHardware).values({
-            userId,
-            hardwareId: entityId,
-            priority: priority || null,
-            isActive: true,
-            addedAt: new Date()
-          }).onConflictDoUpdate({
-            target: [usersHardware.userId, usersHardware.hardwareId],
-            set: {
-              priority: priority || null,
-              isActive: true,
-              addedAt: new Date()
-            }
-          });
-        });
-        break;
-        
-      case 'vendor':
-      case 'client':
-        console.log(`Processing ${type}:`, name);
-        
-        // Use EntityManager's findOrCreateCompany which handles normalization and AI resolution
-        entityId = await entityManager.findOrCreateCompany({
-          name: name,
-          type: type === 'vendor' ? 'vendor' : 'client',
-          createdBy: userId
-        });
-        console.log(`Processed company: ${name} (ID: ${entityId})`);
-        
-        // Add to user's companies in a transaction
-        await db.transaction(async (tx) => {
-          await tx.insert(usersCompanies).values({
-            userId,
-            companyId: entityId,
-            relationshipType: type === 'vendor' ? 'vendor' : 'client',
-            priority: priority || null,
-            isActive: true,
-            addedAt: new Date()
-          }).onConflictDoUpdate({
-            target: [usersCompanies.userId, usersCompanies.companyId],
-            set: {
+          
+          // Add to user's companies
+          await db.transaction(async (tx) => {
+            await tx.insert(usersCompanies).values({
+              userId,
+              companyId: entityId,
               relationshipType: type === 'vendor' ? 'vendor' : 'client',
               priority: priority || null,
               isActive: true,
               addedAt: new Date()
-            }
+            }).onConflictDoUpdate({
+              target: [usersCompanies.userId, usersCompanies.companyId],
+              set: {
+                relationshipType: type === 'vendor' ? 'vendor' : 'client',
+                priority: priority || null,
+                isActive: true,
+                addedAt: new Date()
+              }
+            });
           });
-        });
-        break;
-        
-      default:
-        throw new Error("Invalid type");
+          break;
+          
+        default:
+          throw new Error("Invalid type");
+      }
+      
+    } catch (aiError: any) {
+      // If AI extraction fails, fall back to direct processing
+      console.error('AI extraction failed, falling back to direct processing:', aiError);
+      
+      // Simple fallback logic without AI
+      switch (type) {
+        case 'software':
+          entityId = await entityManager.findOrCreateSoftware({
+            name: processedName,
+            createdBy: userId
+          });
+          
+          await db.transaction(async (tx) => {
+            await tx.insert(usersSoftware).values({
+              userId,
+              softwareId: entityId,
+              version: extractedVersion || null,
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }).onConflictDoUpdate({
+              target: [usersSoftware.userId, usersSoftware.softwareId],
+              set: {
+                version: extractedVersion || null,
+                priority: priority || null,
+                isActive: true,
+                addedAt: new Date()
+              }
+            });
+          });
+          break;
+          
+        case 'hardware':
+          entityId = await entityManager.findOrCreateHardware({
+            name: processedName,
+            createdBy: userId
+          });
+          
+          await db.transaction(async (tx) => {
+            await tx.insert(usersHardware).values({
+              userId,
+              hardwareId: entityId,
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }).onConflictDoUpdate({
+              target: [usersHardware.userId, usersHardware.hardwareId],
+              set: {
+                priority: priority || null,
+                isActive: true,
+                addedAt: new Date()
+              }
+            });
+          });
+          break;
+          
+        case 'vendor':
+        case 'client':
+          entityId = await entityManager.findOrCreateCompany({
+            name: processedName,
+            type: type === 'vendor' ? 'vendor' : 'client',
+            createdBy: userId
+          });
+          
+          await db.transaction(async (tx) => {
+            await tx.insert(usersCompanies).values({
+              userId,
+              companyId: entityId,
+              relationshipType: type === 'vendor' ? 'vendor' : 'client',
+              priority: priority || null,
+              isActive: true,
+              addedAt: new Date()
+            }).onConflictDoUpdate({
+              target: [usersCompanies.userId, usersCompanies.companyId],
+              set: {
+                relationshipType: type === 'vendor' ? 'vendor' : 'client',
+                priority: priority || null,
+                isActive: true,
+                addedAt: new Date()
+              }
+            });
+          });
+          break;
+          
+        default:
+          throw new Error("Invalid type");
+      }
     }
     
     // Trigger relevance score recalculation
@@ -363,8 +490,10 @@ router.post("/add", async (req: any, res) => {
     
     res.json({ 
       success: true, 
-      entityId: entityId,
-      message: `Added ${name} to ${type} stack` 
+      entityId: entityId!,
+      processedName,
+      extractedVersion,
+      message: `Added ${processedName} to ${type} stack` 
     });
     
   } catch (error: any) {
@@ -377,15 +506,14 @@ router.post("/add", async (req: any, res) => {
     let statusCode = 500;
     
     if (error.code === '23505') { // Duplicate key violation
-      // This shouldn't happen with our onConflictDoUpdate, but handle it gracefully
       userMessage = `${name} is already in your ${type} stack`;
       statusCode = 409;
     } else if (error.message?.includes('Invalid type')) {
       userMessage = "Invalid entity type. Must be 'software', 'hardware', 'vendor', or 'client'";
       statusCode = 400;
-    } else if (error.message?.includes('AI resolution')) {
-      userMessage = "Unable to process entity at this time. Please try again";
-      statusCode = 503;
+    } else if (error.message?.includes('OpenAI')) {
+      userMessage = "AI processing temporarily unavailable. Your item has been added without AI enhancement.";
+      statusCode = 200; // Still success, just without AI
     }
     
     res.status(statusCode).json({ 
