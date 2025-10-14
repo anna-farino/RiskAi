@@ -354,7 +354,7 @@ router.post("/add", async (req: any, res) => {
   }
 });
 
-// DELETE /api/tech-stack/:itemId - Remove item from tech stack
+// DELETE /api/tech-stack/:itemId - Hard delete - completely removes item from tech stack
 router.delete("/:itemId", async (req: any, res) => {
   try {
     const { itemId } = req.params;
@@ -369,11 +369,10 @@ router.delete("/:itemId", async (req: any, res) => {
       return res.status(400).json({ error: "Type and itemId are required" });
     }
     
-    // Remove from appropriate junction table based on type
+    // Hard delete from appropriate junction table based on type
     switch (type) {
       case 'software':
-        await db.update(usersSoftware)
-          .set({ isActive: false })
+        await db.delete(usersSoftware)
           .where(and(
             eq(usersSoftware.userId, userId),
             eq(usersSoftware.softwareId, itemId)
@@ -381,8 +380,7 @@ router.delete("/:itemId", async (req: any, res) => {
         break;
         
       case 'hardware':
-        await db.update(usersHardware)
-          .set({ isActive: false })
+        await db.delete(usersHardware)
           .where(and(
             eq(usersHardware.userId, userId),
             eq(usersHardware.hardwareId, itemId)
@@ -391,8 +389,7 @@ router.delete("/:itemId", async (req: any, res) => {
         
       case 'vendor':
       case 'client':
-        await db.update(usersCompanies)
-          .set({ isActive: false })
+        await db.delete(usersCompanies)
           .where(and(
             eq(usersCompanies.userId, userId),
             eq(usersCompanies.companyId, itemId)
@@ -410,11 +407,12 @@ router.delete("/:itemId", async (req: any, res) => {
     
     res.json({ 
       success: true,
-      message: `Removed item from ${type} stack` 
+      message: `Permanently removed item from ${type} stack` 
     });
     
-  } catch (error) {
-    log(`Error removing tech stack item: ${error}`, 'error');
+  } catch (error: any) {
+    console.error('Tech stack DELETE error:', error);
+    log(`Error removing tech stack item: ${error.message || error}`, 'error');
     res.status(500).json({ error: "Failed to remove item from tech stack" });
   }
 });
