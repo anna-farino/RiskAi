@@ -289,8 +289,7 @@ export async function extractArticleEntities(article: {
     **IMPORTANT: Extract PARTIAL entities too - don't skip mentions just because they lack details.**
     
     For SOFTWARE, extract ONLY SPECIFIC products:
-    - **DO NOT EXTRACT generic software types like**: "database", "web server", "operating system", "cloud services", 
-      "antivirus", "firewall", "application", "software", "system", "platform", "solution"
+    - **DO NOT EXTRACT generic software types like**: "database", "web server", "operating system", "cloud services", "antivirus", "firewall", "application", "software", "system", "platform", "solution"
     - **MINIMUM REQUIREMENT**: Must have a specific product name OR vendor + product combination
     - Examples to EXTRACT: "Apache HTTP Server", "Windows 10", "MySQL 8.0", "Office 365", "Chrome 119"
     - Examples to SKIP: "databases", "web servers", "cloud services", "Microsoft products" (too generic)
