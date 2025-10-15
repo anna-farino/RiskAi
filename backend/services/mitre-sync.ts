@@ -2,6 +2,7 @@ import { db } from 'backend/db/db';
 import { threatActors } from '@shared/db/schema/threat-tracker/entities';
 import { threatKeywords } from '@shared/db/schema/threat-tracker/index';
 import { eq, inArray } from 'drizzle-orm';
+import { openai } from './openai';
 
 interface MitreGroup {
   type: string;
@@ -169,6 +170,77 @@ export class MitreSyncService {
     }
   }
   
+  private async classifyTechniques(techniques: string[]): Promise<Map<string, boolean>> {
+    const results = new Map<string, boolean>();
+    
+    // Process in batches to optimize API calls
+    const batchSize = 20;
+    for (let i = 0; i < techniques.length; i += batchSize) {
+      const batch = techniques.slice(i, i + batchSize);
+      
+      try {
+        const prompt = `
+Classify each of the following MITRE ATT&CK technique names. Determine if it's a specific cybersecurity attack technique 
+or just a generic IT term. These come from the MITRE framework, so many are legitimate attack techniques.
+
+Terms to classify:
+${batch.map((t, idx) => `${idx + 1}. "${t}"`).join('\n')}
+
+Return JSON object with classifications array:
+{
+  "classifications": [
+    {"term": "term1", "isAttackTechnique": true/false},
+    {"term": "term2", "isAttackTechnique": true/false}
+  ]
+}
+
+Rules for TRUE (attack technique):
+- Named attack methods (e.g., "Kerberoasting", "DCSync", "Pass the Hash", "Golden Ticket")
+- Specific exploitation techniques (e.g., "DLL Injection", "Process Hollowing") 
+- Malicious actions (e.g., "Credential Dumping", "Defense Evasion")
+- Attack patterns with clear malicious intent
+
+Rules for FALSE (generic term):
+- Single generic words like "Server", "Cron", "JavaScript", "Web Services" (without attack context)
+- Basic IT infrastructure terms like "Domain", "Network", "File"
+- Normal software features like "Credentials", "Authentication" (without exploitation context)
+- Standard tools/protocols without malicious modifier
+
+Be inclusive - if it could be used as an attack technique, mark it TRUE.
+`;
+
+        const completion = await openai.chat.completions.create({
+          messages: [
+            { 
+              role: "system", 
+              content: "You are a cybersecurity expert classifying MITRE ATT&CK techniques. Be inclusive - most MITRE techniques are legitimate attack methods. Only reject obvious generic single-word IT terms without attack context."
+            },
+            { role: "user", content: prompt }
+          ],
+          model: "gpt-3.5-turbo",
+          response_format: { type: "json_object" },
+          temperature: 0.2
+        });
+
+        const responseContent = completion.choices[0].message.content;
+        if (responseContent) {
+          const parsed = JSON.parse(responseContent);
+          const classifications = Array.isArray(parsed) ? parsed : parsed.classifications || [];
+          
+          classifications.forEach((item: any) => {
+            results.set(item.term, item.isAttackTechnique);
+          });
+        }
+      } catch (error) {
+        console.error(`[MITRE Sync] Error classifying batch:`, error);
+        // Default to false for failed batch
+        batch.forEach(term => results.set(term, false));
+      }
+    }
+    
+    return results;
+  }
+
   private async syncTechniques(
     techniques: MitreTechnique[], 
     relationships: MitreRelationship[],
@@ -190,19 +262,46 @@ export class MitreSyncService {
       }
     });
     
-    // Process techniques that are used by at least one group
+    // Collect all techniques to process
+    const techniquesToClassify: { cleanName: string; fullName: string }[] = [];
+    
     for (const technique of techniques) {
       if (!groupTechniques.has(technique.id)) continue;
       
+      const techniqueId = technique.external_references?.find(
+        ref => ref.source_name === 'mitre-attack'
+      )?.external_id;
+      
+      if (!techniqueId) continue;
+      
+      // Strip the ID prefix for classification
+      const cleanName = technique.name;
+      const fullNameWithId = `${techniqueId} - ${technique.name}`;
+      
+      techniquesToClassify.push({ cleanName, fullName: fullNameWithId });
+    }
+    
+    // Classify all techniques using AI
+    console.log(`[MITRE Sync] Classifying ${techniquesToClassify.length} techniques...`);
+    const cleanNames = techniquesToClassify.map(t => t.cleanName);
+    const classifications = await this.classifyTechniques(cleanNames);
+    
+    // Process and store only genuine attack techniques
+    let addedCount = 0;
+    let skippedCount = 0;
+    
+    for (const { cleanName, fullName } of techniquesToClassify) {
+      const isAttackTechnique = classifications.get(cleanName) ?? false;
+      
+      if (!isAttackTechnique) {
+        console.log(`[MITRE Sync] Skipping generic term: ${cleanName}`);
+        skippedCount++;
+        continue;
+      }
+      
       try {
-        const techniqueId = technique.external_references?.find(
-          ref => ref.source_name === 'mitre-attack'
-        )?.external_id;
-        
-        if (!techniqueId) continue;
-        
-        // Format technique name with ID (e.g., "T1055 - Process Injection")
-        const keywordName = `${techniqueId} - ${technique.name}`;
+        // Store the clean name without ID prefix
+        const keywordName = cleanName;
         
         // Check if keyword exists
         const existingKeyword = await db
@@ -222,15 +321,16 @@ export class MitreSyncService {
           });
           
           console.log(`[MITRE Sync] Added technique: ${keywordName}`);
+          addedCount++;
         } else {
-          // Keyword already exists, no need to update since threatKeywords 
-          // doesn't have a metadata field to store additional info
           console.log(`[MITRE Sync] Technique already exists: ${keywordName}`);
         }
       } catch (error) {
-        console.error(`[MITRE Sync] Error syncing technique ${technique.name}:`, error);
+        console.error(`[MITRE Sync] Error syncing technique ${cleanName}:`, error);
       }
     }
+    
+    console.log(`[MITRE Sync] Added ${addedCount} attack techniques, skipped ${skippedCount} generic terms`);
   }
 }
 
