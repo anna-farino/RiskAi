@@ -247,7 +247,7 @@ export async function extractArticleEntities(article: {
     versionTo?: string; // End of version range
     vendor?: string;
     category?: string;
-    specificity: 'generic' | 'partial' | 'specific'; // How specific is this mention?
+    specificity: 'partial' | 'specific'; // How specific is this mention?
     confidence: number;
     context: string;
   }>;
@@ -256,14 +256,14 @@ export async function extractArticleEntities(article: {
     model?: string;
     manufacturer?: string;
     category?: string;
-    specificity: 'generic' | 'partial' | 'specific'; // How specific is this mention?
+    specificity: 'partial' | 'specific'; // How specific is this mention?
     confidence: number;
     context: string;
   }>;
   companies: Array<{
     name: string;
     type: 'vendor' | 'client' | 'affected' | 'mentioned';
-    specificity: 'generic' | 'specific'; // Is this a broad mention or specific reference?
+    specificity: 'specific'; // Only specific named companies now
     confidence: number;
     context: string;
   }>;
@@ -288,7 +288,12 @@ export async function extractArticleEntities(article: {
     
     **IMPORTANT: Extract PARTIAL entities too - don't skip mentions just because they lack details.**
     
-    For SOFTWARE, extract:
+    For SOFTWARE, extract ONLY SPECIFIC products:
+    - **DO NOT EXTRACT generic software types like**: "database", "web server", "operating system", "cloud services", 
+      "antivirus", "firewall", "application", "software", "system", "platform", "solution"
+    - **MINIMUM REQUIREMENT**: Must have a specific product name OR vendor + product combination
+    - Examples to EXTRACT: "Apache HTTP Server", "Windows 10", "MySQL 8.0", "Office 365", "Chrome 119"
+    - Examples to SKIP: "databases", "web servers", "cloud services", "Microsoft products" (too generic)
     - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
     - Versions if specified - distinguish between:
       * Single versions (e.g., "version 2.14.1")
@@ -296,38 +301,53 @@ export async function extractArticleEntities(article: {
     - For ranges, extract versionFrom (start) and versionTo (end)
     - Vendor/company that makes it
     - Category (os, application, library, framework, etc.)
-    - Specificity level:
-      * "generic" - Broad mention (e.g., "Microsoft products", "routers", "cloud services")
-      * "partial" - Some details (e.g., "Cisco Catalyst switches", "Apache web server")
-      * "specific" - Full details (e.g., "Cisco Catalyst 9300 v16.12", "Apache HTTP Server 2.4.49")
+    - Specificity level (NO MORE 'generic' option):
+      * "partial" - Has vendor + product line (e.g., "Apache web server", "Cisco IOS")
+      * "specific" - Full product details (e.g., "Apache HTTP Server 2.4.49", "Cisco IOS 15.2")
+    - **SKIP if only a category is mentioned** (e.g., "attackers exploited web servers" → SKIP)
+    - **EXTRACT if specific product mentioned** (e.g., "attackers exploited Apache HTTP Server" → EXTRACT)
     - The sentence/context where mentioned
     
-    For HARDWARE, extract:
+    For HARDWARE, extract ONLY SPECIFIC devices:
+    - **DO NOT EXTRACT generic device categories like**: "laptop", "router", "server", "phone", "desktop",
+      "hard drives", "hard disk", "microwave", "SIM cards", "SIM card", "bank cards", "bank card", 
+      "mobile devices", "mobile device", "IP cameras", "IP camera", "DVRs", "DVR", "switches", "switch",
+      "firewall", "modem", "printer", "scanner", "network equipment", "IoT devices", "smart devices",
+      "home routers", "home router", "USB drive", "USB drives", "memory card", "memory cards"
+    - **MINIMUM REQUIREMENT**: Must have at least ONE of:
+      * Specific model name/number (e.g., "ASA 5500", "PowerEdge R740", "R7000")  
+      * Manufacturer + specific product line (e.g., "Cisco ASA", "Dell PowerEdge", "Netgear Nighthawk")
+      * Full product name (e.g., "iPhone 14", "SurfaceBook 3", "MacBook Pro M2")
     - Device names WITHOUT the manufacturer prefix (e.g., "Microsoft SurfaceBook 3" → name: "SurfaceBook 3")
     - Model field should contain the FULL model designation, not just the number
     - Manufacturer as separate field (e.g., "Microsoft", "Cisco", "Dell")
-    - Category (router, iot, server, workstation, laptop, etc.)
+    - Category (router, iot, server, workstation, laptop, etc.) - BUT only if device is specific
     - IMPORTANT: If manufacturer appears at the start of the device name, remove it from the name field
       * Example: "Cisco ASA 5500" → name: "ASA 5500", manufacturer: "Cisco", model: "ASA 5500"
       * Example: "Microsoft SurfaceBook 3" → name: "SurfaceBook 3", manufacturer: "Microsoft", model: "SurfaceBook 3"
       * Example: "Dell PowerEdge R740" → name: "PowerEdge R740", manufacturer: "Dell", model: "PowerEdge R740"
       * Example: "Apple MacBook Pro M2" → name: "MacBook Pro M2", manufacturer: "Apple", model: "MacBook Pro M2"
     - The model field represents the complete model designation as it would appear in official documentation
-    - Specificity level:
-      * "generic" - Broad mention (e.g., "routers", "IoT devices", "network equipment")
-      * "partial" - Brand/series (e.g., "Cisco routers", "Netgear devices")
-      * "specific" - Exact model (e.g., "Cisco ASA 5500-X", "Netgear R7000")
+    - Specificity level (NO MORE 'generic' option):
+      * "partial" - Has manufacturer + series (e.g., "Cisco ASA series", "Dell PowerEdge")
+      * "specific" - Full model details (e.g., "Cisco ASA 5505", "Dell PowerEdge R740")
+    - **SKIP if only generic category is mentioned** (e.g., "attackers targeted routers" → SKIP)
+    - **EXTRACT if specific model mentioned** (e.g., "attackers targeted Netgear R7000 routers" → EXTRACT)
     - The context where mentioned
     
-    For COMPANIES, extract:
+    For COMPANIES, extract ONLY NAMED organizations:
+    - **DO NOT EXTRACT generic references like**: "cloud providers", "tech companies", "organizations", 
+      "enterprises", "businesses", "companies", "vendors", "clients", "partners", "customers"
+    - **ONLY EXTRACT specific company names** (e.g., "Microsoft", "Amazon", "Cisco", "Google")
     - Company names and classify as:
       - vendor (makes products/services)
       - client (affected organization)
       - affected (impacted by issue)
       - mentioned (referenced but not directly affected)
-    - Specificity level:
-      * "generic" - Broad mention (e.g., "cloud providers", "tech companies")
-      * "specific" - Named entity (e.g., "Amazon", "Microsoft Azure")
+    - Specificity level (ONLY 'specific' now):
+      * "specific" - Named entity (e.g., "Amazon", "Microsoft Azure", "Google Cloud")
+    - **SKIP generic references** (e.g., "several organizations were affected" → SKIP)
+    - **EXTRACT named companies** (e.g., "Microsoft and Google were affected" → EXTRACT both)
     
     For CVEs, extract:
     - CVE identifiers (format: CVE-YYYY-NNNNN)
@@ -360,7 +380,7 @@ export async function extractArticleEntities(article: {
           "versionTo": "end of range (e.g., 2.17.0)",
           "vendor": "company that makes it",
           "category": "category type",
-          "specificity": "generic|partial|specific",
+          "specificity": "partial|specific",
           "confidence": 0.95,
           "context": "sentence where mentioned"
         }
@@ -371,7 +391,7 @@ export async function extractArticleEntities(article: {
           "model": "model number",
           "manufacturer": "company name",
           "category": "device type",
-          "specificity": "generic|partial|specific",
+          "specificity": "partial|specific",
           "confidence": 0.9,
           "context": "sentence where mentioned"
         }
@@ -380,7 +400,7 @@ export async function extractArticleEntities(article: {
         {
           "name": "company name",
           "type": "vendor|client|affected|mentioned",
-          "specificity": "generic|specific",
+          "specificity": "specific",
           "confidence": 0.85,
           "context": "sentence where mentioned"
         }
