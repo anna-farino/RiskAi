@@ -167,12 +167,14 @@ export function useFetch() {
       Authorization: `Bearer ${accessToken}`
     };
 
-    // Only set Content-Type if it's not FormData
-    if (!isFormData && options.headers) {
-      Object.assign(defaultHeaders, options.headers);
-    } else if (!isFormData) {
-      // For non-FormData requests, keep any provided headers
-      Object.assign(defaultHeaders, options.headers || {});
+    // Merge any provided headers, but exclude Content-Type for FormData
+    if (options.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        // Skip Content-Type for FormData (browser sets it automatically with boundary)
+        if (!(isFormData && key.toLowerCase() === 'content-type')) {
+          defaultHeaders[key] = value;
+        }
+      });
     }
 
     return fetch(`${serverUrl}${url}`, {
