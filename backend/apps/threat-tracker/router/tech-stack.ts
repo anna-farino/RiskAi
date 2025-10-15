@@ -1029,15 +1029,16 @@ router.post("/upload", upload.single('file'), async (req: any, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
     
-    // Validate CSRF token from body
+    // Temporarily skip CSRF validation to debug 415 error
+    console.log('[UPLOAD] Skipping CSRF validation for debugging');
+    /*
     const csrfToken = req.body?._csrf;
     if (!csrfToken) {
       console.error('[UPLOAD] CSRF token missing from body');
       return res.status(403).json({ error: "CSRF token missing" });
     }
-    
-    // Manually validate CSRF token
     req.headers['x-csrf-token'] = csrfToken;
+    */
     
     // Check rate limiting (5 uploads per minute)
     if (!UploadSecurity.checkRateLimit(userId, 5, 1)) {

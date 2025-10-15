@@ -389,12 +389,25 @@ export default function TechStackPage() {
       formData.append('file', file);
       
       // Add CSRF token to FormData for multipart requests
-      const csrfToken = document.cookie
+      const csrfCookie = document.cookie
         .split("; ")
-        .find((entry) => entry.startsWith("csrf-token="))
-        ?.split("=")[1] ?? "";
-      const decodedToken = decodeURIComponent(csrfToken).split("|")[0];
-      formData.append('_csrf', decodedToken);
+        .find((entry) => entry.startsWith("csrf-token="));
+      
+      let csrfToken = "";
+      if (csrfCookie) {
+        const cookieValue = csrfCookie.split("=")[1];
+        if (cookieValue) {
+          const decodedValue = decodeURIComponent(cookieValue);
+          csrfToken = decodedValue.split("|")[0];
+        }
+      }
+      
+      console.log('[UPLOAD] CSRF Cookie:', csrfCookie);
+      console.log('[UPLOAD] CSRF Token:', csrfToken);
+      
+      if (csrfToken) {
+        formData.append('_csrf', csrfToken);
+      }
       
       console.log('[UPLOAD] Sending FormData with file:', file.name);
       console.log('[UPLOAD] FormData entries:', Array.from(formData.entries()));
