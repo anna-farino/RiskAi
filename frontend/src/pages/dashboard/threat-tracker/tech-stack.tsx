@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Trash2, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Trash2, Plus, Upload, FileSpreadsheet, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/query-client";
@@ -19,6 +19,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 // Type definitions
 interface TechStackItem {
@@ -44,8 +53,19 @@ interface TechStackResponse {
   clients: TechStackItem[];
 }
 
+interface ExtractedEntity {
+  type: 'software' | 'hardware' | 'vendor' | 'client';
+  name: string;
+  version?: string;
+  manufacturer?: string;
+  model?: string;
+  isNew: boolean;
+  matchedId?: string;
+}
+
 export default function TechStackPage() {
   const fetchWithAuth = useFetch();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [softwareOpen, setSoftwareOpen] = useState(true);
   const [hardwareOpen, setHardwareOpen] = useState(false);
   const [vendorsOpen, setVendorsOpen] = useState(false);
@@ -55,6 +75,13 @@ export default function TechStackPage() {
   const [hardwareSearch, setHardwareSearch] = useState("");
   const [vendorSearch, setVendorSearch] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+  
+  // File upload state
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [extractedEntities, setExtractedEntities] = useState<ExtractedEntity[]>([]);
+  const [selectedEntities, setSelectedEntities] = useState<Set<number>>(new Set());
 
   // Autocomplete fetch functions
   const fetchSoftwareOptions = async (query: string) => {
@@ -318,14 +345,267 @@ export default function TechStackPage() {
     );
   }
 
+  // File upload handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    
+    const files = Array.from(e.dataTransfer.files);
+    const file = files[0];
+    
+    if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
+      await handleFileUpload(file);
+    } else {
+      toast({
+        title: "Invalid file",
+        description: "Please upload an Excel (.xlsx, .xls) or CSV file",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      await handleFileUpload(file);
+    }
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/upload', {
+        method: 'POST',
+        body: formData
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to process file');
+      }
+      
+      const data = await response.json();
+      setExtractedEntities(data.entities);
+      setSelectedEntities(new Set(data.entities.map((_: ExtractedEntity, i: number) => i)));
+      setShowPreview(true);
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: "Failed to process the spreadsheet. Please check the format and try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleImportSelected = async () => {
+    const entitiesToImport = extractedEntities.filter((_, index) => selectedEntities.has(index));
+    
+    if (entitiesToImport.length === 0) {
+      toast({
+        title: "No items selected",
+        description: "Please select at least one item to import",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    
+    try {
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entities: entitiesToImport })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to import items');
+      }
+      
+      const result = await response.json();
+      
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      
+      toast({
+        title: "Import successful",
+        description: `Imported ${result.imported} items to your tech stack`
+      });
+      
+      setShowPreview(false);
+      setExtractedEntities([]);
+      setSelectedEntities(new Set());
+    } catch (error) {
+      toast({
+        title: "Import failed",
+        description: "Failed to import selected items. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const toggleEntitySelection = (index: number) => {
+    const newSelection = new Set(selectedEntities);
+    if (newSelection.has(index)) {
+      newSelection.delete(index);
+    } else {
+      newSelection.add(index);
+    }
+    setSelectedEntities(newSelection);
+  };
+
+  const toggleAllSelection = () => {
+    if (selectedEntities.size === extractedEntities.length) {
+      setSelectedEntities(new Set());
+    } else {
+      setSelectedEntities(new Set(extractedEntities.map((_, i) => i)));
+    }
+  };
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Technology Stack</h2>
-        <p className="text-muted-foreground mt-1">
-          Configure your software, hardware, vendors, and clients for personalized threat monitoring
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight">Technology Stack</h2>
+          <p className="text-muted-foreground mt-1">
+            Configure your software, hardware, vendors, and clients for personalized threat monitoring
+          </p>
+        </div>
+        
+        {/* File Upload Button */}
+        <div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          <Button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading}
+            variant="outline"
+            className="gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Import from Spreadsheet
+          </Button>
+        </div>
       </div>
+
+      {/* Drag and Drop Zone */}
+      <Card
+        className={cn(
+          "border-2 border-dashed transition-colors",
+          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+        )}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <CardContent className="pt-6 pb-6 text-center">
+          <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-sm text-muted-foreground">
+            Drag and drop an Excel or CSV file here, or click the Import button above
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Supported formats: .xlsx, .xls, .csv
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Preview Dialog */}
+      <Dialog open={showPreview} onOpenChange={setShowPreview}>
+        <DialogContent className="max-w-4xl max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle>Review Extracted Items</DialogTitle>
+            <DialogDescription>
+              We've extracted the following items from your spreadsheet. Select which ones to import to your tech stack.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="flex justify-between items-center mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={toggleAllSelection}
+              >
+                {selectedEntities.size === extractedEntities.length ? 'Deselect All' : 'Select All'}
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                {selectedEntities.size} of {extractedEntities.length} selected
+              </span>
+            </div>
+            
+            <ScrollArea className="h-[400px] border rounded-lg p-4">
+              <div className="space-y-2">
+                {extractedEntities.map((entity, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors",
+                      selectedEntities.has(index) ? "bg-primary/5 border-primary" : "hover:bg-muted/50"
+                    )}
+                    onClick={() => toggleEntitySelection(index)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={cn(
+                        "w-4 h-4 rounded border-2 flex items-center justify-center",
+                        selectedEntities.has(index) ? "bg-primary border-primary" : "border-muted-foreground"
+                      )}>
+                        {selectedEntities.has(index) && <Check className="h-3 w-3 text-primary-foreground" />}
+                      </div>
+                      
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{entity.name}</span>
+                          {entity.version && <Badge variant="secondary">{entity.version}</Badge>}
+                          <Badge variant={entity.type === 'software' ? 'default' : entity.type === 'hardware' ? 'secondary' : 'outline'}>
+                            {entity.type}
+                          </Badge>
+                          {entity.isNew && <Badge variant="outline" className="text-green-600">New</Badge>}
+                        </div>
+                        {entity.manufacturer && (
+                          <p className="text-sm text-muted-foreground">by {entity.manufacturer}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowPreview(false)} disabled={isUploading}>
+              Cancel
+            </Button>
+            <Button onClick={handleImportSelected} disabled={isUploading || selectedEntities.size === 0}>
+              Import {selectedEntities.size} Items
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Card>
         <CardContent className="pt-6 space-y-6">
