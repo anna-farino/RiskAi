@@ -28,16 +28,17 @@ export const threatKeywords = pgTable("threat_keywords", {
   wrappedDekTerm: text("wrapped_dek_term"),
   keyIdTerm: text("key_id_term"),
 }, (_t) => [
+    // TEMPORARY: RLS disabled for development (OR true added)
     pgPolicy('rls-threat-keywords', {
       for: 'all',
       using: sql`(
         user_id::text = current_setting('app.current_user_id', true)
         OR is_default = true
-        OR true  -- TEMPORARY: RLS disabled for development
+        OR true
       )`,
       withCheck: sql`(
         user_id::text = current_setting('app.current_user_id', true)
-        OR true  -- TEMPORARY: RLS disabled for development
+        OR true
       )`
     })
 ]);
