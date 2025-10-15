@@ -988,30 +988,42 @@ const upload = multer({
   }
 });
 
+// Custom middleware to handle CSRF for file uploads
+const handleFileUploadCSRF = (req: any, res: any, next: any) => {
+  // For multipart/form-data, multer will have parsed the fields
+  // Move CSRF token from fields to header if present
+  if (req.body && req.body._csrf && !req.headers['x-csrf-token']) {
+    req.headers['x-csrf-token'] = req.body._csrf;
+  }
+  next();
+};
+
 // POST /api/tech-stack/upload - Process spreadsheet file and extract entities
-router.post("/upload", upload.single('file'), async (req: any, res) => {
+router.post("/upload", upload.fields([{ name: 'file', maxCount: 1 }, { name: '_csrf', maxCount: 1 }]), handleFileUploadCSRF, async (req: any, res) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    if (!req.file) {
+    if (!req.files || !req.files.file || !req.files.file[0]) {
       return res.status(400).json({ error: "No file uploaded" });
     }
+
+    const uploadedFile = req.files.file[0];
 
     // Parse the spreadsheet
     let data: any[][] = [];
     
-    if (req.file.originalname.endsWith('.csv')) {
+    if (uploadedFile.originalname.endsWith('.csv')) {
       // Parse CSV
-      const csvText = req.file.buffer.toString('utf-8');
+      const csvText = uploadedFile.buffer.toString('utf-8');
       const workbook = XLSX.read(csvText, { type: 'string' });
       const sheetName = workbook.SheetNames[0];
       data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
     } else {
       // Parse Excel
-      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const workbook = XLSX.read(uploadedFile.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
     }

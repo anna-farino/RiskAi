@@ -47,7 +47,16 @@ export const {
   ignoredMethods: [],
   cookieName: "csrf-token",
   cookieOptions: csrfCookieOptions,
-  getTokenFromRequest: (req) => {
-    return req.headers["x-csrf-token"] as string | undefined
+  getTokenFromRequest: (req: any) => {
+    // Check header first (default)
+    const headerToken = req.headers["x-csrf-token"] as string | undefined;
+    if (headerToken) return headerToken;
+    
+    // For multipart/form-data, check body
+    if (req.body && req.body._csrf) {
+      return req.body._csrf as string;
+    }
+    
+    return undefined;
   }
 });

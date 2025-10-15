@@ -388,6 +388,14 @@ export default function TechStackPage() {
       const formData = new FormData();
       formData.append('file', file);
       
+      // Add CSRF token to FormData for multipart requests
+      const csrfToken = document.cookie
+        .split("; ")
+        .find((entry) => entry.startsWith("csrf-token="))
+        ?.split("=")[1] ?? "";
+      const decodedToken = decodeURIComponent(csrfToken).split("|")[0];
+      formData.append('_csrf', decodedToken);
+      
       const response = await fetchWithAuth('/api/threat-tracker/tech-stack/upload', {
         method: 'POST',
         body: formData
