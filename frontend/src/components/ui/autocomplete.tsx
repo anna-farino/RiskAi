@@ -126,12 +126,16 @@ export function Autocomplete({
 
   return (
     <div className={cn("relative", className)}>
-      <Popover open={open} onOpenChange={(newOpen) => {
-        // Only allow closing, not opening manually (only open when typing)
-        if (!newOpen) {
-          setOpen(false);
-        }
-      }}>
+      <Popover 
+        open={open} 
+        onOpenChange={(newOpen) => {
+          // Only allow closing, not opening manually (only open when typing)
+          if (!newOpen) {
+            setOpen(false);
+          }
+        }}
+        modal={false}
+      >
         <PopoverTrigger asChild>
           <div className="relative">
             <Input
@@ -154,8 +158,15 @@ export function Autocomplete({
             )}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-          <Command>
+        <PopoverContent 
+          className="w-[--radix-popover-trigger-width] p-0" 
+          align="start"
+          onOpenAutoFocus={(e) => {
+            // Prevent the popover from stealing focus from the input
+            e.preventDefault();
+          }}
+        >
+          <Command shouldFilter={false}>
             <CommandList>
               {options.length === 0 && !loading && (
                 <CommandEmpty>No matching items found</CommandEmpty>

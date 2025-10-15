@@ -51,12 +51,20 @@ router.get("/autocomplete", async (req: any, res) => {
           name: software.name,
           normalizedName: software.normalizedName,
           category: software.category,
-          vendor: software.vendor,
           companyName: companies.name,
         })
         .from(software)
         .leftJoin(companies, eq(software.companyId, companies.id))
-        .where(sql`LOWER(${software.name}) LIKE ${searchQuery} OR LOWER(${software.vendor}) LIKE ${searchQuery}`)
+        .where(sql`LOWER(${software.name}) LIKE ${searchQuery} OR LOWER(COALESCE(${companies.name}, '')) LIKE ${searchQuery}`)
+        .orderBy(sql`
+          CASE 
+            WHEN LOWER(${software.name}) LIKE ${query.toLowerCase() + '%'} THEN 1
+            WHEN LOWER(COALESCE(${companies.name}, '')) LIKE ${query.toLowerCase() + '%'} THEN 2
+            WHEN LOWER(${software.name}) LIKE ${'% ' + query.toLowerCase() + '%'} THEN 3
+            ELSE 4
+          END,
+          ${software.name}
+        `)
         .limit(limit);
 
       // Get existing user software to filter out
@@ -75,7 +83,7 @@ router.get("/autocomplete", async (req: any, res) => {
         .map(item => ({
           id: item.id,
           name: item.name,
-          company: item.companyName || item.vendor,
+          company: item.companyName,
           category: item.category,
           type: 'software'
         }));
@@ -91,6 +99,15 @@ router.get("/autocomplete", async (req: any, res) => {
         })
         .from(hardware)
         .where(sql`LOWER(${hardware.name}) LIKE ${searchQuery} OR LOWER(${hardware.manufacturer}) LIKE ${searchQuery}`)
+        .orderBy(sql`
+          CASE 
+            WHEN LOWER(${hardware.name}) LIKE ${query.toLowerCase() + '%'} THEN 1
+            WHEN LOWER(${hardware.manufacturer}) LIKE ${query.toLowerCase() + '%'} THEN 2
+            WHEN LOWER(${hardware.name}) LIKE ${'% ' + query.toLowerCase() + '%'} THEN 3
+            ELSE 4
+          END,
+          ${hardware.name}
+        `)
         .limit(limit);
 
       // Get existing user hardware to filter out
@@ -124,6 +141,14 @@ router.get("/autocomplete", async (req: any, res) => {
         })
         .from(companies)
         .where(sql`LOWER(${companies.name}) LIKE ${searchQuery}`)
+        .orderBy(sql`
+          CASE 
+            WHEN LOWER(${companies.name}) LIKE ${query.toLowerCase() + '%'} THEN 1
+            WHEN LOWER(${companies.name}) LIKE ${'% ' + query.toLowerCase() + '%'} THEN 2
+            ELSE 3
+          END,
+          ${companies.name}
+        `)
         .limit(limit);
 
       // Get existing user companies for this relationship type
