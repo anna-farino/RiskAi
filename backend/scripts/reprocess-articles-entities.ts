@@ -9,17 +9,20 @@ import {
 } from '../../shared/db/schema/threat-tracker/entity-associations';
 import { desc, sql } from 'drizzle-orm';
 import { EntityManager } from '../services/entity-manager';
+import { ThreatAnalyzer } from '../services/threat-analysis';
 
 async function reprocessArticlesEntities() {
   console.log('='.repeat(80));
-  console.log('REPROCESSING LATEST 500 ARTICLES FOR ENTITY EXTRACTION');
+  console.log('REPROCESSING ARTICLES FOR ENTITY EXTRACTION & THREAT SEVERITY SCORING');
   console.log('='.repeat(80));
   console.log(`Started at: ${new Date().toISOString()}\n`);
 
   const entityManager = new EntityManager();
+  const threatAnalyzer = new ThreatAnalyzer();
   let processedCount = 0;
   let skippedCount = 0;
   let errorCount = 0;
+  let severityScoresCalculated = 0;
   let totalEntitiesExtracted = {
     software: 0,
     hardware: 0,
@@ -104,10 +107,37 @@ async function reprocessArticlesEntities() {
         // Link extracted entities to article
         await entityManager.linkArticleToEntities(article.id, extracted);
         
-        // Mark article as having entities extracted
-        await db.update(globalArticles)
-          .set({ entitiesExtracted: true })
-          .where(sql`${globalArticles.id} = ${article.id}`);
+        // Calculate threat severity score if this is a cybersecurity article
+        if (article.isCybersecurity) {
+          try {
+            console.log(`    🎯 Calculating threat severity score...`);
+            const severityAnalysis = await threatAnalyzer.calculateSeverityScore(article, extracted);
+            
+            // Update article with threat severity scores
+            await db.update(globalArticles)
+              .set({ 
+                entitiesExtracted: true,
+                threatSeverityScore: severityAnalysis.severityScore.toString(),
+                threatLevel: severityAnalysis.threatLevel,
+                threatMetadata: severityAnalysis.metadata
+              })
+              .where(sql`${globalArticles.id} = ${article.id}`);
+            
+            console.log(`    📊 Severity: ${severityAnalysis.severityScore.toFixed(1)}/100 (${severityAnalysis.threatLevel})`);
+            severityScoresCalculated++;
+          } catch (scoringError: any) {
+            console.error(`    ⚠️  Failed to calculate severity score: ${scoringError.message}`);
+            // Still mark entities as extracted even if scoring fails
+            await db.update(globalArticles)
+              .set({ entitiesExtracted: true })
+              .where(sql`${globalArticles.id} = ${article.id}`);
+          }
+        } else {
+          // Non-cybersecurity article - just mark entities as extracted
+          await db.update(globalArticles)
+            .set({ entitiesExtracted: true })
+            .where(sql`${globalArticles.id} = ${article.id}`);
+        }
         
         // Count extracted entities
         const entityCount = {
@@ -162,6 +192,8 @@ async function reprocessArticlesEntities() {
     console.log(`  • Articles processed: ${processedCount}`);
     console.log(`  • Articles skipped (already had entities): ${skippedCount}`);
     console.log(`  • Articles with errors: ${errorCount}`);
+    console.log(`\n🎯 Threat Severity Scoring:`);
+    console.log(`  • Severity scores calculated: ${severityScoresCalculated}`);
     console.log(`\n📦 Total Entities Extracted:`);
     console.log(`  • Software: ${totalEntitiesExtracted.software}`);
     console.log(`  • Hardware: ${totalEntitiesExtracted.hardware}`);
