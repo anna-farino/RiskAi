@@ -112,6 +112,31 @@ export class EntityManager {
   private readonly RESOLUTION_CONFIDENCE_THRESHOLD = 0.85;
   private readonly CACHE_DURATION_DAYS = 30;
   
+  // Generic terms that should be filtered out
+  private readonly GENERIC_HARDWARE_TERMS = new Set([
+    'laptop', 'laptops', 'router', 'routers', 'server', 'servers', 
+    'phone', 'phones', 'desktop', 'desktops', 'hard drives', 'hard drive', 
+    'hard disk', 'microwave', 'microwaves', 'sim cards', 'sim card', 
+    'bank cards', 'bank card', 'mobile devices', 'mobile device', 
+    'ip cameras', 'ip camera', 'dvrs', 'dvr', 'switches', 'switch', 
+    'firewall', 'firewalls', 'modem', 'modems', 'printer', 'printers', 
+    'scanner', 'scanners', 'network equipment', 'iot devices', 
+    'smart devices', 'home routers', 'home router', 'usb drive', 
+    'usb drives', 'memory card', 'memory cards', 'webcam', 'webcams',
+    'monitor', 'monitors', 'keyboard', 'keyboards', 'mouse', 
+    'high-capacity hard drives', 'high capacity hard drives'
+  ]);
+  
+  private readonly GENERIC_SOFTWARE_TERMS = new Set([
+    'database', 'databases', 'web server', 'web servers', 
+    'operating system', 'operating systems', 'cloud services', 
+    'cloud service', 'antivirus', 'firewall', 'application', 
+    'applications', 'software', 'system', 'systems', 'platform', 
+    'platforms', 'solution', 'solutions', 'tool', 'tools',
+    'framework', 'frameworks', 'library', 'libraries', 'service',
+    'services', 'program', 'programs', 'utility', 'utilities'
+  ]);
+  
   /**
    * Extract all entities from an article using AI
    */
@@ -367,10 +392,37 @@ export class EntityManager {
   }
   
   /**
+   * Check if a hardware name is generic
+   */
+  private isGenericHardware(name: string): boolean {
+    const normalizedName = name.toLowerCase().trim();
+    return this.GENERIC_HARDWARE_TERMS.has(normalizedName);
+  }
+  
+  /**
+   * Check if a software name is generic
+   */
+  private isGenericSoftware(name: string): boolean {
+    const normalizedName = name.toLowerCase().trim();
+    return this.GENERIC_SOFTWARE_TERMS.has(normalizedName);
+  }
+  
+  /**
    * Link article to software entities
    */
   private async linkArticleToSoftware(articleId: string, softwareList: SoftwareExtraction[]): Promise<void> {
     for (const sw of softwareList) {
+      // Filter out generic software terms
+      if (this.isGenericSoftware(sw.name)) {
+        console.log(`[EntityManager] Skipping generic software term: ${sw.name}`);
+        continue;
+      }
+      
+      // Also skip if it has 'generic' specificity (though this should be handled by prompt now)
+      if ('specificity' in sw && sw.specificity === 'generic') {
+        console.log(`[EntityManager] Skipping generic specificity software: ${sw.name}`);
+        continue;
+      }
       // Find or create company if vendor is specified
       let companyId: string | null = null;
       if (sw.vendor) {
@@ -409,6 +461,24 @@ export class EntityManager {
    */
   private async linkArticleToHardware(articleId: string, hardwareList: HardwareExtraction[]): Promise<void> {
     for (const hw of hardwareList) {
+      // Filter out generic hardware terms
+      if (this.isGenericHardware(hw.name)) {
+        console.log(`[EntityManager] Skipping generic hardware term: ${hw.name}`);
+        continue;
+      }
+      
+      // Also check if manufacturer + name is still generic
+      const fullName = hw.manufacturer ? `${hw.manufacturer} ${hw.name}` : hw.name;
+      if (this.isGenericHardware(fullName)) {
+        console.log(`[EntityManager] Skipping generic hardware term: ${fullName}`);
+        continue;
+      }
+      
+      // Skip if it has 'generic' specificity (though this should be handled by prompt now)
+      if ('specificity' in hw && hw.specificity === 'generic') {
+        console.log(`[EntityManager] Skipping generic specificity hardware: ${hw.name}`);
+        continue;
+      }
       const hardwareId = await this.findOrCreateHardware({
         name: hw.name,
         model: hw.model,
