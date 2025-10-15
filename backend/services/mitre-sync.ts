@@ -286,6 +286,17 @@ Be inclusive - if it could be used as an attack technique, mark it TRUE.
     const cleanNames = techniquesToClassify.map(t => t.cleanName);
     const classifications = await this.classifyTechniques(cleanNames);
     
+    console.log(`[MITRE Sync] Classification complete. Total classified: ${classifications.size}`);
+    
+    // Log sample classifications for debugging
+    let sampleCount = 0;
+    classifications.forEach((isAttack, term) => {
+      if (sampleCount < 5) {
+        console.log(`[MITRE Sync] Sample classification: "${term}" -> ${isAttack ? 'ATTACK' : 'GENERIC'}`);
+        sampleCount++;
+      }
+    });
+    
     // Process and store only genuine attack techniques
     let addedCount = 0;
     let skippedCount = 0;
@@ -327,6 +338,14 @@ Be inclusive - if it could be used as an attack technique, mark it TRUE.
         }
       } catch (error) {
         console.error(`[MITRE Sync] Error syncing technique ${cleanName}:`, error);
+        // Log the full error for debugging
+        if (error instanceof Error) {
+          console.error(`[MITRE Sync] Full error details:`, {
+            message: error.message,
+            stack: error.stack,
+            technique: cleanName
+          });
+        }
       }
     }
     
