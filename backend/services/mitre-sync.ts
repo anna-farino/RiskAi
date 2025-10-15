@@ -173,12 +173,18 @@ export class MitreSyncService {
   private async classifyTechniques(techniques: string[]): Promise<Map<string, boolean>> {
     const results = new Map<string, boolean>();
     
-    // Process in batches to optimize API calls
-    const batchSize = 20;
+    // Process in larger batches for efficiency (100 at a time)
+    const batchSize = 100;
+    console.log(`[MITRE Sync] Processing ${techniques.length} techniques in ${Math.ceil(techniques.length / batchSize)} batches...`);
+    
     for (let i = 0; i < techniques.length; i += batchSize) {
       const batch = techniques.slice(i, i + batchSize);
+      const batchNumber = Math.floor(i / batchSize) + 1;
+      const totalBatches = Math.ceil(techniques.length / batchSize);
       
       try {
+        console.log(`[MITRE Sync] Processing batch ${batchNumber}/${totalBatches} (${batch.length} techniques)...`);
+        
         const prompt = `
 Classify each of the following MITRE ATT&CK technique names. Determine if it's a specific cybersecurity attack technique 
 or just a generic IT term. These come from the MITRE framework, so many are legitimate attack techniques.
@@ -217,9 +223,10 @@ Be inclusive - if it could be used as an attack technique, mark it TRUE.
             },
             { role: "user", content: prompt }
           ],
-          model: "gpt-3.5-turbo",
+          model: "gpt-4o-mini",  // Using gpt-4o-mini for faster processing
           response_format: { type: "json_object" },
-          temperature: 0.2
+          temperature: 0.2,
+          max_tokens: 8000  // Sufficient for batch response
         });
 
         const responseContent = completion.choices[0].message.content;
@@ -227,17 +234,20 @@ Be inclusive - if it could be used as an attack technique, mark it TRUE.
           const parsed = JSON.parse(responseContent);
           const classifications = Array.isArray(parsed) ? parsed : parsed.classifications || [];
           
+          console.log(`[MITRE Sync]   Batch ${batchNumber}: Classified ${classifications.length} techniques`);
+          
           classifications.forEach((item: any) => {
             results.set(item.term, item.isAttackTechnique);
           });
         }
       } catch (error) {
-        console.error(`[MITRE Sync] Error classifying batch:`, error);
+        console.error(`[MITRE Sync] Error classifying batch ${batchNumber}:`, error);
         // Default to false for failed batch
         batch.forEach(term => results.set(term, false));
       }
     }
     
+    console.log(`[MITRE Sync] Classification complete. Total classified: ${results.size}`);
     return results;
   }
 
