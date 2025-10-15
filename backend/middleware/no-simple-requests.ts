@@ -1,5 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 
+// Explicit allowlist of paths that can accept multipart/form-data
+const MULTIPART_ALLOWED_PATHS = [
+  '/api/threat-tracker/tech-stack/upload',
+  '/api/news-radar/sources/upload',
+  '/api/news-capsule/reports/upload'
+];
+
 export function noSimpleRequests(req: Request, res: Response, next: NextFunction) {
   const disallowed = [
     'text/plain',
@@ -9,9 +16,24 @@ export function noSimpleRequests(req: Request, res: Response, next: NextFunction
 
   const contentType = req.headers['content-type']?.split(';')[0];
   
-  // Allow multipart/form-data for upload endpoints
-  if (contentType === 'multipart/form-data' && req.url.includes('/upload')) {
-    return next();
+  // Allow multipart/form-data ONLY for explicitly allowed paths (not URLs with query params)
+  if (contentType === 'multipart/form-data') {
+    // Use req.path to get just the path without query parameters
+    const pathAllowed = MULTIPART_ALLOWED_PATHS.some(allowedPath => 
+      req.path === allowedPath || req.path.startsWith(allowedPath + '/')
+    );
+    
+    if (pathAllowed) {
+      // Verify Origin/Referer for additional CSRF protection
+      const origin = req.headers.origin || req.headers.referer;
+      const expectedOrigin = process.env.VITE_API_URL || 'http://localhost:5000';
+      
+      if (!origin || !origin.startsWith(expectedOrigin)) {
+        return res.status(403).json({ error: 'Cross-origin request blocked' });
+      }
+      
+      return next();
+    }
   }
   
   if (contentType && disallowed.includes(contentType)) {

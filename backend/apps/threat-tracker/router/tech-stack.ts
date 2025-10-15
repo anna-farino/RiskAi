@@ -1014,31 +1014,19 @@ const validateCSRFFromMultipart = async (req: any, res: any, next: any) => {
 
 // POST /api/tech-stack/upload - Process spreadsheet file and extract entities
 // Using single file upload with CSRF in field
-router.post("/upload", upload.single('file'), async (req: any, res) => {
+// Multer processes multipart first, then validateCSRFFromMultipart handles CSRF
+router.post("/upload", upload.single('file'), validateCSRFFromMultipart, async (req: any, res) => {
   const userId = req.user?.id;
   let fileHash = '';
   let filename = '';
   
   console.log('[UPLOAD] Request received, userId:', userId);
   console.log('[UPLOAD] File:', req.file);
-  console.log('[UPLOAD] Body:', req.body);
-  console.log('[UPLOAD] Headers:', req.headers);
   
   try {
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-    
-    // Temporarily skip CSRF validation to debug 415 error
-    console.log('[UPLOAD] Skipping CSRF validation for debugging');
-    /*
-    const csrfToken = req.body?._csrf;
-    if (!csrfToken) {
-      console.error('[UPLOAD] CSRF token missing from body');
-      return res.status(403).json({ error: "CSRF token missing" });
-    }
-    req.headers['x-csrf-token'] = csrfToken;
-    */
     
     // Check rate limiting (5 uploads per minute)
     if (!UploadSecurity.checkRateLimit(userId, 5, 1)) {
