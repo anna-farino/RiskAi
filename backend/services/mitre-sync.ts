@@ -1,7 +1,7 @@
 import { db } from 'backend/db/db';
 import { threatActors } from '@shared/db/schema/threat-tracker/entities';
 import { threatKeywords } from '@shared/db/schema/threat-tracker/index';
-import { eq, inArray, and, isNull, sql } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 interface MitreGroup {
   type: string;
@@ -212,26 +212,16 @@ export class MitreSyncService {
           .limit(1);
         
         if (existingKeyword.length === 0) {
-          // Create new technique keyword using raw SQL with RLS disabled
-          // This is a system operation creating default keywords
-          try {
-            // Temporarily disable RLS for this insert
-            await db.execute(sql`SET LOCAL row_security = off`);
-            await db.execute(sql`
-              INSERT INTO threat_keywords (id, term, category, active, is_default)
-              VALUES (gen_random_uuid(), ${keywordName}, ${'threat'}, true, true)
-            `);
-            await db.execute(sql`SET LOCAL row_security = on`);
-            
-            console.log(`[MITRE Sync] Added technique: ${keywordName}`);
-          } catch (insertError: any) {
-            // If RLS disable fails, try alternate approach with null user_id
-            await db.execute(sql`
-              INSERT INTO threat_keywords (id, term, category, active, user_id, is_default)
-              VALUES (gen_random_uuid(), ${keywordName}, ${'threat'}, true, null, true)
-            `);
-            console.log(`[MITRE Sync] Added technique: ${keywordName} (alternate method)`);
-          }
+          // Create new technique keyword as a default (system-level) keyword
+          await db.insert(threatKeywords).values({
+            term: keywordName,
+            category: 'threat',
+            active: true,
+            isDefault: true,
+            userId: null // System-level keyword, not user-specific
+          });
+          
+          console.log(`[MITRE Sync] Added technique: ${keywordName}`);
         } else {
           // Keyword already exists, no need to update since threatKeywords 
           // doesn't have a metadata field to store additional info
