@@ -27,6 +27,7 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@sendgrid/mail": "^8.1.5",
     "@tanstack/react-query-devtools": "^5.74.4",
+    "@types/multer": "^2.0.0",
     "@types/nodemon": "^1.19.6",
     "auth0": "^4.28.0",
     "cheerio": "^1.0.0",
@@ -47,6 +48,7 @@
     "html2canvas": "^1.4.1",
     "jsdom": "^26.1.0",
     "jspdf": "^3.0.1",
+    "multer": "^2.0.2",
     "nodemon": "^3.1.9",
     "openai": "^4.98.0",
     "postgres": "^3.4.7",
@@ -59,6 +61,7 @@
     "socket.io-client": "^4.8.1",
     "user-agents": "^1.1.600",
     "uuid": "^11.1.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {
