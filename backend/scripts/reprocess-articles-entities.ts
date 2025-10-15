@@ -117,7 +117,7 @@ async function reprocessArticlesEntities() {
             await db.update(globalArticles)
               .set({ 
                 entitiesExtracted: true,
-                threatSeverityScore: severityAnalysis.severityScore.toString(),
+                threatSeverityScore: severityAnalysis.severityScore.toFixed(2),  // numeric(4,2) expects string like "99.99"
                 threatLevel: severityAnalysis.threatLevel,
                 threatMetadata: severityAnalysis.metadata
               })
