@@ -396,9 +396,14 @@ export default function TechStackPage() {
       const decodedToken = decodeURIComponent(csrfToken).split("|")[0];
       formData.append('_csrf', decodedToken);
       
+      console.log('[UPLOAD] Sending FormData with file:', file.name);
+      console.log('[UPLOAD] FormData entries:', Array.from(formData.entries()));
+      
       const response = await fetchWithAuth('/api/threat-tracker/tech-stack/upload', {
         method: 'POST',
-        body: formData
+        body: formData,
+        // Explicitly don't set Content-Type - browser will set it with boundary
+        headers: {}
       });
       
       if (!response.ok) {

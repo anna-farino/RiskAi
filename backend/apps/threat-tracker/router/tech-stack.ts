@@ -991,53 +991,65 @@ const upload = multer({
 });
 
 
-// Custom middleware to validate CSRF before file processing
-const validateCSRFFirst = async (req: any, res: any, next: any) => {
-  // Skip CSRF validation if token is already in header (handled by main CSRF middleware)
+// Custom middleware to handle CSRF for multipart uploads
+// This runs AFTER multer has parsed the fields
+const validateCSRFFromMultipart = async (req: any, res: any, next: any) => {
+  // Check if CSRF token is in header first (best case)
   if (req.headers['x-csrf-token']) {
-    return next();
+    // Token already in header, let the main CSRF middleware handle it
+    return doubleCsrfProtection(req, res, next);
   }
   
-  // For multipart requests, we need to parse just the CSRF field first
-  // This prevents processing large files before CSRF validation
-  const csrfToken = req.body?._csrf || req.query?._csrf;
+  // For multipart, check the parsed body field
+  const csrfToken = req.body?._csrf;
   if (csrfToken) {
+    // Move token to header for validation
     req.headers['x-csrf-token'] = csrfToken;
+    return doubleCsrfProtection(req, res, next);
   }
   
-  // Run CSRF validation
-  doubleCsrfProtection(req, res, (err: any) => {
-    if (err) {
-      // CSRF validation failed - reject before file processing
-      return res.status(403).json({ error: "Invalid CSRF token" });
-    }
-    next();
-  });
+  // No token found
+  return res.status(403).json({ error: "CSRF token missing" });
 };
 
 // POST /api/tech-stack/upload - Process spreadsheet file and extract entities
-// Middleware order: CSRF validation -> File upload -> Processing
-router.post("/upload", validateCSRFFirst, upload.fields([{ name: 'file', maxCount: 1 }, { name: '_csrf', maxCount: 1 }]), async (req: any, res) => {
+// Using single file upload with CSRF in field
+router.post("/upload", upload.single('file'), async (req: any, res) => {
   const userId = req.user?.id;
   let fileHash = '';
   let filename = '';
+  
+  console.log('[UPLOAD] Request received, userId:', userId);
+  console.log('[UPLOAD] File:', req.file);
+  console.log('[UPLOAD] Body:', req.body);
+  console.log('[UPLOAD] Headers:', req.headers);
   
   try {
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
-
+    
+    // Validate CSRF token from body
+    const csrfToken = req.body?._csrf;
+    if (!csrfToken) {
+      console.error('[UPLOAD] CSRF token missing from body');
+      return res.status(403).json({ error: "CSRF token missing" });
+    }
+    
+    // Manually validate CSRF token
+    req.headers['x-csrf-token'] = csrfToken;
+    
     // Check rate limiting (5 uploads per minute)
     if (!UploadSecurity.checkRateLimit(userId, 5, 1)) {
       return res.status(429).json({ error: "Too many upload attempts. Please wait a minute before trying again." });
     }
 
-    if (!req.files || !req.files.file || !req.files.file[0]) {
+    if (!req.file) {
       UploadSecurity.auditLog(userId, 'unknown', '', false, 'No file uploaded');
       return res.status(400).json({ error: "No file uploaded" });
     }
 
-    const uploadedFile = req.files.file[0];
+    const uploadedFile = req.file;
     filename = uploadedFile.originalname;
     fileHash = UploadSecurity.generateFileHash(uploadedFile.buffer);
     
