@@ -24,6 +24,7 @@ import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
 import { extractArticleEntities, openai } from "../../../services/openai";
 import { UploadSecurity } from "../../../services/upload-security";
+import { doubleCsrfProtection } from "../../../middleware/csrf";
 
 const router = Router();
 
@@ -989,18 +990,34 @@ const upload = multer({
   }
 });
 
-// Custom middleware to handle CSRF for file uploads
-const handleFileUploadCSRF = (req: any, res: any, next: any) => {
-  // For multipart/form-data, multer will have parsed the fields
-  // Move CSRF token from fields to header if present
-  if (req.body && req.body._csrf && !req.headers['x-csrf-token']) {
-    req.headers['x-csrf-token'] = req.body._csrf;
+
+// Custom middleware to validate CSRF before file processing
+const validateCSRFFirst = async (req: any, res: any, next: any) => {
+  // Skip CSRF validation if token is already in header (handled by main CSRF middleware)
+  if (req.headers['x-csrf-token']) {
+    return next();
   }
-  next();
+  
+  // For multipart requests, we need to parse just the CSRF field first
+  // This prevents processing large files before CSRF validation
+  const csrfToken = req.body?._csrf || req.query?._csrf;
+  if (csrfToken) {
+    req.headers['x-csrf-token'] = csrfToken;
+  }
+  
+  // Run CSRF validation
+  doubleCsrfProtection(req, res, (err: any) => {
+    if (err) {
+      // CSRF validation failed - reject before file processing
+      return res.status(403).json({ error: "Invalid CSRF token" });
+    }
+    next();
+  });
 };
 
 // POST /api/tech-stack/upload - Process spreadsheet file and extract entities
-router.post("/upload", upload.fields([{ name: 'file', maxCount: 1 }, { name: '_csrf', maxCount: 1 }]), handleFileUploadCSRF, async (req: any, res) => {
+// Middleware order: CSRF validation -> File upload -> Processing
+router.post("/upload", validateCSRFFirst, upload.fields([{ name: 'file', maxCount: 1 }, { name: '_csrf', maxCount: 1 }]), async (req: any, res) => {
   const userId = req.user?.id;
   let fileHash = '';
   let filename = '';
