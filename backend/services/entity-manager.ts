@@ -681,6 +681,18 @@ export class EntityManager {
    * Helper to create a new company
    */
   private async createCompany(data: any): Promise<string> {
+    // Check if company already exists by normalized name
+    const existingCompany = await db.select()
+      .from(companies)
+      .where(eq(companies.normalizedName, data.normalizedName))
+      .limit(1);
+    
+    if (existingCompany.length > 0) {
+      console.log(`[EntityManager] Company already exists with normalized name: ${data.normalizedName}, returning existing ID`);
+      return existingCompany[0].id;
+    }
+    
+    // Create new company if it doesn't exist
     const [newCompany] = await db.insert(companies)
       .values({
         name: data.name,
@@ -694,6 +706,8 @@ export class EntityManager {
         metadata: data.metadata
       })
       .returning();
+    
+    console.log(`[EntityManager] Created new company: ${data.name} with normalized name: ${data.normalizedName}`);
     return newCompany.id;
   }
   
