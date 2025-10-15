@@ -1,5 +1,184 @@
 # File Upload Security and Audit Logging Implementation
 
+## Complete Database Schema for Audit Logs
+
+```typescript
+import { pgTable, uuid, text, timestamp, jsonb, integer, index, varchar, boolean } from 'drizzle-orm/pg-core';
+import { createInsertSchema } from 'drizzle-zod';
+import { z } from 'zod';
+
+// =====================================================
+// GENERIC AUDIT LOGS TABLE
+// Single table for all audit events across the application
+// =====================================================
+export const auditLogs = pgTable('audit_logs', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  
+  // Core audit fields
+  userId: uuid('user_id').notNull(), // Who performed the action
+  timestamp: timestamp('timestamp').defaultNow().notNull(),
+  
+  // Event categorization
+  eventType: text('event_type').notNull(), // 'file_upload', 'tech_stack_add', 'tech_stack_remove', 'login', etc.
+  eventCategory: text('event_category').notNull(), // 'security', 'data_change', 'access', 'configuration'
+  action: text('action').notNull(), // 'create', 'update', 'delete', 'upload', 'download', 'login', etc.
+  
+  // Target of the action
+  resourceType: text('resource_type'), // 'software', 'hardware', 'company', 'file', 'user', etc.
+  resourceId: text('resource_id'), // ID of the affected resource
+  resourceName: text('resource_name'), // Human-readable name for quick reference
+  
+  // Result tracking
+  success: boolean('success').notNull().default(true),
+  errorCode: text('error_code'), // Standardized error codes
+  errorMessage: text('error_message'),
+  
+  // Event-specific data (flexible for any event type)
+  eventData: jsonb('event_data').$type<{
+    // For file uploads
+    filename?: string;
+    fileHash?: string;
+    fileSize?: number;
+    fileType?: string;
+    entitiesExtracted?: number;
+    
+    // For tech stack changes
+    entityType?: string;
+    entityName?: string;
+    entityVersion?: string;
+    previousValue?: any;
+    newValue?: any;
+    
+    // For security events
+    threatLevel?: string;
+    securityChecks?: Record<string, any>;
+    suspiciousPatterns?: string[];
+    
+    // Generic fields
+    changes?: Record<string, { old: any; new: any }>;
+    metadata?: Record<string, any>;
+    [key: string]: any;
+  }>(),
+  
+  // Context information
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  sessionId: text('session_id'), // For tracking actions within a session
+  requestId: text('request_id'), // For correlating with application logs
+  
+  // Performance metrics
+  processingTimeMs: integer('processing_time_ms'),
+  
+  // Datadog integration fields
+  severity: text('severity').notNull().default('info'), // 'debug', 'info', 'warning', 'error', 'critical'
+  service: text('service').notNull().default('risqai'), // Service name for APM
+  environment: text('environment'), // 'production', 'staging', 'development'
+  tags: jsonb('tags').$type<Record<string, string>>(), // Datadog tags
+  
+  // Compliance and retention
+  retentionDays: integer('retention_days').default(90), // How long to keep this log
+  expiresAt: timestamp('expires_at'), // Calculated from timestamp + retentionDays
+  complianceFlags: jsonb('compliance_flags').$type<{
+    pii?: boolean; // Contains personally identifiable information
+    financial?: boolean; // Financial transaction
+    healthcare?: boolean; // Healthcare data
+    [key: string]: boolean;
+  }>(),
+  
+}, (table) => {
+  return {
+    // Primary indexes for querying
+    userIdIdx: index('audit_user_idx').on(table.userId),
+    timestampIdx: index('audit_timestamp_idx').on(table.timestamp),
+    eventTypeIdx: index('audit_event_type_idx').on(table.eventType),
+    categoryIdx: index('audit_category_idx').on(table.eventCategory),
+    resourceIdx: index('audit_resource_idx').on(table.resourceType, table.resourceId),
+    severityIdx: index('audit_severity_idx').on(table.severity),
+    successIdx: index('audit_success_idx').on(table.success),
+    expiresIdx: index('audit_expires_idx').on(table.expiresAt),
+    
+    // Composite indexes for common queries
+    userActivityIdx: index('audit_user_activity_idx').on(
+      table.userId, 
+      table.eventType, 
+      table.timestamp
+    ),
+    errorAnalysisIdx: index('audit_error_idx').on(
+      table.success,
+      table.errorCode,
+      table.timestamp
+    ),
+  };
+});
+
+// =====================================================
+// EVENT TYPE CONSTANTS
+// =====================================================
+export const AuditEventTypes = {
+  // File operations
+  FILE_UPLOAD: 'file_upload',
+  FILE_DOWNLOAD: 'file_download',
+  FILE_DELETE: 'file_delete',
+  
+  // Tech stack management
+  TECH_STACK_ADD: 'tech_stack_add',
+  TECH_STACK_REMOVE: 'tech_stack_remove',
+  TECH_STACK_UPDATE: 'tech_stack_update',
+  TECH_STACK_BULK_IMPORT: 'tech_stack_bulk_import',
+  
+  // Entity management
+  ENTITY_CREATE: 'entity_create',
+  ENTITY_UPDATE: 'entity_update',
+  ENTITY_DELETE: 'entity_delete',
+  ENTITY_MERGE: 'entity_merge',
+  
+  // Authentication & Access
+  USER_LOGIN: 'user_login',
+  USER_LOGOUT: 'user_logout',
+  USER_FAILED_LOGIN: 'user_failed_login',
+  PERMISSION_DENIED: 'permission_denied',
+  
+  // Data operations
+  EXPORT_DATA: 'export_data',
+  IMPORT_DATA: 'import_data',
+  BULK_OPERATION: 'bulk_operation',
+  
+  // Security events
+  SUSPICIOUS_ACTIVITY: 'suspicious_activity',
+  RATE_LIMIT_EXCEEDED: 'rate_limit_exceeded',
+  INVALID_TOKEN: 'invalid_token',
+} as const;
+
+export const AuditEventCategories = {
+  SECURITY: 'security',
+  DATA_CHANGE: 'data_change',
+  ACCESS: 'access',
+  CONFIGURATION: 'configuration',
+  COMPLIANCE: 'compliance',
+} as const;
+
+// =====================================================
+// ZOD SCHEMAS
+// =====================================================
+export const insertAuditLogSchema = createInsertSchema(auditLogs)
+  .omit({ 
+    id: true,
+    timestamp: true,
+    expiresAt: true 
+  })
+  .extend({
+    severity: z.enum(['debug', 'info', 'warning', 'error', 'critical']).default('info'),
+    eventType: z.string().min(1),
+    eventCategory: z.string().min(1),
+    action: z.string().min(1),
+  });
+
+export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+export type SelectAuditLog = typeof auditLogs.$inferSelect;
+export type AuditEventType = typeof AuditEventTypes[keyof typeof AuditEventTypes];
+export type AuditEventCategory = typeof AuditEventCategories[keyof typeof AuditEventCategories];
+```
+
 ## Overview
 This document details the comprehensive security implementation for file upload functionality in the Threat Tracker application, including current security measures and planned audit logging infrastructure.
 
