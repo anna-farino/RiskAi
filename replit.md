@@ -29,6 +29,7 @@ The RisqAi platform employs a monorepo architecture, featuring a React 18 (TypeS
 - **Global Scraping Infrastructure**: Transformed from per-user to a global scraping system. All sources are scraped every 3 hours globally, with articles saved to a shared pool. Users apply query-time filtering to see relevant content.
 - **Unified Scraping System**: Centralized, app-agnostic scraping logic handles content extraction, link identification, and bot protection, employing a hybrid approach (HTTP-first with intelligent Puppeteer fallback).
 - **AI-Powered Analysis**: Leverages OpenAI for content summarization, keyword detection, relevance scoring, and security scoring, with dynamic prompt adaptation.
+- **Spreadsheet Import for Tech Stack**: Users can upload Excel/CSV files containing their technology inventory. AI intelligently extracts and categorizes software, hardware, vendors, and clients regardless of column structure, with preview and deduplication before import.
 - **Robust Data Handling**: Drizzle ORM manages various data schemas (user, news, threats, reports).
 - **Dynamic Content Support**: Advanced HTMX and JavaScript site handling, including multi-step deep extraction, pre-emptive challenge detection, and intelligent element analysis.
 - **Resilient Extraction**: Features a multi-phase content recovery system with comprehensive selector debugging, intelligent fallback strategies, and AI re-analysis.

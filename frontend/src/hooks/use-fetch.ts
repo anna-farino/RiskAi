@@ -159,11 +159,21 @@ export function useFetch() {
       });
     }
 
-    const defaultHeaders = {
+    // Check if body is FormData - if so, don't set Content-Type header
+    const isFormData = options.body instanceof FormData;
+    
+    const defaultHeaders: any = {
       ...csfrHeaderObject(),
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers || {})
+      Authorization: `Bearer ${accessToken}`
     };
+
+    // Only set Content-Type if it's not FormData
+    if (!isFormData && options.headers) {
+      Object.assign(defaultHeaders, options.headers);
+    } else if (!isFormData) {
+      // For non-FormData requests, keep any provided headers
+      Object.assign(defaultHeaders, options.headers || {});
+    }
 
     return fetch(`${serverUrl}${url}`, {
       method: options.method || 'GET',
