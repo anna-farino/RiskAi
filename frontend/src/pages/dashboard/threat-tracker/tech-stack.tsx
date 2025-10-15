@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/query-client";
 import { useFetch } from "@/hooks/use-fetch";
+import { Autocomplete } from "@/components/ui/autocomplete";
 import {
   Tooltip,
   TooltipContent,
@@ -54,6 +55,35 @@ export default function TechStackPage() {
   const [hardwareSearch, setHardwareSearch] = useState("");
   const [vendorSearch, setVendorSearch] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+
+  // Autocomplete fetch functions
+  const fetchSoftwareOptions = async (query: string) => {
+    const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/autocomplete?type=software&query=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error('Failed to fetch software options');
+    const data = await response.json();
+    return data.results || [];
+  };
+
+  const fetchHardwareOptions = async (query: string) => {
+    const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/autocomplete?type=hardware&query=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error('Failed to fetch hardware options');
+    const data = await response.json();
+    return data.results || [];
+  };
+
+  const fetchVendorOptions = async (query: string) => {
+    const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/autocomplete?type=vendor&query=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error('Failed to fetch vendor options');
+    const data = await response.json();
+    return data.results || [];
+  };
+
+  const fetchClientOptions = async (query: string) => {
+    const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/autocomplete?type=client&query=${encodeURIComponent(query)}`);
+    if (!response.ok) throw new Error('Failed to fetch client options');
+    const data = await response.json();
+    return data.results || [];
+  };
 
   // Fetch tech stack data
   const { data: techStack, isLoading } = useQuery<TechStackResponse>({
@@ -315,24 +345,25 @@ export default function TechStackPage() {
               
               <CollapsibleContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="Add software (e.g., Apache, nginx, Redis)..." 
+                  <Autocomplete
+                    placeholder="Add software (e.g., Apache, nginx, Redis)..."
                     value={softwareSearch}
-                    onChange={(e) => setSoftwareSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && softwareSearch.trim()) {
-                        addItem.mutate({ 
-                          type: 'software', 
-                          name: softwareSearch.trim() 
-                        });
-                        setSoftwareSearch("");
-                      }
+                    onValueChange={setSoftwareSearch}
+                    onSelect={(option) => {
+                      addItem.mutate({ 
+                        type: 'software', 
+                        name: option.name,
+                        // Use the existing entity ID for linking
+                        priority: 1
+                      });
                     }}
-                    data-testid="input-search-software"
+                    fetchOptions={fetchSoftwareOptions}
+                    className="flex-1"
                   />
                   <Button 
                     onClick={() => {
                       if (softwareSearch.trim()) {
+                        // Allow manual entry for software not in database
                         addItem.mutate({ 
                           type: 'software', 
                           name: softwareSearch.trim() 
@@ -382,24 +413,24 @@ export default function TechStackPage() {
               
               <CollapsibleContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="Add hardware (e.g., Cisco ASA, Dell PowerEdge)..." 
+                  <Autocomplete
+                    placeholder="Add hardware (e.g., Cisco ASA, Dell PowerEdge)..."
                     value={hardwareSearch}
-                    onChange={(e) => setHardwareSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && hardwareSearch.trim()) {
-                        addItem.mutate({ 
-                          type: 'hardware', 
-                          name: hardwareSearch.trim() 
-                        });
-                        setHardwareSearch("");
-                      }
+                    onValueChange={setHardwareSearch}
+                    onSelect={(option) => {
+                      addItem.mutate({ 
+                        type: 'hardware', 
+                        name: option.name,
+                        priority: 1
+                      });
                     }}
-                    data-testid="input-search-hardware"
+                    fetchOptions={fetchHardwareOptions}
+                    className="flex-1"
                   />
                   <Button 
                     onClick={() => {
                       if (hardwareSearch.trim()) {
+                        // Allow manual entry for hardware not in database
                         addItem.mutate({ 
                           type: 'hardware', 
                           name: hardwareSearch.trim() 
@@ -449,24 +480,24 @@ export default function TechStackPage() {
               
               <CollapsibleContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="Add vendor (e.g., Microsoft, Amazon, Oracle)..." 
+                  <Autocomplete
+                    placeholder="Add vendor (e.g., Microsoft, Amazon, Oracle)..."
                     value={vendorSearch}
-                    onChange={(e) => setVendorSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && vendorSearch.trim()) {
-                        addItem.mutate({ 
-                          type: 'vendor', 
-                          name: vendorSearch.trim() 
-                        });
-                        setVendorSearch("");
-                      }
+                    onValueChange={setVendorSearch}
+                    onSelect={(option) => {
+                      addItem.mutate({ 
+                        type: 'vendor', 
+                        name: option.name,
+                        priority: 1
+                      });
                     }}
-                    data-testid="input-search-vendors"
+                    fetchOptions={fetchVendorOptions}
+                    className="flex-1"
                   />
                   <Button 
                     onClick={() => {
                       if (vendorSearch.trim()) {
+                        // Allow manual entry for vendors not in database
                         addItem.mutate({ 
                           type: 'vendor', 
                           name: vendorSearch.trim() 
@@ -516,24 +547,24 @@ export default function TechStackPage() {
               
               <CollapsibleContent className="space-y-4">
                 <div className="flex gap-2">
-                  <Input 
-                    placeholder="Add client (e.g., Bank of America, Acme Corp)..." 
+                  <Autocomplete
+                    placeholder="Add client (e.g., Bank of America, Acme Corp)..."
                     value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && clientSearch.trim()) {
-                        addItem.mutate({ 
-                          type: 'client', 
-                          name: clientSearch.trim() 
-                        });
-                        setClientSearch("");
-                      }
+                    onValueChange={setClientSearch}
+                    onSelect={(option) => {
+                      addItem.mutate({ 
+                        type: 'client', 
+                        name: option.name,
+                        priority: 1
+                      });
                     }}
-                    data-testid="input-search-clients"
+                    fetchOptions={fetchClientOptions}
+                    className="flex-1"
                   />
                   <Button 
                     onClick={() => {
                       if (clientSearch.trim()) {
+                        // Allow manual entry for clients not in database
                         addItem.mutate({ 
                           type: 'client', 
                           name: clientSearch.trim() 
