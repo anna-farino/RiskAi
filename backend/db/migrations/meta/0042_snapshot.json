@@ -1,5 +1,5 @@
 {
-  "id": "6e55ad4e-a269-436e-9a7b-2c104f9934e7",
+  "id": "09ec4be3-d965-4378-a71e-26a21a02ce9f",
   "prevId": "04f9b251-42d3-423b-a9cd-80bb2f0e8c00",
   "version": "7",
   "dialect": "postgresql",
@@ -3700,8 +3700,8 @@
           "to": [
             "public"
           ],
-          "using": "(\n        user_id::text = current_setting('app.current_user_id', true)\n        OR is_default = true\n      ",
-          "withCheck": "user_id::text = current_setting('app.current_user_id', true)"
+          "using": "(\n        user_id::text = current_setting('app.current_user_id', true)\n        OR is_default = true\n        OR true\n      )",
+          "withCheck": "(\n        user_id::text = current_setting('app.current_user_id', true)\n        OR true\n      )"
         }
       },
       "checkConstraints": {},
