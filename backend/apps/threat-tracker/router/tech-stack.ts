@@ -1113,34 +1113,38 @@ Return a JSON array of extracted entities with this structure:
 
       if (entity.type === 'software') {
         // Try to find existing software
-        const existingSoftware = await entityManager.findOrCreateSoftware(
-          entity.name,
-          entity.manufacturer || null
-        );
+        const existingSoftwareId = await entityManager.findOrCreateSoftware({
+          name: entity.name,
+          companyId: null,
+          category: null
+        });
         
-        if (existingSoftware) {
-          matchedEntity = existingSoftware;
+        if (existingSoftwareId) {
+          matchedEntity = { id: existingSoftwareId };
           isNew = false;
         }
       } else if (entity.type === 'hardware') {
         // Try to find existing hardware
-        const existingHardware = await entityManager.findOrCreateHardware({
+        const existingHardwareId = await entityManager.findOrCreateHardware({
           name: entity.name,
           manufacturer: entity.manufacturer || null,
           model: entity.model || null,
           category: null
         });
         
-        if (existingHardware) {
-          matchedEntity = existingHardware;
+        if (existingHardwareId) {
+          matchedEntity = { id: existingHardwareId };
           isNew = false;
         }
       } else if (entity.type === 'vendor' || entity.type === 'client') {
         // Try to find existing company
-        const existingCompany = await entityManager.findOrCreateCompany(entity.name);
+        const existingCompanyId = await entityManager.findOrCreateCompany({
+          name: entity.name,
+          type: entity.type === 'vendor' ? 'vendor' : 'client'
+        });
         
-        if (existingCompany) {
-          matchedEntity = existingCompany;
+        if (existingCompanyId) {
+          matchedEntity = { id: existingCompanyId };
           isNew = false;
         }
       }
@@ -1192,11 +1196,11 @@ router.post("/import", async (req: any, res) => {
           
           if (!softwareId || entity.isNew) {
             // Create new software entity
-            const newSoftware = await entityManager.findOrCreateSoftware(
-              entity.name,
-              entity.manufacturer || null
-            );
-            softwareId = newSoftware?.id;
+            softwareId = await entityManager.findOrCreateSoftware({
+              name: entity.name,
+              companyId: null,
+              category: null
+            });
           }
 
           if (softwareId) {
@@ -1227,13 +1231,12 @@ router.post("/import", async (req: any, res) => {
           
           if (!hardwareId || entity.isNew) {
             // Create new hardware entity
-            const newHardware = await entityManager.findOrCreateHardware({
+            hardwareId = await entityManager.findOrCreateHardware({
               name: entity.name,
               manufacturer: entity.manufacturer || null,
               model: entity.model || null,
               category: null
             });
-            hardwareId = newHardware?.id;
           }
 
           if (hardwareId) {
@@ -1263,8 +1266,10 @@ router.post("/import", async (req: any, res) => {
           
           if (!companyId || entity.isNew) {
             // Create new company entity
-            const newCompany = await entityManager.findOrCreateCompany(entity.name);
-            companyId = newCompany?.id;
+            companyId = await entityManager.findOrCreateCompany({
+              name: entity.name,
+              type: entity.type === 'vendor' ? 'vendor' : 'client'
+            });
           }
 
           if (companyId) {
