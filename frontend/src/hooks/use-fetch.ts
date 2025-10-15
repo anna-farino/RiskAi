@@ -40,7 +40,7 @@ export function useFetch() {
           audience
         },
         // Force refresh on retry attempts
-        cacheMode: retryCount > 0 ? 'off' : 'cache-first'
+        cacheMode: retryCount > 0 ? 'off' : 'cache-only'
       });
 
       // Validate the token we just received
