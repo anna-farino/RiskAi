@@ -98,7 +98,7 @@ export class UploadSecurity {
   /**
    * Check rate limiting for user uploads
    */
-  static checkRateLimit(userId: string, maxAttempts: number = 5, windowMinutes: number = 1): boolean {
+  static checkRateLimit(userId: string, maxAttempts: number = 2, windowMinutes: number = 1): boolean {
     const now = Date.now();
     const windowMs = windowMinutes * 60 * 1000;
     
