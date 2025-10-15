@@ -58,10 +58,12 @@ export function Autocomplete({
       try {
         const results = await fetchOptions(value);
         setOptions(results);
-        setOpen(results.length > 0);
+        // Only open if we have results AND user has typed something
+        setOpen(results.length > 0 && value.length >= 2);
       } catch (error) {
         console.error("Failed to fetch autocomplete options:", error);
         setOptions([]);
+        setOpen(false);
       } finally {
         setLoading(false);
       }
@@ -124,7 +126,12 @@ export function Autocomplete({
 
   return (
     <div className={cn("relative", className)}>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover open={open} onOpenChange={(newOpen) => {
+        // Only allow closing, not opening manually (only open when typing)
+        if (!newOpen) {
+          setOpen(false);
+        }
+      }}>
         <PopoverTrigger asChild>
           <div className="relative">
             <Input
