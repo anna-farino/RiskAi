@@ -1,4 +1,6 @@
 import { Router } from "express";
+import multer from "multer";
+import * as XLSX from "xlsx";
 import { db } from "../../../db/db";
 import { 
   usersSoftware, 
@@ -20,7 +22,7 @@ import { eq, and, sql } from "drizzle-orm";
 import { log } from "../../../utils/log";
 import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
-import { extractArticleEntities } from "../../../services/openai";
+import { extractArticleEntities, openai } from "../../../services/openai";
 
 const router = Router();
 
@@ -962,6 +964,346 @@ router.post("/trigger-relevance", async (req: any, res) => {
   } catch (error) {
     log(`Error triggering relevance calculation: ${error}`, 'error');
     res.status(500).json({ error: "Failed to trigger relevance calculation" });
+  }
+});
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv'
+    ];
+    if (allowedTypes.includes(file.mimetype) || 
+        file.originalname.endsWith('.xlsx') ||
+        file.originalname.endsWith('.xls') ||
+        file.originalname.endsWith('.csv')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only Excel and CSV files are allowed.'));
+    }
+  }
+});
+
+// POST /api/tech-stack/upload - Process spreadsheet file and extract entities
+router.post("/upload", upload.single('file'), async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    // Parse the spreadsheet
+    let data: any[][] = [];
+    
+    if (req.file.originalname.endsWith('.csv')) {
+      // Parse CSV
+      const csvText = req.file.buffer.toString('utf-8');
+      const workbook = XLSX.read(csvText, { type: 'string' });
+      const sheetName = workbook.SheetNames[0];
+      data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+    } else {
+      // Parse Excel
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+    }
+
+    if (data.length === 0) {
+      return res.status(400).json({ error: "Spreadsheet is empty" });
+    }
+
+    // Convert spreadsheet data to text for AI processing
+    const headers = data[0] || [];
+    const rows = data.slice(1);
+    
+    // Create a structured text representation
+    let spreadsheetText = `Headers: ${headers.join(', ')}\n\n`;
+    spreadsheetText += "Data rows:\n";
+    
+    rows.forEach((row, index) => {
+      if (row.some(cell => cell)) { // Skip empty rows
+        const rowData = headers.map((header, i) => `${header}: ${row[i] || 'N/A'}`).join(', ');
+        spreadsheetText += `Row ${index + 1}: ${rowData}\n`;
+      }
+    });
+
+    // Use OpenAI to intelligently extract entities from the spreadsheet
+    const extractionPrompt = `Extract technology entities from this spreadsheet data. The spreadsheet may contain various formats and column names.
+
+Identify and extract:
+1. Software products (applications, platforms, tools, etc.)
+2. Hardware devices (servers, routers, computers, etc.)
+3. Vendor companies (technology vendors, suppliers)
+4. Client companies (customers, partners)
+
+For each entity, determine:
+- Type: software, hardware, vendor, or client
+- Name: The specific product/company name
+- Version: Software version if available
+- Manufacturer/Company: For hardware or software
+- Model: For hardware devices
+
+Be smart about interpreting the data - column names may vary (e.g., "Product", "Tool", "Application", "Device", "Vendor", "Supplier", "Customer", "Client", etc.)
+
+IMPORTANT: Only extract SPECIFIC products and companies, NOT generic categories like "laptop", "firewall", "database", etc.
+
+Spreadsheet Data:
+${spreadsheetText}
+
+Return a JSON array of extracted entities with this structure:
+[
+  {
+    "type": "software|hardware|vendor|client",
+    "name": "Entity Name",
+    "version": "version if applicable",
+    "manufacturer": "manufacturer/company if applicable",
+    "model": "model if applicable"
+  }
+]`;
+
+    const completion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at extracting technology entities from spreadsheets. Return only valid JSON."
+        },
+        {
+          role: "user",
+          content: extractionPrompt
+        }
+      ],
+      model: "gpt-3.5-turbo",
+      response_format: { type: "json_object" },
+      max_tokens: 2000
+    });
+
+    const extractedData = completion.choices[0].message.content || "{}";
+    let entities = [];
+    
+    try {
+      const parsed = JSON.parse(extractedData);
+      // Handle both array and object with entities property
+      if (Array.isArray(parsed)) {
+        entities = parsed;
+      } else if (parsed.entities && Array.isArray(parsed.entities)) {
+        entities = parsed.entities;
+      } else {
+        entities = [];
+      }
+    } catch (e) {
+      log(`Failed to parse extracted entities: ${e}`, 'error');
+      return res.status(500).json({ error: "Failed to extract entities from spreadsheet" });
+    }
+
+    // Process entities through EntityManager to match with existing database
+    const entityManager = new EntityManager();
+    const processedEntities = [];
+
+    for (const entity of entities) {
+      let matchedEntity = null;
+      let isNew = true;
+
+      if (entity.type === 'software') {
+        // Try to find existing software
+        const existingSoftware = await entityManager.findOrCreateSoftware(
+          entity.name,
+          entity.manufacturer || null
+        );
+        
+        if (existingSoftware) {
+          matchedEntity = existingSoftware;
+          isNew = false;
+        }
+      } else if (entity.type === 'hardware') {
+        // Try to find existing hardware
+        const existingHardware = await entityManager.findOrCreateHardware({
+          name: entity.name,
+          manufacturer: entity.manufacturer || null,
+          model: entity.model || null,
+          category: null
+        });
+        
+        if (existingHardware) {
+          matchedEntity = existingHardware;
+          isNew = false;
+        }
+      } else if (entity.type === 'vendor' || entity.type === 'client') {
+        // Try to find existing company
+        const existingCompany = await entityManager.findOrCreateCompany(entity.name);
+        
+        if (existingCompany) {
+          matchedEntity = existingCompany;
+          isNew = false;
+        }
+      }
+
+      processedEntities.push({
+        type: entity.type,
+        name: entity.name,
+        version: entity.version,
+        manufacturer: entity.manufacturer,
+        model: entity.model,
+        isNew: isNew,
+        matchedId: matchedEntity?.id || null
+      });
+    }
+
+    res.json({ 
+      success: true, 
+      entities: processedEntities 
+    });
+
+  } catch (error: any) {
+    log(`Error processing spreadsheet upload: ${error.message || error}`, 'error');
+    res.status(500).json({ error: "Failed to process spreadsheet" });
+  }
+});
+
+// POST /api/tech-stack/import - Import selected entities to user's tech stack
+router.post("/import", async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { entities } = req.body;
+    
+    if (!entities || !Array.isArray(entities)) {
+      return res.status(400).json({ error: "Invalid entities data" });
+    }
+
+    const entityManager = new EntityManager();
+    let imported = 0;
+
+    for (const entity of entities) {
+      try {
+        if (entity.type === 'software') {
+          // Add to user's software stack
+          let softwareId = entity.matchedId;
+          
+          if (!softwareId || entity.isNew) {
+            // Create new software entity
+            const newSoftware = await entityManager.findOrCreateSoftware(
+              entity.name,
+              entity.manufacturer || null
+            );
+            softwareId = newSoftware?.id;
+          }
+
+          if (softwareId) {
+            // Check if already in user's stack
+            const existing = await db
+              .select()
+              .from(usersSoftware)
+              .where(and(
+                eq(usersSoftware.userId, userId),
+                eq(usersSoftware.softwareId, softwareId)
+              ))
+              .limit(1);
+
+            if (existing.length === 0) {
+              await db.insert(usersSoftware).values({
+                userId,
+                softwareId,
+                version: entity.version || null,
+                priority: 5,
+                isActive: true
+              });
+              imported++;
+            }
+          }
+        } else if (entity.type === 'hardware') {
+          // Add to user's hardware stack
+          let hardwareId = entity.matchedId;
+          
+          if (!hardwareId || entity.isNew) {
+            // Create new hardware entity
+            const newHardware = await entityManager.findOrCreateHardware({
+              name: entity.name,
+              manufacturer: entity.manufacturer || null,
+              model: entity.model || null,
+              category: null
+            });
+            hardwareId = newHardware?.id;
+          }
+
+          if (hardwareId) {
+            // Check if already in user's stack
+            const existing = await db
+              .select()
+              .from(usersHardware)
+              .where(and(
+                eq(usersHardware.userId, userId),
+                eq(usersHardware.hardwareId, hardwareId)
+              ))
+              .limit(1);
+
+            if (existing.length === 0) {
+              await db.insert(usersHardware).values({
+                userId,
+                hardwareId,
+                priority: 5,
+                isActive: true
+              });
+              imported++;
+            }
+          }
+        } else if (entity.type === 'vendor' || entity.type === 'client') {
+          // Add to user's companies stack
+          let companyId = entity.matchedId;
+          
+          if (!companyId || entity.isNew) {
+            // Create new company entity
+            const newCompany = await entityManager.findOrCreateCompany(entity.name);
+            companyId = newCompany?.id;
+          }
+
+          if (companyId) {
+            // Check if already in user's stack
+            const existing = await db
+              .select()
+              .from(usersCompanies)
+              .where(and(
+                eq(usersCompanies.userId, userId),
+                eq(usersCompanies.companyId, companyId)
+              ))
+              .limit(1);
+
+            if (existing.length === 0) {
+              await db.insert(usersCompanies).values({
+                userId,
+                companyId,
+                relationshipType: entity.type === 'vendor' ? 'vendor' : 'client',
+                priority: 5,
+                isActive: true
+              });
+              imported++;
+            }
+          }
+        }
+      } catch (err) {
+        log(`Error importing entity ${entity.name}: ${err}`, 'error');
+      }
+    }
+
+    res.json({ 
+      success: true, 
+      imported,
+      message: `Successfully imported ${imported} items to your tech stack`
+    });
+
+  } catch (error: any) {
+    log(`Error importing entities: ${error.message || error}`, 'error');
+    res.status(500).json({ error: "Failed to import entities" });
   }
 });
 
