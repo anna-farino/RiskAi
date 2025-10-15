@@ -23,6 +23,7 @@ import { log } from "../../../utils/log";
 import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
 import { extractArticleEntities, openai } from "../../../services/openai";
+import { UploadSecurity } from "../../../services/upload-security";
 
 const router = Router();
 
@@ -1000,37 +1001,74 @@ const handleFileUploadCSRF = (req: any, res: any, next: any) => {
 
 // POST /api/tech-stack/upload - Process spreadsheet file and extract entities
 router.post("/upload", upload.fields([{ name: 'file', maxCount: 1 }, { name: '_csrf', maxCount: 1 }]), handleFileUploadCSRF, async (req: any, res) => {
+  const userId = req.user?.id;
+  let fileHash = '';
+  let filename = '';
+  
   try {
-    const userId = req.user?.id;
     if (!userId) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    // Check rate limiting (5 uploads per minute)
+    if (!UploadSecurity.checkRateLimit(userId, 5, 1)) {
+      return res.status(429).json({ error: "Too many upload attempts. Please wait a minute before trying again." });
+    }
+
     if (!req.files || !req.files.file || !req.files.file[0]) {
+      UploadSecurity.auditLog(userId, 'unknown', '', false, 'No file uploaded');
       return res.status(400).json({ error: "No file uploaded" });
     }
 
     const uploadedFile = req.files.file[0];
+    filename = uploadedFile.originalname;
+    fileHash = UploadSecurity.generateFileHash(uploadedFile.buffer);
+    
+    // Verify file type using magic bytes
+    if (!UploadSecurity.verifyFileType(uploadedFile.buffer, filename)) {
+      UploadSecurity.auditLog(userId, filename, fileHash, false, 'Invalid file signature');
+      return res.status(400).json({ error: "Invalid file type. File signature verification failed." });
+    }
 
     // Parse the spreadsheet
     let data: any[][] = [];
     
-    if (uploadedFile.originalname.endsWith('.csv')) {
-      // Parse CSV
-      const csvText = uploadedFile.buffer.toString('utf-8');
-      const workbook = XLSX.read(csvText, { type: 'string' });
-      const sheetName = workbook.SheetNames[0];
-      data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
-    } else {
-      // Parse Excel
-      const workbook = XLSX.read(uploadedFile.buffer, { type: 'buffer' });
-      const sheetName = workbook.SheetNames[0];
-      data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+    try {
+      if (uploadedFile.originalname.endsWith('.csv')) {
+        // Parse CSV
+        const csvText = uploadedFile.buffer.toString('utf-8');
+        const workbook = XLSX.read(csvText, { type: 'string' });
+        const sheetName = workbook.SheetNames[0];
+        data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+      } else {
+        // Parse Excel
+        const workbook = XLSX.read(uploadedFile.buffer, { type: 'buffer' });
+        const sheetName = workbook.SheetNames[0];
+        data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 });
+      }
+    } catch (parseError) {
+      UploadSecurity.auditLog(userId, filename, fileHash, false, `Parse error: ${parseError}`);
+      return res.status(400).json({ error: "Failed to parse spreadsheet. File may be corrupted." });
     }
 
     if (data.length === 0) {
+      UploadSecurity.auditLog(userId, filename, fileHash, false, 'Empty spreadsheet');
       return res.status(400).json({ error: "Spreadsheet is empty" });
     }
+    
+    // Scan for suspicious content
+    const scanResult = UploadSecurity.scanForSuspiciousContent(data);
+    if (!scanResult.safe) {
+      log(`Suspicious content detected in upload from user ${userId}: ${scanResult.warnings.join('; ')}`, 'warn');
+      UploadSecurity.auditLog(userId, filename, fileHash, false, `Suspicious content: ${scanResult.warnings.join('; ')}`);
+      return res.status(400).json({ 
+        error: "File contains suspicious content and cannot be processed.",
+        warnings: scanResult.warnings 
+      });
+    }
+    
+    // Sanitize data to prevent formula injection
+    data = UploadSecurity.sanitizeSpreadsheetData(data);
 
     // Convert spreadsheet data to text for AI processing
     const headers = data[0] || [];
@@ -1172,6 +1210,9 @@ Return a JSON array of extracted entities with this structure:
       });
     }
 
+    // Log successful upload
+    UploadSecurity.auditLog(userId, filename, fileHash, true, `Extracted ${processedEntities.length} entities`);
+    
     res.json({ 
       success: true, 
       entities: processedEntities 
@@ -1179,6 +1220,9 @@ Return a JSON array of extracted entities with this structure:
 
   } catch (error: any) {
     log(`Error processing spreadsheet upload: ${error.message || error}`, 'error');
+    if (fileHash) {
+      UploadSecurity.auditLog(userId || 'unknown', filename, fileHash, false, `Processing error: ${error.message}`);
+    }
     res.status(500).json({ error: "Failed to process spreadsheet" });
   }
 });
