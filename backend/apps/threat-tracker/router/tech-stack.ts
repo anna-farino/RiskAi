@@ -1173,26 +1173,51 @@ router.post("/trigger-relevance", async (req: any, res) => {
   }
 });
 
-// Configure multer for file uploads
+// Configure multer for file uploads - STRICT validation
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 1, // Only 1 file per upload
+    fields: 10, // Limit number of fields
+  },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = [
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      "application/vnd.ms-excel",
-      "text/csv",
-    ];
-    if (
-      allowedTypes.includes(file.mimetype) ||
-      file.originalname.endsWith(".xlsx") ||
-      file.originalname.endsWith(".xls") ||
-      file.originalname.endsWith(".csv")
-    ) {
-      cb(null, true);
-    } else {
-      cb(new Error("Invalid file type. Only Excel and CSV files are allowed."));
+    // Extract file extension
+    const ext = file.originalname.split('.').pop()?.toLowerCase();
+    
+    // STRICT: Only allow specific extensions
+    const ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+    
+    if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+      return cb(new Error(`Invalid file type. Only CSV, XLSX, and XLS files are allowed. Received: ${ext || 'none'}`));
     }
+    
+    // Validate filename doesn't contain path traversal attempts
+    if (file.originalname.includes('..') || 
+        file.originalname.includes('/') || 
+        file.originalname.includes('\\')) {
+      return cb(new Error('Invalid filename - contains suspicious patterns'));
+    }
+    
+    // Check MIME type matches extension (defense in depth)
+    const expectedMimeTypes: { [key: string]: string[] } = {
+      'csv': ['text/csv', 'application/csv', 'text/plain'],
+      'xlsx': ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
+      'xls': ['application/vnd.ms-excel', 'application/msexcel', 'application/x-msexcel'],
+    };
+    
+    const validMimeTypes = expectedMimeTypes[ext] || [];
+    
+    // Allow if MIME type matches OR if it's application/octet-stream (browser default)
+    // Some browsers send octet-stream for files they don't recognize
+    if (!validMimeTypes.includes(file.mimetype) && 
+        file.mimetype !== 'application/octet-stream') {
+      log(`MIME type mismatch: expected ${validMimeTypes.join(', ')} for .${ext}, got ${file.mimetype}`, 'warn');
+      // Don't reject based on MIME alone as browsers can be inconsistent
+      // The magic byte check in verifyFileType will catch actual file type issues
+    }
+    
+    cb(null, true);
   },
 });
 

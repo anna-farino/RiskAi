@@ -175,11 +175,41 @@ export class UploadSecurity {
   
   /**
    * Verify file type by checking magic bytes (file signature)
+   * ONLY accepts standard XLS, XLSX, and CSV files - rejects everything else
    */
   static verifyFileType(buffer: Buffer, filename: string): boolean {
     try {
+      // Extract and validate file extension
       const ext = filename.split('.').pop()?.toLowerCase();
       
+      // STRICT: Only allow these three file types
+      const ALLOWED_EXTENSIONS = ['csv', 'xlsx', 'xls'];
+      
+      if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+        log(`Rejected file with extension: ${ext || 'none'}`, 'warn');
+        return false;
+      }
+      
+      // Additional filename validation
+      if (!filename || filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+        log('Rejected file with suspicious filename patterns', 'warn');
+        return false;
+      }
+      
+      // Validate buffer exists and has reasonable size
+      if (!buffer || buffer.length === 0) {
+        log('Rejected empty file', 'warn');
+        return false;
+      }
+      
+      // Maximum file size check (10MB)
+      const MAX_FILE_SIZE = 10 * 1024 * 1024;
+      if (buffer.length > MAX_FILE_SIZE) {
+        log(`Rejected oversized file: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`, 'warn');
+        return false;
+      }
+      
+      // Now perform type-specific validation
       if (ext === 'csv') {
         // Enhanced CSV validation - must parse as valid CSV structure
         try {
