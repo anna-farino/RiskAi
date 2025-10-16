@@ -70,6 +70,37 @@ type Props = {
 export default function Auth0ProviderWithNavigate({ children }: Props) {
   const navigate = useNavigate();
   
+  // Initialize CSRF token on app load
+  useEffect(() => {
+    const initializeCsrfToken = async () => {
+      try {
+        // Check if we already have a CSRF token
+        const existingToken = document.cookie
+          .split("; ")
+          .find((entry) => entry.startsWith("csrf-token="));
+        
+        if (!existingToken) {
+          // Fetch CSRF token from server
+          const response = await fetch('/api/csrf-token', {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            console.log('[CSRF] Token initialized:', data.message);
+          }
+        } else {
+          console.log('[CSRF] Token already exists');
+        }
+      } catch (error) {
+        console.error('[CSRF] Failed to initialize token:', error);
+      }
+    };
+    
+    initializeCsrfToken();
+  }, []);
+  
   // Check if we should bypass auth for development
   const isDev = (import.meta as any).env.VITE_DEV_BYPASS_AUTH === 'true';
   
