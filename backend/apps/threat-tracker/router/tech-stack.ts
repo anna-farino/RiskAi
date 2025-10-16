@@ -1497,15 +1497,18 @@ Return a JSON array of extracted entities with this structure:
           if (finalRelationship.isProduct && finalRelationship.parentCompany && finalRelationship.confidence >= 0.6) {
             console.log(`[UPLOAD RECLASSIFICATION] "${entity.name}" detected as product of ${finalRelationship.parentCompany} (confidence: ${finalRelationship.confidence})`);
             console.log(`[UPLOAD RECLASSIFICATION] Reason: ${finalRelationship.reasoning}`);
-            // Use the detected parent company as vendor
-            vendorId = await entityManager.findOrCreateCompany({
+            
+            // Check if parent company exists (don't create yet)
+            const vendorCheck = await entityManager.checkCompanyExists({
               name: finalRelationship.parentCompany,
               type: "vendor",
             });
+            
             finalSoftwareName = finalRelationship.productName || entity.name;
             detectedVendorName = finalRelationship.parentCompany;
+            
             console.log(
-              `[UPLOAD] Using parent company ${finalRelationship.parentCompany} as vendor for product ${finalSoftwareName}`,
+              `[UPLOAD] Parent company ${finalRelationship.parentCompany} ${vendorCheck.exists ? 'exists' : 'is new'}`,
             );
             
             // Add detected vendor to the list of entities to show in preview
@@ -1513,36 +1516,42 @@ Return a JSON array of extracted entities with this structure:
               detectedVendors.push({
                 type: 'vendor',
                 name: finalRelationship.parentCompany,
-                isNew: true,
-                matchedId: vendorId,
+                isNew: !vendorCheck.exists,
+                matchedId: vendorCheck.id || null,
                 autoDetected: true,
                 sourceProduct: finalSoftwareName
               });
             }
+            
+            // Store vendor info for later use
+            vendorId = vendorCheck.id || null;
           } else if (entity.manufacturer) {
-            // Use the provided manufacturer as vendor
+            // Check if the provided manufacturer exists (don't create yet)
             console.log(
-              `[UPLOAD] Finding/creating vendor: ${entity.manufacturer} for software: ${entity.name}`,
+              `[UPLOAD] Checking vendor: ${entity.manufacturer} for software: ${entity.name}`,
             );
-            vendorId = await entityManager.findOrCreateCompany({
+            
+            const vendorCheck = await entityManager.checkCompanyExists({
               name: entity.manufacturer,
               type: "vendor",
             });
+            
             detectedVendorName = entity.manufacturer;
+            vendorId = vendorCheck.id || null;
+            
             console.log(
-              `[UPLOAD] Vendor created/found with ID: ${vendorId}`,
+              `[UPLOAD] Vendor ${entity.manufacturer} ${vendorCheck.exists ? 'exists with ID: ' + vendorCheck.id : 'is new'}`,
             );
           }
 
-          // Try to find existing software with the vendor
-          const existingSoftwareId = await entityManager.findOrCreateSoftware({
+          // Check if software exists (don't create yet)
+          const softwareCheck = await entityManager.checkSoftwareExists({
             name: finalSoftwareName,
-            companyId: vendorId, // Use the vendor ID (either detected parent or provided manufacturer)
-            category: null,
+            companyId: vendorId,
           });
 
-          if (existingSoftwareId) {
-            matchedEntity = { id: existingSoftwareId };
+          if (softwareCheck.exists) {
+            matchedEntity = { id: softwareCheck.id };
             isNew = false;
           }
           
@@ -1555,32 +1564,32 @@ Return a JSON array of extracted entities with this structure:
             model: entity.model,
             isNew: isNew,
             matchedId: matchedEntity?.id || null,
-            vendorId: vendorId, // Include vendor ID for import phase
+            vendorId: vendorId, // Include vendor ID for import phase (null if vendor is new)
+            vendorName: detectedVendorName || entity.manufacturer, // Store vendor name for creation during import
           });
           
           continue; // Skip the default push at the end
         } else if (entity.type === "hardware") {
-          // Try to find existing hardware
-          const existingHardwareId = await entityManager.findOrCreateHardware({
+          // Check if hardware exists (don't create yet)
+          const hardwareCheck = await entityManager.checkHardwareExists({
             name: entity.name,
             manufacturer: entity.manufacturer || null,
             model: entity.model || null,
-            category: null,
           });
 
-          if (existingHardwareId) {
-            matchedEntity = { id: existingHardwareId };
+          if (hardwareCheck.exists) {
+            matchedEntity = { id: hardwareCheck.id };
             isNew = false;
           }
         } else if (entity.type === "vendor" || entity.type === "client") {
-          // Try to find existing company
-          const existingCompanyId = await entityManager.findOrCreateCompany({
+          // Check if company exists (don't create yet)
+          const companyCheck = await entityManager.checkCompanyExists({
             name: entity.name,
             type: entity.type === "vendor" ? "vendor" : "client",
           });
 
-          if (existingCompanyId) {
-            matchedEntity = { id: existingCompanyId };
+          if (companyCheck.exists) {
+            matchedEntity = { id: companyCheck.id };
             isNew = false;
           }
         }
@@ -1656,10 +1665,20 @@ router.post("/import", async (req: any, res) => {
           let softwareId = entity.matchedId;
 
           if (!softwareId || entity.isNew) {
+            // First, create vendor if we have manufacturer/detected vendor but no vendorId
+            let vendorId = entity.vendorId;
+            if (!vendorId && (entity.vendorName || entity.manufacturer)) {
+              // Create the vendor company first
+              vendorId = await entityManager.findOrCreateCompany({
+                name: entity.vendorName || entity.manufacturer,
+                type: "vendor",
+              });
+            }
+            
             // Create new software entity with vendorId if available
             softwareId = await entityManager.findOrCreateSoftware({
               name: entity.name,
-              companyId: entity.vendorId || null, // Use vendorId from processing phase
+              companyId: vendorId || null,
               category: null,
             });
           }

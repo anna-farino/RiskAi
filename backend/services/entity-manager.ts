@@ -312,6 +312,86 @@ export class EntityManager {
   }
 
   /**
+   * Check if a company exists (read-only, no creation)
+   */
+  async checkCompanyExists(data: {
+    name: string;
+    type?: 'vendor' | 'client' | 'affected' | 'mentioned';
+  }): Promise<{ exists: boolean; id?: string; name?: string }> {
+    const normalizedVendorName = data.type === 'vendor' ? this.normalizeVendorName(data.name) : data.name;
+    const normalizedName = this.normalizeEntityName(normalizedVendorName);
+    
+    // Check for exact match
+    const existing = await db.select()
+      .from(companies)
+      .where(eq(companies.normalizedName, normalizedName))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      return { exists: true, id: existing[0].id, name: existing[0].name };
+    }
+    
+    return { exists: false };
+  }
+
+  /**
+   * Check if software exists (read-only, no creation)
+   */
+  async checkSoftwareExists(data: {
+    name: string;
+    companyId?: string | null;
+  }): Promise<{ exists: boolean; id?: string; name?: string }> {
+    const normalizedName = this.normalizeEntityName(data.name);
+    
+    // Build where conditions
+    const conditions = [eq(software.normalizedName, normalizedName)];
+    if (data.companyId !== undefined) {
+      conditions.push(data.companyId ? eq(software.companyId, data.companyId) : isNull(software.companyId));
+    }
+    
+    const existing = await db.select()
+      .from(software)
+      .where(and(...conditions))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      return { exists: true, id: existing[0].id, name: existing[0].name };
+    }
+    
+    return { exists: false };
+  }
+
+  /**
+   * Check if hardware exists (read-only, no creation)
+   */
+  async checkHardwareExists(data: {
+    name: string;
+    model?: string | null;
+    manufacturer?: string | null;
+  }): Promise<{ exists: boolean; id?: string; name?: string }> {
+    const normalizedName = this.normalizeEntityName(data.name);
+    
+    const conditions = [eq(hardware.normalizedName, normalizedName)];
+    if (data.model !== undefined) {
+      conditions.push(data.model ? eq(hardware.model, data.model) : isNull(hardware.model));
+    }
+    if (data.manufacturer !== undefined) {
+      conditions.push(data.manufacturer ? eq(hardware.manufacturer, data.manufacturer) : isNull(hardware.manufacturer));
+    }
+    
+    const existing = await db.select()
+      .from(hardware)
+      .where(and(...conditions))
+      .limit(1);
+    
+    if (existing.length > 0) {
+      return { exists: true, id: existing[0].id, name: existing[0].name };
+    }
+    
+    return { exists: false };
+  }
+
+  /**
    * Find or create a company entity with AI resolution
    */
   async findOrCreateCompany(data: {
