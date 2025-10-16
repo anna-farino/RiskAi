@@ -2,9 +2,8 @@ import { Request, Response, NextFunction } from "express";
 
 // Explicit allowlist of paths that can accept multipart/form-data
 const MULTIPART_ALLOWED_PATHS = [
-  '/api/threat-tracker/tech-stack/upload',
-  '/api/news-radar/sources/upload',
-  '/api/news-capsule/reports/upload'
+  '/api/threat-tracker/tech-stack/upload'
+  // Add other upload endpoints here as they are implemented
 ];
 
 export function noSimpleRequests(req: Request, res: Response, next: NextFunction) {
