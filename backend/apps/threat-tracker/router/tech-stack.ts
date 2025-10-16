@@ -505,6 +505,9 @@ router.post("/add", async (req: any, res) => {
       // Process based on type and AI extraction results
       switch (type) {
         case "software":
+          // Import relationship detection for manual inputs
+          const { detectCompanyProductRelationship } = await import('../../../services/openai');
+          
           // Use AI-extracted software entity if found, otherwise fall back to direct processing
           if (extracted.software && extracted.software.length > 0) {
             const aiSoftware = extracted.software[0]; // Take the first/best match
@@ -531,14 +534,71 @@ router.post("/add", async (req: any, res) => {
               createdBy: userId,
             });
           } else {
-            // Fallback: Create software without AI enhancement
+            // Fallback: Check if the direct input might be a product of a parent company
             console.log(
-              "No AI extraction results for software, using direct input",
+              "No AI extraction results for software, checking for product relationships",
             );
-            entityId = await entityManager.findOrCreateSoftware({
-              name: processedName,
-              createdBy: userId,
-            });
+            
+            // Check if this might be a product like "Google DeepMind" or "Microsoft Sentinel"
+            const relationship = await detectCompanyProductRelationship(
+              processedName,
+              `User adding ${processedName} to their tech stack`
+            );
+            
+            // Apply heuristic fallback for obvious company-product patterns
+            let finalRelationship = relationship;
+            if (!relationship.isProduct || !relationship.parentCompany) {
+              // Check for common patterns like "Company Product" or "Company [A-Z]"
+              const companyProductPattern = /^(Google|Microsoft|Amazon|AWS|IBM|Oracle|Adobe|Meta|Facebook|Apple|Cisco|Dell|HP|VMware|Salesforce|SAP|Twitter|X|Netflix|Uber|Spotify|Zoom|Slack|GitHub|GitLab|Atlassian|JetBrains|Cloudflare|Fastly|Akamai|DataDog|NewRelic|Splunk|Elastic|MongoDB|Redis|PostgreSQL|MySQL|MariaDB|Snowflake|Databricks|Palantir|OpenAI|Anthropic|Cohere|Hugging Face)\s+(.+)$/i;
+              const match = processedName.match(companyProductPattern);
+              
+              if (match) {
+                console.log(`[HEURISTIC] Detected company-product pattern: "${match[1]}" + "${match[2]}"`);
+                finalRelationship = {
+                  isProduct: true,
+                  parentCompany: match[1],
+                  productName: processedName, // Keep full name
+                  confidence: 0.8,
+                  reasoning: `Heuristic pattern match: Company name "${match[1]}" followed by product "${match[2]}"`
+                };
+              }
+            }
+            
+            if (finalRelationship.isProduct && finalRelationship.parentCompany && finalRelationship.confidence >= 0.6) {
+              console.log(`[MANUAL INPUT RECLASSIFICATION] "${processedName}" detected as product of ${finalRelationship.parentCompany} (confidence: ${finalRelationship.confidence})`);
+              console.log(`[MANUAL INPUT RECLASSIFICATION] Reason: ${finalRelationship.reasoning}`);
+              
+              // Create parent company first
+              const companyId = await entityManager.findOrCreateCompany({
+                name: finalRelationship.parentCompany,
+                type: "vendor",
+                createdBy: userId,
+              });
+              
+              // Create software with full product name linked to parent
+              entityId = await entityManager.findOrCreateSoftware({
+                name: finalRelationship.productName || processedName,
+                companyId,
+                category: 'service',
+                createdBy: userId,
+              });
+              
+              // We'll also add the vendor to the user's companies later
+              extracted.companies = extracted.companies || [];
+              extracted.companies.push({
+                name: finalRelationship.parentCompany,
+                type: 'vendor',
+                specificity: 'specific',
+                confidence: finalRelationship.confidence,
+                context: 'Auto-detected parent company'
+              });
+            } else {
+              // Regular software without vendor
+              entityId = await entityManager.findOrCreateSoftware({
+                name: processedName,
+                createdBy: userId,
+              });
+            }
           }
 
           // Add to user's software
@@ -1396,15 +1456,71 @@ Return a JSON array of extracted entities with this structure:
       // Process entities through EntityManager to match with existing database
       const entityManager = new EntityManager();
       const processedEntities = [];
+      const detectedVendors = []; // Track vendors to add to processedEntities
+      
+      // Import relationship detection for CSV uploads
+      const { detectCompanyProductRelationship } = await import('../../../services/openai');
 
       for (const entity of entities) {
         let matchedEntity = null;
         let isNew = true;
 
         if (entity.type === "software") {
-          // First, find or create the vendor company if provided
+          // Check if this software might actually be a company/product pattern
+          const relationship = await detectCompanyProductRelationship(
+            entity.name,
+            `Spreadsheet entry: ${entity.name} with vendor: ${entity.manufacturer || 'none'}`
+          );
+          
+          // Apply heuristic fallback for obvious company-product patterns
+          let finalRelationship = relationship;
+          if (!relationship.isProduct || !relationship.parentCompany) {
+            const companyProductPattern = /^(Google|Microsoft|Amazon|AWS|IBM|Oracle|Adobe|Meta|Facebook|Apple|Cisco|Dell|HP|VMware|Salesforce|SAP|Twitter|X|Netflix|Uber|Spotify|Zoom|Slack|GitHub|GitLab|Atlassian|JetBrains|Cloudflare|Fastly|Akamai|DataDog|NewRelic|Splunk|Elastic|MongoDB|Redis|PostgreSQL|MySQL|MariaDB|Snowflake|Databricks|Palantir|OpenAI|Anthropic|Cohere|Hugging Face)\s+(.+)$/i;
+            const match = entity.name.match(companyProductPattern);
+            
+            if (match) {
+              console.log(`[UPLOAD HEURISTIC] Detected company-product pattern: "${match[1]}" + "${match[2]}"`);
+              finalRelationship = {
+                isProduct: true,
+                parentCompany: match[1],
+                productName: entity.name, // Keep full name
+                confidence: 0.8,
+                reasoning: `Heuristic pattern match: Company name "${match[1]}" followed by product "${match[2]}"`
+              };
+            }
+          }
+          
           let vendorId = null;
-          if (entity.manufacturer) {
+          let finalSoftwareName = entity.name;
+          let detectedVendorName = null;
+          
+          if (finalRelationship.isProduct && finalRelationship.parentCompany && finalRelationship.confidence >= 0.6) {
+            console.log(`[UPLOAD RECLASSIFICATION] "${entity.name}" detected as product of ${finalRelationship.parentCompany} (confidence: ${finalRelationship.confidence})`);
+            console.log(`[UPLOAD RECLASSIFICATION] Reason: ${finalRelationship.reasoning}`);
+            // Use the detected parent company as vendor
+            vendorId = await entityManager.findOrCreateCompany({
+              name: finalRelationship.parentCompany,
+              type: "vendor",
+            });
+            finalSoftwareName = finalRelationship.productName || entity.name;
+            detectedVendorName = finalRelationship.parentCompany;
+            console.log(
+              `[UPLOAD] Using parent company ${finalRelationship.parentCompany} as vendor for product ${finalSoftwareName}`,
+            );
+            
+            // Add detected vendor to the list of entities to show in preview
+            if (!detectedVendors.some(v => v.name === finalRelationship.parentCompany)) {
+              detectedVendors.push({
+                type: 'vendor',
+                name: finalRelationship.parentCompany,
+                isNew: true,
+                matchedId: vendorId,
+                autoDetected: true,
+                sourceProduct: finalSoftwareName
+              });
+            }
+          } else if (entity.manufacturer) {
+            // Use the provided manufacturer as vendor
             console.log(
               `[UPLOAD] Finding/creating vendor: ${entity.manufacturer} for software: ${entity.name}`,
             );
@@ -1412,6 +1528,7 @@ Return a JSON array of extracted entities with this structure:
               name: entity.manufacturer,
               type: "vendor",
             });
+            detectedVendorName = entity.manufacturer;
             console.log(
               `[UPLOAD] Vendor created/found with ID: ${vendorId}`,
             );
@@ -1419,8 +1536,8 @@ Return a JSON array of extracted entities with this structure:
 
           // Try to find existing software with the vendor
           const existingSoftwareId = await entityManager.findOrCreateSoftware({
-            name: entity.name,
-            companyId: vendorId, // Use the vendor ID instead of null
+            name: finalSoftwareName,
+            companyId: vendorId, // Use the vendor ID (either detected parent or provided manufacturer)
             category: null,
           });
 
@@ -1428,6 +1545,20 @@ Return a JSON array of extracted entities with this structure:
             matchedEntity = { id: existingSoftwareId };
             isNew = false;
           }
+          
+          // Store vendor info with the processed entity
+          processedEntities.push({
+            type: entity.type,
+            name: finalSoftwareName,
+            version: entity.version,
+            manufacturer: detectedVendorName || entity.manufacturer,
+            model: entity.model,
+            isNew: isNew,
+            matchedId: matchedEntity?.id || null,
+            vendorId: vendorId, // Include vendor ID for import phase
+          });
+          
+          continue; // Skip the default push at the end
         } else if (entity.type === "hardware") {
           // Try to find existing hardware
           const existingHardwareId = await entityManager.findOrCreateHardware({
@@ -1454,6 +1585,7 @@ Return a JSON array of extracted entities with this structure:
           }
         }
 
+        // Default push for non-software entities (hardware, vendor, client)
         processedEntities.push({
           type: entity.type,
           name: entity.name,
@@ -1464,6 +1596,9 @@ Return a JSON array of extracted entities with this structure:
           matchedId: matchedEntity?.id || null,
         });
       }
+      
+      // Add detected vendors to the processed entities list
+      processedEntities.push(...detectedVendors);
 
       // Log successful upload
       UploadSecurity.auditLog(
@@ -1521,10 +1656,10 @@ router.post("/import", async (req: any, res) => {
           let softwareId = entity.matchedId;
 
           if (!softwareId || entity.isNew) {
-            // Create new software entity
+            // Create new software entity with vendorId if available
             softwareId = await entityManager.findOrCreateSoftware({
               name: entity.name,
-              companyId: null,
+              companyId: entity.vendorId || null, // Use vendorId from processing phase
               category: null,
             });
           }
