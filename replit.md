@@ -43,6 +43,7 @@ The RisqAi platform employs a monorepo architecture, featuring a React 18 (TypeS
 - **Link Count Validation**: Improved source scraping reliability by strictly enforcing a minimum of 10 links for source pages, ensuring proper escalation to Puppeteer when necessary.
 - **Advanced Turnstile Instrumentation**: Implemented comprehensive Cloudflare Turnstile API instrumentation that wraps render(), execute(), and getResponse() methods to capture real widget IDs and tokens. Fixed critical browser function execution bug and properly handles invisible challenges with automatic token capture and validation.
 - **MITRE ATT&CK Integration**: Implemented automated synchronization with MITRE ATT&CK framework data, fetching threat actor groups and techniques from STIX data twice daily at 12am and 12pm EST. Successfully enriched database with 181 verified threat actors including aliases and 76 MITRE techniques as threat keywords.
+- **Secure File Upload System**: Implemented multi-layered file upload security with configurable origin validation, CSRF protection for multipart/form-data, magic byte verification, formula injection protection, and rate limiting. Origins are configured via environment variables (ALLOWED_ORIGINS and ALLOWED_DOMAIN_SUFFIXES) with secure defaults for Replit deployments.
 
 ## External Dependencies
 - **Database**: PostgreSQL 16

@@ -26,20 +26,31 @@ export function noSimpleRequests(req: Request, res: Response, next: NextFunction
       // Verify Origin/Referer for additional CSRF protection
       const origin = req.headers.origin || req.headers.referer;
       
-      // Define trusted origins explicitly - do NOT derive from request headers
-      // In production, these should be configured via environment variables
-      const TRUSTED_ORIGINS = [
+      // Get allowed origins from environment variable or use defaults for development
+      const allowedOriginsEnv = process.env.ALLOWED_ORIGINS || '';
+      const allowedSuffixesEnv = process.env.ALLOWED_DOMAIN_SUFFIXES || '';
+      
+      // Parse environment variables (comma-separated lists)
+      const envOrigins = allowedOriginsEnv ? allowedOriginsEnv.split(',').map(o => o.trim()) : [];
+      const envSuffixes = allowedSuffixesEnv ? allowedSuffixesEnv.split(',').map(s => s.trim()) : [];
+      
+      // Default origins for development
+      const defaultOrigins = [
         'http://localhost:5000',
         'http://localhost:3000', 
         'http://127.0.0.1:5000',
         'http://127.0.0.1:3000',
       ];
       
-      // Additional trusted domain suffixes (for Replit deployments)
-      const TRUSTED_DOMAIN_SUFFIXES = [
+      // Default suffixes for Replit deployments
+      const defaultSuffixes = [
         '.replit.app',
         '.repl.co'
       ];
+      
+      // Combine environment and defaults
+      const TRUSTED_ORIGINS = envOrigins.length > 0 ? envOrigins : defaultOrigins;
+      const TRUSTED_DOMAIN_SUFFIXES = envSuffixes.length > 0 ? envSuffixes : defaultSuffixes;
       
       // Check if origin is trusted
       let isValidOrigin = false;
