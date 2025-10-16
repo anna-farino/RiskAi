@@ -80,8 +80,11 @@ export default function Auth0ProviderWithNavigate({ children }: Props) {
           .find((entry) => entry.startsWith("csrf-token="));
         
         if (!existingToken) {
-          // Fetch CSRF token from server
-          const response = await fetch('/api/csrf-token', {
+          // Import serverUrl utility
+          const { serverUrl } = await import('./utils/server-url');
+          
+          // Fetch CSRF token from server using proper URL
+          const response = await fetch(`${serverUrl}/api/csrf-token`, {
             method: 'GET',
             credentials: 'include'
           });
@@ -89,6 +92,8 @@ export default function Auth0ProviderWithNavigate({ children }: Props) {
           if (response.ok) {
             const data = await response.json();
             console.log('[CSRF] Token initialized:', data.message);
+          } else {
+            console.error('[CSRF] Failed to get token, status:', response.status);
           }
         } else {
           console.log('[CSRF] Token already exists');
