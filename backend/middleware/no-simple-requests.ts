@@ -2,7 +2,8 @@ import { Request, Response, NextFunction } from "express";
 
 // Explicit allowlist of paths that can accept multipart/form-data
 const MULTIPART_ALLOWED_PATHS = [
-  '/api/threat-tracker/tech-stack/upload'
+  '/threat-tracker/tech-stack/upload',  // Path at router level (without /api prefix)
+  '/api/threat-tracker/tech-stack/upload'  // Full path (in case it's needed)
   // Add other upload endpoints here as they are implemented
 ];
 
@@ -14,6 +15,11 @@ export function noSimpleRequests(req: Request, res: Response, next: NextFunction
   ];
 
   const contentType = req.headers['content-type']?.split(';')[0];
+  
+  // Debug logging
+  console.log('[noSimpleRequests] Path:', req.path);
+  console.log('[noSimpleRequests] Content-Type:', contentType);
+  console.log('[noSimpleRequests] Method:', req.method);
   
   // Allow multipart/form-data ONLY for explicitly allowed paths (not URLs with query params)
   if (contentType === 'multipart/form-data') {
