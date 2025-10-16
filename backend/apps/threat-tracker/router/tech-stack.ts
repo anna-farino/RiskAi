@@ -1188,10 +1188,20 @@ Return a JSON array of extracted entities with this structure:
       let isNew = true;
 
       if (entity.type === 'software') {
-        // Try to find existing software
+        // First, find or create the vendor company if provided
+        let vendorId = null;
+        if (entity.manufacturer) {
+          console.log(`[UPLOAD] Finding/creating vendor: ${entity.manufacturer} for software: ${entity.name}`);
+          vendorId = await entityManager.findOrCreateCompany({
+            name: entity.manufacturer,
+            type: 'vendor'
+          });
+        }
+        
+        // Try to find existing software with the vendor
         const existingSoftwareId = await entityManager.findOrCreateSoftware({
           name: entity.name,
-          companyId: null,
+          companyId: vendorId,  // Use the vendor ID instead of null
           category: null
         });
         
