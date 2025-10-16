@@ -885,13 +885,70 @@ export class EntityManager {
   }
   
   /**
+   * Sanitize entity name to prevent XSS and SQL injection
+   */
+  private sanitizeEntityName(name: string): string {
+    if (!name || typeof name !== 'string') {
+      return '';
+    }
+    
+    // Remove dangerous HTML/JavaScript characters and patterns
+    let sanitized = name
+      // Remove HTML tags
+      .replace(/<[^>]*>/g, '')
+      // Remove script tags and content
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      // Remove on* event handlers
+      .replace(/\bon\w+\s*=\s*["'][^"']*["']/gi, '')
+      // Remove javascript: protocol
+      .replace(/javascript:/gi, '')
+      // Remove data: URIs
+      .replace(/data:[\w\/+]+;base64,[\w+\/=]+/gi, '')
+      // Remove dangerous characters that could be used for XSS
+      .replace(/[<>'"&]/g, (char) => {
+        const entityMap: { [key: string]: string } = {
+          '<': '',
+          '>': '',
+          '"': '',
+          "'": '',
+          '&': 'and'
+        };
+        return entityMap[char] || '';
+      })
+      // Remove SQL comment indicators
+      .replace(/--/g, '')
+      .replace(/\/\*/g, '')
+      .replace(/\*\//g, '')
+      // Remove common SQL injection patterns
+      .replace(/(\b(union|select|insert|update|delete|drop|create|alter|exec|execute|script|having|group by|order by)\b)/gi, '')
+      // Remove null bytes
+      .replace(/\0/g, '')
+      // Remove control characters except spaces, tabs, and newlines
+      .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '')
+      // Normalize whitespace
+      .trim()
+      .replace(/\s+/g, ' ');
+    
+    // Limit length to prevent buffer overflow attempts
+    const MAX_NAME_LENGTH = 500;
+    if (sanitized.length > MAX_NAME_LENGTH) {
+      sanitized = sanitized.substring(0, MAX_NAME_LENGTH);
+    }
+    
+    return sanitized;
+  }
+
+  /**
    * Normalize an entity name for consistent comparison
    */
   private normalizeEntityName(name: string): string {
-    // First extract and remove any version information
-    const { name: cleanName } = this.extractVersion(name);
+    // First sanitize the name for security
+    const sanitized = this.sanitizeEntityName(name);
     
-    // Then normalize: lowercase, trim, and single spaces
+    // Then extract and remove any version information
+    const { name: cleanName } = this.extractVersion(sanitized);
+    
+    // Finally normalize: lowercase, trim, and single spaces
     return cleanName.toLowerCase().trim().replace(/\s+/g, ' ');
   }
   

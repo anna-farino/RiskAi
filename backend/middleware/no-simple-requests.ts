@@ -32,28 +32,57 @@ export function noSimpleRequests(req: Request, res: Response, next: NextFunction
       // Verify Origin/Referer for additional CSRF protection
       const origin = req.headers.origin || req.headers.referer;
       
-      // Check various allowed origins
-      const isLocalhost = origin && (
-        origin.includes('localhost') || 
-        origin.includes('127.0.0.1')
-      );
+      if (!origin) {
+        console.error('[UPLOAD] No origin header present');
+        return res.status(403).json({ error: 'Origin header required' });
+      }
       
-      // For Replit, check if origin contains replit.dev
-      const isReplitOrigin = origin && origin.includes('replit.dev');
+      // Parse the origin to get hostname for exact matching
+      let originHostname: string;
+      try {
+        const url = new URL(origin);
+        originHostname = url.hostname.toLowerCase();
+      } catch (e) {
+        console.error('[UPLOAD] Invalid origin URL:', origin);
+        return res.status(403).json({ error: 'Invalid origin' });
+      }
       
-      // For Azure/Production, check if origin contains the expected domains
-      const isProductionOrigin = origin && (
-        origin.includes('app.risqai.co') || 
-        origin.includes('preview.risqai.co') ||
-        origin.includes('risqai.co')
-      );
+      // Exact domain allowlist - no substring matching to prevent bypasses
+      const ALLOWED_ORIGINS = [
+        // Localhost variants
+        'localhost',
+        '127.0.0.1',
+        '::1',
+        
+        // Production domains (exact matches only)
+        'app.risqai.co',
+        'preview.risqai.co',
+        'www.risqai.co',
+        'risqai.co',
+      ];
       
-      // Check environment variables for additional allowed origins
+      // Special handling for Replit domains (they have unique subdomains)
+      const isReplitOrigin = originHostname.endsWith('.replit.dev') || 
+                             originHostname.endsWith('.repl.co') ||
+                             originHostname.endsWith('.replit.app');
+      
+      // Check if origin is in exact allowlist
+      const isExactMatch = ALLOWED_ORIGINS.includes(originHostname);
+      
+      // Check environment-specific origin
       const envOrigin = process.env.VITE_SERVER_URL || process.env.VITE_API_URL;
-      const isEnvOrigin = envOrigin && origin && origin.startsWith(envOrigin);
+      let isEnvOrigin = false;
+      if (envOrigin) {
+        try {
+          const envUrl = new URL(envOrigin);
+          isEnvOrigin = originHostname === envUrl.hostname.toLowerCase();
+        } catch (e) {
+          console.error('[UPLOAD] Invalid environment origin:', envOrigin);
+        }
+      }
       
       // Allow if any condition is met
-      const isAllowedOrigin = isLocalhost || isReplitOrigin || isProductionOrigin || isEnvOrigin;
+      const isAllowedOrigin = isExactMatch || isReplitOrigin || isEnvOrigin;
       
       if (!isAllowedOrigin) {
         console.error('[UPLOAD] Origin validation failed. Origin:', origin);
