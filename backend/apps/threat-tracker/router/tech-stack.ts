@@ -1412,6 +1412,9 @@ Return a JSON array of extracted entities with this structure:
               name: entity.manufacturer,
               type: "vendor",
             });
+            console.log(
+              `[UPLOAD] Vendor created/found with ID: ${vendorId}`,
+            );
           }
 
           // Try to find existing software with the vendor

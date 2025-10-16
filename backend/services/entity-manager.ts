@@ -112,6 +112,84 @@ export class EntityManager {
   private readonly RESOLUTION_CONFIDENCE_THRESHOLD = 0.85;
   private readonly CACHE_DURATION_DAYS = 30;
   
+  // Vendor acronym and alias mapping for normalization
+  private readonly VENDOR_MAPPINGS: Map<string, string> = new Map([
+    // Cloud providers
+    ['aws', 'Amazon Web Services'],
+    ['amazon', 'Amazon Web Services'],
+    ['amazon.com', 'Amazon Web Services'],
+    ['gcp', 'Google Cloud Platform'],
+    ['google cloud', 'Google Cloud Platform'],
+    ['google', 'Google'],
+    ['azure', 'Microsoft Azure'],
+    ['ms', 'Microsoft'],
+    ['msft', 'Microsoft'],
+    ['microsoft corp', 'Microsoft'],
+    ['microsoft corporation', 'Microsoft'],
+    
+    // Security vendors
+    ['palo alto', 'Palo Alto Networks'],
+    ['pan', 'Palo Alto Networks'],
+    ['fortinet inc', 'Fortinet'],
+    ['checkpoint', 'Check Point'],
+    ['check point', 'Check Point'],
+    ['cp', 'Check Point'],
+    ['f5', 'F5 Networks'],
+    ['zscaler inc', 'Zscaler'],
+    
+    // Software vendors
+    ['oracle corp', 'Oracle'],
+    ['oracle corporation', 'Oracle'],
+    ['sap ag', 'SAP'],
+    ['sap se', 'SAP'],
+    ['vmware inc', 'VMware'],
+    ['ibm corp', 'IBM'],
+    ['ibm corporation', 'IBM'],
+    ['redhat', 'Red Hat'],
+    ['red hat inc', 'Red Hat'],
+    ['rh', 'Red Hat'],
+    
+    // Hardware vendors  
+    ['hp', 'Hewlett Packard'],
+    ['hpe', 'Hewlett Packard Enterprise'],
+    ['dell inc', 'Dell'],
+    ['dell technologies', 'Dell'],
+    ['lenovo group', 'Lenovo'],
+    
+    // Network vendors
+    ['cisco systems', 'Cisco'],
+    ['cisco systems inc', 'Cisco'],
+    ['juniper networks inc', 'Juniper Networks'],
+    
+    // Other common tech companies
+    ['fb', 'Meta'],
+    ['facebook', 'Meta'],
+    ['meta platforms', 'Meta'],
+    ['apple inc', 'Apple'],
+    ['apple computer', 'Apple'],
+    ['salesforce.com', 'Salesforce'],
+    ['sfdc', 'Salesforce'],
+    ['elastic nv', 'Elastic'],
+    ['mongodb inc', 'MongoDB'],
+    ['atlassian corp', 'Atlassian'],
+    ['slack technologies', 'Slack'],
+    ['github inc', 'GitHub'],
+    ['gh', 'GitHub'],
+    ['docker inc', 'Docker'],
+    ['hashicorp', 'HashiCorp'],
+    ['databricks inc', 'Databricks'],
+    ['snowflake inc', 'Snowflake'],
+    ['datadog inc', 'Datadog'],
+    ['splunk inc', 'Splunk'],
+    ['crowdstrike holdings', 'CrowdStrike'],
+    ['okta inc', 'Okta'],
+    ['twilio inc', 'Twilio'],
+    ['zoom video', 'Zoom'],
+    ['zoom video communications', 'Zoom'],
+    ['adobe inc', 'Adobe'],
+    ['adobe systems', 'Adobe'],
+  ]);
+  
   // Generic terms that should be filtered out
   private readonly GENERIC_HARDWARE_TERMS = new Set([
     'laptop', 'laptops', 'router', 'routers', 'server', 'servers', 
@@ -206,6 +284,34 @@ export class EntityManager {
   }
   
   /**
+   * Normalize vendor name using known mappings
+   */
+  private normalizeVendorName(name: string): string {
+    // First check exact match (case-insensitive)
+    const lowerName = name.toLowerCase().trim();
+    
+    // Check if we have a mapping for this vendor
+    if (this.VENDOR_MAPPINGS.has(lowerName)) {
+      return this.VENDOR_MAPPINGS.get(lowerName)!;
+    }
+    
+    // Check for partial matches (e.g., "AWS Inc" -> "Amazon Web Services")
+    for (const [alias, canonical] of this.VENDOR_MAPPINGS.entries()) {
+      // Check if the name contains the alias as a word
+      const aliasRegex = new RegExp(`\\b${alias}\\b`, 'i');
+      if (aliasRegex.test(name)) {
+        return canonical;
+      }
+    }
+    
+    // No mapping found, return original name cleaned up
+    // Remove common suffixes like Inc., Corp., Ltd., etc.
+    return name
+      .replace(/\s+(inc\.?|corp\.?|corporation|ltd\.?|llc|l\.l\.c\.|plc|gmbh|ag|se|nv|sa|pty|limited)\.?$/i, '')
+      .trim();
+  }
+
+  /**
    * Find or create a company entity with AI resolution
    */
   async findOrCreateCompany(data: {
@@ -218,7 +324,9 @@ export class EntityManager {
     isVerified?: boolean;
     metadata?: any;
   }): Promise<string> {
-    const normalizedName = this.normalizeEntityName(data.name);
+    // Normalize vendor names first if type is vendor
+    const normalizedVendorName = data.type === 'vendor' ? this.normalizeVendorName(data.name) : data.name;
+    const normalizedName = this.normalizeEntityName(normalizedVendorName);
     
     // Check cache first
     const cached = await this.getCachedResolution(data.name, 'company');
@@ -254,11 +362,12 @@ export class EntityManager {
       return resolution.matchedId;
     }
     
-    // Create new company with canonical name
+    // Create new company with canonical name (also apply vendor normalization if it's a vendor)
+    const finalName = data.type === 'vendor' ? this.normalizeVendorName(resolution.canonicalName) : resolution.canonicalName;
     return this.createCompany({
       ...data,
-      name: resolution.canonicalName,
-      normalizedName: this.normalizeEntityName(resolution.canonicalName)
+      name: finalName,
+      normalizedName: this.normalizeEntityName(finalName)
     });
   }
   
