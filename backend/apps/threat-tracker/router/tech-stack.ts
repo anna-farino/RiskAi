@@ -1177,7 +1177,7 @@ router.post("/trigger-relevance", async (req: any, res) => {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { 
-    fileSize: 10 * 1024 * 1024, // 10MB limit
+    fileSize: 1 * 1024 * 1024, // 1MB limit (reduced from 10MB)
     files: 1, // Only 1 file per upload
     fields: 10, // Limit number of fields
   },
@@ -1262,8 +1262,8 @@ router.post(
         return res.status(401).json({ error: "Unauthorized" });
       }
 
-      // Check rate limiting (5 uploads per minute)
-      if (!UploadSecurity.checkRateLimit(userId, 5, 1)) {
+      // Check rate limiting (3 uploads per minute - reduced from 5)
+      if (!UploadSecurity.checkRateLimit(userId, 3, 1)) {
         return res.status(429).json({
           error:
             "Too many upload attempts. Please wait a minute before trying again.",
@@ -1295,7 +1295,7 @@ router.post(
           "Invalid file signature",
         );
         return res.status(400).json({
-          error: "Invalid file type. File signature verification failed.",
+          error: "Invalid file type. Only CSV, XLSX, and XLS files are allowed. File must be under 1MB.",
         });
       }
       
@@ -1318,14 +1318,15 @@ router.post(
         }
       }
 
-      // Parse the spreadsheet with security limits
+      // Parse the spreadsheet with STRICT security limits
       let data: any[][] = [];
       
-      // Security limits for decompression
-      const MAX_ROWS = 10000;
-      const MAX_COLUMNS = 100;
-      const MAX_CELL_LENGTH = 5000;
-      const MAX_SHEET_SIZE = 5 * 1024 * 1024; // 5MB decompressed
+      // STRICT limits - significantly reduced
+      const MAX_ROWS = 500;  // Reduced from 10000
+      const MAX_SHEETS = 4;  // New limit on number of sheets
+      const MAX_COLUMNS = 50;  // Reduced from 100
+      const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
+      const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
 
       try {
         if (uploadedFile.originalname.endsWith(".csv")) {
@@ -1352,7 +1353,7 @@ router.post(
             range: { s: { r: 0, c: 0 }, e: { r: MAX_ROWS, c: MAX_COLUMNS } }
           });
         } else {
-          // Parse Excel with limits and memory protection
+          // Parse Excel with STRICT limits and memory protection
           const workbook = XLSX.read(uploadedFile.buffer, { 
             type: "buffer",
             sheetRows: MAX_ROWS + 1, // Limit rows during parsing
@@ -1366,23 +1367,34 @@ router.post(
             return res.status(400).json({ error: "No sheets found in Excel file" });
           }
           
+          // Check number of sheets
+          if (workbook.SheetNames.length > MAX_SHEETS) {
+            log(`Excel has too many sheets: ${workbook.SheetNames.length} (max ${MAX_SHEETS})`, 'warn');
+            UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many sheets');
+            return res.status(413).json({ 
+              error: `Excel file has too many sheets (${workbook.SheetNames.length}). Maximum allowed is ${MAX_SHEETS} sheets.` 
+            });
+          }
+          
           const sheetName = workbook.SheetNames[0];
           const sheet = workbook.Sheets[sheetName];
           
           // Check sheet dimensions before conversion
           const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
           if (range.e.r - range.s.r > MAX_ROWS) {
-            log(`Excel has too many rows: ${range.e.r - range.s.r}`, 'warn');
+            const rowCount = range.e.r - range.s.r;
+            log(`Excel has too many rows: ${rowCount} (max ${MAX_ROWS})`, 'warn');
             UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many rows');
             return res.status(413).json({ 
-              error: `Excel file has too many rows (max ${MAX_ROWS})` 
+              error: `Excel file has too many rows (${rowCount}). Maximum allowed is ${MAX_ROWS} rows.` 
             });
           }
           if (range.e.c - range.s.c > MAX_COLUMNS) {
-            log(`Excel has too many columns: ${range.e.c - range.s.c}`, 'warn');
+            const colCount = range.e.c - range.s.c;
+            log(`Excel has too many columns: ${colCount} (max ${MAX_COLUMNS})`, 'warn');
             UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many columns');
             return res.status(413).json({ 
-              error: `Excel file has too many columns (max ${MAX_COLUMNS})` 
+              error: `Excel file has too many columns (${colCount}). Maximum allowed is ${MAX_COLUMNS} columns.` 
             });
           }
           

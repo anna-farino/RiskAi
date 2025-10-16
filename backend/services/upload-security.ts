@@ -202,10 +202,10 @@ export class UploadSecurity {
         return false;
       }
       
-      // Maximum file size check (10MB)
-      const MAX_FILE_SIZE = 10 * 1024 * 1024;
+      // Maximum file size check (1MB - reduced from 10MB)
+      const MAX_FILE_SIZE = 1 * 1024 * 1024;
       if (buffer.length > MAX_FILE_SIZE) {
-        log(`Rejected oversized file: ${(buffer.length / 1024 / 1024).toFixed(2)}MB`, 'warn');
+        log(`Rejected oversized file: ${(buffer.length / 1024 / 1024).toFixed(2)}MB (max 1MB)`, 'warn');
         return false;
       }
       
