@@ -25,9 +25,21 @@ export function noSimpleRequests(req: Request, res: Response, next: NextFunction
     if (pathAllowed) {
       // Verify Origin/Referer for additional CSRF protection
       const origin = req.headers.origin || req.headers.referer;
-      const expectedOrigin = process.env.VITE_API_URL || 'http://localhost:5000';
       
-      if (!origin || !origin.startsWith(expectedOrigin)) {
+      // In production, the origin should match the request host
+      // In development, allow localhost origins
+      const host = req.get('host');
+      const protocol = req.protocol;
+      const requestOrigin = `${protocol}://${host}`;
+      
+      // Allow same-origin or localhost for development
+      const isValidOrigin = origin && (
+        origin.startsWith(requestOrigin) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      );
+      
+      if (!isValidOrigin) {
         return res.status(403).json({ error: 'Cross-origin request blocked' });
       }
       
