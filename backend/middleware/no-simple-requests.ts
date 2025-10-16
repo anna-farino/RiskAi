@@ -25,7 +25,7 @@ export function noSimpleRequests(req: Request, res: Response, next: NextFunction
     if (pathAllowed) {
       // Verify Origin/Referer for additional CSRF protection
       const origin = req.headers.origin || req.headers.referer;
-      const expectedOrigin = process.env.VITE_SERVER_URL415  || process.env.VITE_SERVER_URL_DEV || 'http://localhost:5000';
+      const expectedOrigin = process.env.VITE_SERVER_URL || process.env.VITE_SERVER_URL_DEV || 'http://localhost:5000';
       
       if (!origin || !origin.startsWith(expectedOrigin)) {
         return res.status(403).json({ error: 'Cross-origin request blocked' });

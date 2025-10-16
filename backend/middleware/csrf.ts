@@ -29,17 +29,12 @@ switch(process.env.NODE_ENV) {
     break
 }
 
-// Determine if we're in development
-const isDevelopment = process.env.NODE_ENV === 'development' || 
-                     process.env.NODE_ENV === 'replit' || 
-                     !process.env.NODE_ENV;
-
 export const csrfCookieOptions: CsrfCookieOptions = {
   domain,
-  sameSite: isDevelopment ? "lax" : "none",     
-  secure: !isDevelopment,  // Only use secure in production (HTTPS)      
+  sameSite: "none",     
+  secure: true,         
   path: "/",
-  httpOnly: false,  // Must be false for JavaScript to read the cookie
+  httpOnly: false,
 }
 
 
