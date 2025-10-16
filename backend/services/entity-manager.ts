@@ -613,23 +613,84 @@ export class EntityManager {
    * Link article to company entities
    */
   private async linkArticleToCompanies(articleId: string, companiesList: CompanyExtraction[]): Promise<void> {
+    // Import the relationship detection function
+    const { detectCompanyProductRelationship } = await import('./openai');
+    
     for (const company of companiesList) {
-      const companyId = await this.findOrCreateCompany({
-        name: company.name,
-        type: company.type,
-        discoveredFrom: articleId
-      });
+      // Check if this "company" might actually be a product/division
+      const relationship = await detectCompanyProductRelationship(
+        company.name,
+        company.context
+      );
       
-      await db.insert(articleCompanies)
-        .values({
-          articleId,
-          companyId,
-          mentionType: company.type,
-          confidence: company.confidence.toString(),
-          context: company.context,
-          metadata: { ...company.metadata, specificity: company.specificity }
-        })
-        .onConflictDoNothing();
+      if (relationship.isProduct && relationship.parentCompany && relationship.confidence > 0.7) {
+        // It's actually a product - create as software instead
+        console.log(`[EntityManager] "${company.name}" detected as product of ${relationship.parentCompany}`);
+        
+        // First, find/create the parent company
+        const parentCompanyId = await this.findOrCreateCompany({
+          name: relationship.parentCompany,
+          type: 'vendor',
+          discoveredFrom: articleId
+        });
+        
+        // Then create as software linked to parent
+        const softwareId = await this.findOrCreateSoftware({
+          name: relationship.productName || company.name, // Keep full product name
+          companyId: parentCompanyId,
+          category: 'service', // Default category for products/services
+          discoveredFrom: articleId
+        });
+        
+        // Link software to article
+        await db.insert(articleSoftware)
+          .values({
+            articleId,
+            softwareId,
+            confidence: company.confidence.toString(),
+            context: company.context,
+            metadata: { 
+              ...company.metadata, 
+              specificity: 'specific',
+              originallyExtractedAs: 'company',
+              reclassifiedAsProduct: true
+            }
+          })
+          .onConflictDoNothing();
+        
+        // ALSO link the parent company to the article
+        await db.insert(articleCompanies)
+          .values({
+            articleId,
+            companyId: parentCompanyId,
+            mentionType: 'vendor', // Parent company is a vendor
+            confidence: relationship.confidence.toString(),
+            context: company.context,
+            metadata: { 
+              extractedFrom: company.name,
+              reclassificationReason: 'product_parent_company'
+            }
+          })
+          .onConflictDoNothing();
+      } else {
+        // It's a legitimate company - proceed as normal
+        const companyId = await this.findOrCreateCompany({
+          name: company.name,
+          type: company.type,
+          discoveredFrom: articleId
+        });
+        
+        await db.insert(articleCompanies)
+          .values({
+            articleId,
+            companyId,
+            mentionType: company.type,
+            confidence: company.confidence.toString(),
+            context: company.context,
+            metadata: { ...company.metadata, specificity: company.specificity }
+          })
+          .onConflictDoNothing();
+      }
     }
   }
   

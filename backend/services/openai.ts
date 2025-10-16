@@ -288,18 +288,33 @@ export async function extractArticleEntities(article: {
     
     **IMPORTANT: Extract PARTIAL entities too - don't skip mentions just because they lack details.**
     
+    **CRITICAL COMPANY/PRODUCT RELATIONSHIP RULES:**
+    - When you see patterns like "Google DeepMind", "Microsoft Sentinel", "AWS GuardDuty", these are PRODUCTS of a parent company
+    - For such cases:
+      * Extract the FULL NAME as the software name (e.g., "Google DeepMind", "Microsoft Sentinel")
+      * Extract the PARENT COMPANY as the vendor (e.g., "Google", "Microsoft", "AWS")
+      * DO NOT create separate company entries for products/divisions
+    - Common patterns to recognize:
+      * "[Company] [Product]" → Software: "Company Product", Vendor: "Company"
+      * "[Company]'s [Product]" → Software: "Product", Vendor: "Company"
+      * "[Product] by [Company]" → Software: "Product", Vendor: "Company"
+    - Examples:
+      * "Google Threat Intelligence" → Software name: "Google Threat Intelligence", Vendor: "Google"
+      * "Microsoft Defender" → Software name: "Microsoft Defender", Vendor: "Microsoft"
+      * "AWS Lambda" → Software name: "AWS Lambda", Vendor: "AWS" (or "Amazon Web Services")
+    
     For SOFTWARE, extract ONLY SPECIFIC products:
     - **DO NOT EXTRACT generic software types like**: "database", "web server", "operating system", "cloud services", "antivirus", "firewall", "application", "software", "system", "platform", "solution"
     - **MINIMUM REQUIREMENT**: Must have a specific product name OR vendor + product combination
-    - Examples to EXTRACT: "Apache HTTP Server", "Windows 10", "MySQL 8.0", "Office 365", "Chrome 119"
+    - Examples to EXTRACT: "Apache HTTP Server", "Windows 10", "MySQL 8.0", "Office 365", "Chrome 119", "Google DeepMind", "Microsoft Sentinel"
     - Examples to SKIP: "databases", "web servers", "cloud services", "Microsoft products" (too generic)
-    - Product names (e.g., "Windows 10", "Apache Log4j 2.14.1")
+    - Product names (keep FULL name including company prefix if commonly used that way)
     - Versions if specified - distinguish between:
       * Single versions (e.g., "version 2.14.1")
       * Version ranges (e.g., "versions 2.14.0 through 2.17.0", "2.x before 2.17.1")
     - For ranges, extract versionFrom (start) and versionTo (end)
-    - Vendor/company that makes it
-    - Category (os, application, library, framework, etc.)
+    - Vendor/company that makes it (extract parent company, not the product division)
+    - Category (os, application, library, framework, service, platform, etc.)
     - Specificity level (NO MORE 'generic' option):
       * "partial" - Has vendor + product line (e.g., "Apache web server", "Cisco IOS")
       * "specific" - Full product details (e.g., "Apache HTTP Server 2.4.49", "Cisco IOS 15.2")
@@ -334,17 +349,21 @@ export async function extractArticleEntities(article: {
     - **EXTRACT if specific model mentioned** (e.g., "attackers targeted Netgear R7000 routers" → EXTRACT)
     - The context where mentioned
     
-    For COMPANIES, extract ONLY NAMED organizations:
+    For COMPANIES, extract ONLY NAMED organizations (NOT products/divisions):
     - **DO NOT EXTRACT generic references like**: "cloud providers", "tech companies", "organizations", 
       "enterprises", "businesses", "companies", "vendors", "clients", "partners", "customers"
-    - **ONLY EXTRACT specific company names** (e.g., "Microsoft", "Amazon", "Cisco", "Google")
+    - **DO NOT EXTRACT product divisions or services as companies**: "Google DeepMind", "Microsoft Sentinel", 
+      "AWS GuardDuty", "Google Threat Intelligence" are PRODUCTS, not separate companies
+    - **ONLY EXTRACT actual company/organization names** (e.g., "Microsoft", "Amazon", "Cisco", "Google", "Meta")
+    - When you see "[Company] [Product/Division]", extract ONLY the parent company (e.g., "Google" from "Google DeepMind")
     - Company names and classify as:
       - vendor (makes products/services)
       - client (affected organization)
       - affected (impacted by issue)
       - mentioned (referenced but not directly affected)
     - Specificity level (ONLY 'specific' now):
-      * "specific" - Named entity (e.g., "Amazon", "Microsoft Azure", "Google Cloud")
+      * "specific" - Named entity (e.g., "Amazon", "Microsoft", "Google")
+    - **SKIP product names** (e.g., "Microsoft Azure" is a product → extract "Microsoft" as company, "Microsoft Azure" as software)
     - **SKIP generic references** (e.g., "several organizations were affected" → SKIP)
     - **EXTRACT named companies** (e.g., "Microsoft and Google were affected" → EXTRACT both)
     
@@ -499,6 +518,83 @@ export async function extractArticleEntities(article: {
  * AI-powered entity resolution to match new entities against existing ones
  * Handles variations, abbreviations, typos, and aliases
  */
+/**
+ * Detect if an entity is actually a product/division of a parent company
+ * Used as a second pass after initial extraction to catch misclassified entities
+ */
+export async function detectCompanyProductRelationship(
+  entityName: string,
+  context: string
+): Promise<{
+  isProduct: boolean;
+  parentCompany?: string;
+  productName?: string;
+  confidence: number;
+  reasoning: string;
+}> {
+  const prompt = `
+    Analyze if "${entityName}" is a standalone company or a product/division of a parent company.
+    
+    Context where mentioned: "${context}"
+    
+    Common patterns to identify products/divisions:
+    - "[Company] [Product]" (e.g., "Google DeepMind", "Microsoft Sentinel")
+    - Known product names that include company prefix (e.g., "AWS Lambda", "Azure Functions")
+    - Divisions or subsidiaries that operate under parent brands
+    
+    Consider these known relationships:
+    - Google: DeepMind, Quantum AI, Threat Intelligence, Cloud, Workspace
+    - Microsoft: Azure, Sentinel, Defender, Teams, Office, Windows
+    - Amazon/AWS: Lambda, S3, EC2, GuardDuty, RDS
+    - Meta/Facebook: WhatsApp, Instagram, Oculus
+    - Alphabet subsidiaries: Waymo, Verily, Calico
+    
+    Return a JSON object:
+    {
+      "isProduct": true/false,
+      "parentCompany": "parent company name if product, null otherwise",
+      "productName": "full product name if product, null otherwise",
+      "confidence": 0.0 to 1.0,
+      "reasoning": "brief explanation"
+    }
+    
+    Be precise - only classify as product if there's clear evidence.
+  `;
+  
+  try {
+    const completion = await openai.chat.completions.create({
+      messages: [
+        {
+          role: "system",
+          content: "You are an expert at identifying technology company and product relationships."
+        },
+        { role: "user", content: prompt }
+      ],
+      model: "gpt-3.5-turbo",
+      response_format: { type: "json_object" },
+      temperature: 0.2,
+      max_tokens: 500
+    });
+    
+    const result = JSON.parse(completion.choices[0].message.content || '{}');
+    
+    return {
+      isProduct: result.isProduct || false,
+      parentCompany: result.parentCompany || undefined,
+      productName: result.productName || undefined,
+      confidence: result.confidence || 0,
+      reasoning: result.reasoning || ''
+    };
+  } catch (error) {
+    console.error('Error in relationship detection:', error);
+    return {
+      isProduct: false,
+      confidence: 0,
+      reasoning: 'Error in detection'
+    };
+  }
+}
+
 export async function resolveEntity(
   newName: string,
   existingEntities: Array<{
