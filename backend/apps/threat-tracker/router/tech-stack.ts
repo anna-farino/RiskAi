@@ -1092,6 +1092,12 @@ router.post("/upload", upload.single('file'), validateCSRFFromMultipart, async (
     const headers = data[0] || [];
     const rows = data.slice(1);
     
+    // Debug: Log what we parsed
+    console.log('[UPLOAD] Parsed data - Total rows:', data.length);
+    console.log('[UPLOAD] Headers:', headers);
+    console.log('[UPLOAD] First data row:', rows[0]);
+    console.log('[UPLOAD] Data rows count:', rows.length);
+    
     // Create a structured text representation
     let spreadsheetText = `Headers: ${headers.join(', ')}\n\n`;
     spreadsheetText += "Data rows:\n";
@@ -1102,6 +1108,8 @@ router.post("/upload", upload.single('file'), validateCSRFFromMultipart, async (
         spreadsheetText += `Row ${index + 1}: ${rowData}\n`;
       }
     });
+    
+    console.log('[UPLOAD] Spreadsheet text for AI:', spreadsheetText);
 
     // Use OpenAI to intelligently extract entities from the spreadsheet
     const extractionPrompt = `Extract technology entities from this spreadsheet data. The spreadsheet may contain various formats and column names.
