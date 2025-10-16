@@ -30,6 +30,11 @@ import {
   usersHardware,
   usersCompanies,
 } from "@shared/db/schema/threat-tracker/user-associations";
+import {
+  software,
+  hardware,
+  companies,
+} from "@shared/db/schema/threat-tracker/entities";
 import { db, pool } from "backend/db/db";
 import {
   eq,
@@ -870,11 +875,15 @@ export const storage: IStorage = {
         conditions.push(lte(globalArticles.publishDate, endDate));
       }
 
-      // Build the query with relevance scores
+      // Build the query with relevance scores and matched entities
       const baseQuery = db.select({
         article: globalArticles,
         relevanceScore: articleRelevanceScores.relevanceScore,
-        relevanceMetadata: articleRelevanceScores.metadata
+        relevanceMetadata: articleRelevanceScores.metadata,
+        matchedSoftware: articleRelevanceScores.matchedSoftware,
+        matchedCompanies: articleRelevanceScores.matchedCompanies,
+        matchedHardware: articleRelevanceScores.matchedHardware,
+        matchedKeywords: articleRelevanceScores.matchedKeywords
       })
       .from(globalArticles)
       .leftJoin(
@@ -916,6 +925,44 @@ export const storage: IStorage = {
 
       // Execute the query
       const result = await finalQuery.execute();
+      
+      // Collect all entity IDs to fetch names
+      const allSoftwareIds = new Set<string>();
+      const allCompanyIds = new Set<string>();
+      const allHardwareIds = new Set<string>();
+      
+      result.forEach(row => {
+        (row.matchedSoftware || []).forEach(id => allSoftwareIds.add(id));
+        (row.matchedCompanies || []).forEach(id => allCompanyIds.add(id));
+        (row.matchedHardware || []).forEach(id => allHardwareIds.add(id));
+      });
+      
+      // Fetch entity names in parallel
+      const [softwareMap, companyMap, hardwareMap] = await Promise.all([
+        // Fetch software names
+        allSoftwareIds.size > 0 
+          ? db.select({ id: software.id, name: software.name })
+              .from(software)
+              .where(inArray(software.id, Array.from(allSoftwareIds)))
+              .then(rows => new Map(rows.map(r => [r.id, r.name])))
+          : new Map<string, string | null>(),
+        
+        // Fetch company names  
+        allCompanyIds.size > 0
+          ? db.select({ id: companies.id, name: companies.name })
+              .from(companies)
+              .where(inArray(companies.id, Array.from(allCompanyIds)))
+              .then(rows => new Map(rows.map(r => [r.id, r.name])))
+          : new Map<string, string | null>(),
+          
+        // Fetch hardware names
+        allHardwareIds.size > 0
+          ? db.select({ id: hardware.id, name: hardware.name })
+              .from(hardware)
+              .where(inArray(hardware.id, Array.from(allHardwareIds)))
+              .then(rows => new Map(rows.map(r => [r.id, r.name])))
+          : new Map<string, string | null>()
+      ]);
 
       // Map global articles to ThreatArticle format for compatibility
       const mappedArticles = result.map((row) => ({
@@ -937,6 +984,17 @@ export const storage: IStorage = {
         scrapeDate: row.article.scrapedAt || new Date(),
         userId: userId || null,
         markedForCapsule: false,
+        // Map entity IDs to names for display
+        matchedSoftware: (row.matchedSoftware || [])
+          .map(id => softwareMap.get(id))
+          .filter(name => name != null) as string[],
+        matchedCompanies: (row.matchedCompanies || [])
+          .map(id => companyMap.get(id))
+          .filter(name => name != null) as string[],
+        matchedHardware: (row.matchedHardware || [])
+          .map(id => hardwareMap.get(id))
+          .filter(name => name != null) as string[],
+        matchedKeywords: row.matchedKeywords || [],
       }));
 
       return mappedArticles as ThreatArticle[];

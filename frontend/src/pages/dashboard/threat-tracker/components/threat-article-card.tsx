@@ -24,6 +24,9 @@ interface ExtendedThreatArticle extends ThreatArticle {
   securityScore: string | null;
   sourceName?: string | null;
   matchedKeywords?: string[];
+  matchedSoftware?: string[];
+  matchedCompanies?: string[];
+  matchedHardware?: string[];
   threatSeverityScore?: string | number | null;
   threatLevel?: string | null;
   threatMetadata?: any;
@@ -444,76 +447,112 @@ export function ThreatArticleCard({
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-              {/* Matched user keywords */}
-              {article.matchedKeywords && article.matchedKeywords.length > 0 && (
+              {/* Matched Tech Stack Items */}
+              {((article.matchedSoftware && article.matchedSoftware.length > 0) ||
+                (article.matchedHardware && article.matchedHardware.length > 0) ||
+                (article.matchedCompanies && article.matchedCompanies.length > 0) ||
+                (article.matchedKeywords && article.matchedKeywords.length > 0)) && (
                 <>
-                  {article.matchedKeywords.slice(0, 3).map((keyword, index) => {
-                    // Use consistent color palette from News Radar
-                    const colors = [
-                      {
-                        bg: "bg-[#00FFFF]/10",
-                        text: "text-[#00FFFF]",
-                        border: "border-[#00FFFF]/30",
-                        hover: "hover:bg-[#00FFFF]/20 hover:text-[#00FFFF]"
-                      },
-                      {
-                        bg: "bg-[#BF00FF]/10",
-                        text: "text-[#BF00FF]",
-                        border: "border-[#BF00FF]/30",
-                        hover: "hover:bg-[#BF00FF]/20 hover:text-[#BF00FF]"
-                      },
-                      {
-                        bg: "bg-blue-500/10",
-                        text: "text-blue-400",
-                        border: "border-blue-500/30",
-                        hover: "hover:bg-blue-500/20 hover:text-blue-400"
-                      },
-                      {
-                        bg: "bg-yellow-500/10",
-                        text: "text-yellow-400",
-                        border: "border-yellow-500/30",
-                        hover: "hover:bg-yellow-500/20 hover:text-yellow-400"
-                      },
-                      {
-                        bg: "bg-orange-500/10",
-                        text: "text-orange-400",
-                        border: "border-orange-500/30",
-                        hover: "hover:bg-orange-500/20 hover:text-orange-400"
-                      }
-                    ];
-                    const colorSet = colors[index % colors.length];
+                  {/* Software Matches */}
+                  {article.matchedSoftware && article.matchedSoftware.slice(0, 2).map((item) => (
+                    <Badge
+                      key={`software-${item}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-[#00FFFF]/10 text-[#00FFFF] border-[#00FFFF]/30 hover:bg-[#00FFFF]/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(item, "software");
+                      }}
+                      title={`Software: ${item}`}
+                    >
+                      <Shield className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {item}
+                    </Badge>
+                  ))}
+                  
+                  {/* Hardware Matches */}
+                  {article.matchedHardware && article.matchedHardware.slice(0, 2).map((item) => (
+                    <Badge
+                      key={`hardware-${item}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(item, "hardware");
+                      }}
+                      title={`Hardware: ${item}`}
+                    >
+                      <Zap className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {item}
+                    </Badge>
+                  ))}
+                  
+                  {/* Company Matches */}
+                  {article.matchedCompanies && article.matchedCompanies.slice(0, 2).map((item) => (
+                    <Badge
+                      key={`company-${item}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-[#BF00FF]/10 text-[#BF00FF] border-[#BF00FF]/30 hover:bg-[#BF00FF]/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(item, "company");
+                      }}
+                      title={`Company: ${item}`}
+                    >
+                      <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {item}
+                    </Badge>
+                  ))}
+                  
+                  {/* Keyword Matches */}
+                  {article.matchedKeywords && article.matchedKeywords.slice(0, 2).map((keyword) => (
+                    <Badge
+                      key={`keyword-${keyword}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(keyword, "keyword");
+                      }}
+                      title={`Keyword: ${keyword}`}
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {keyword}
+                    </Badge>
+                  ))}
+                  
+                  {/* Show count of additional matches */}
+                  {(() => {
+                    const totalMatches = 
+                      (article.matchedSoftware?.length || 0) + 
+                      (article.matchedHardware?.length || 0) + 
+                      (article.matchedCompanies?.length || 0) + 
+                      (article.matchedKeywords?.length || 0);
+                    const shownMatches = 
+                      Math.min(2, article.matchedSoftware?.length || 0) + 
+                      Math.min(2, article.matchedHardware?.length || 0) + 
+                      Math.min(2, article.matchedCompanies?.length || 0) + 
+                      Math.min(2, article.matchedKeywords?.length || 0);
+                    const additionalCount = totalMatches - shownMatches;
                     
-                    return (
-                      <Badge
-                        key={`matched-${keyword}-${index}`}
-                        variant="outline"
-                        className={cn(
-                          "text-xs font-medium cursor-pointer transition-colors truncate max-w-24 leading-4",
-                          colorSet.bg,
-                          colorSet.text,
-                          colorSet.border,
-                          colorSet.hover
-                        )}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (onKeywordClick) onKeywordClick(keyword, "matched");
-                        }}
-                      >
-                        {keyword}
-                      </Badge>
-                    );
-                  })}
-                  {article.matchedKeywords.length > 3 && (
-                    <span className="text-xs font-medium text-[#00FFFF] leading-4">
-                      +{article.matchedKeywords.length - 3} more
-                    </span>
-                  )}
+                    return additionalCount > 0 ? (
+                      <span className="text-xs font-medium text-slate-400 leading-4">
+                        +{additionalCount} more
+                      </span>
+                    ) : null;
+                  })()}
                 </>
               )}
               
-              {/* Article counter - only show if no keywords */}
-              {(!article.matchedKeywords || article.matchedKeywords.length === 0) && 
+              {/* Article counter - only show if no matches */}
+              {(!article.matchedSoftware || article.matchedSoftware.length === 0) && 
+               (!article.matchedHardware || article.matchedHardware.length === 0) && 
+               (!article.matchedCompanies || article.matchedCompanies.length === 0) && 
+               (!article.matchedKeywords || article.matchedKeywords.length === 0) && 
                articleIndex !== undefined && totalArticles !== undefined && (
                 <div className="text-xs text-slate-400 flex-shrink-0">
                   Article {articleIndex + 1} of {totalArticles}
