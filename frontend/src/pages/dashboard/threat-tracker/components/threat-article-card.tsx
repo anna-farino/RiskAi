@@ -15,7 +15,6 @@ import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Progress } from "@/components/ui/progress";
 import { formatDateOnly } from "@/utils/date-utils";
 
 
@@ -105,22 +104,6 @@ export function ThreatArticleCard({
   const normalizedSecurityScore = isNaN(securityScore) ? 0 : securityScore;
   const normalizedThreatSeverity = isNaN(threatSeverityScore) ? 0 : threatSeverityScore;
 
-  // Calculate color based on score (0-10 scale)
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-red-500";
-    if (score >= 6) return "text-orange-500";
-    if (score >= 4) return "text-yellow-500";
-    return "text-green-500";
-  };
-
-  // Progress bar color based on score
-  const getProgressColor = (score: number) => {
-    if (score >= 8) return "bg-red-500";
-    if (score >= 6) return "bg-orange-500";
-    if (score >= 4) return "bg-yellow-500";
-    return "bg-green-500";
-  };
-  
   // Get threat level badge color and styling
   const getThreatLevelColor = (level: string) => {
     switch(level?.toLowerCase()) {
@@ -131,14 +114,23 @@ export function ThreatArticleCard({
       default: return 'bg-gray-500 text-white';
     }
   };
+
+  // Convert relevance score to categorical
+  const getRelevanceCategory = (score: number): string => {
+    if (score >= 70) return 'High Relevance';
+    if (score >= 40) return 'Medium Relevance';
+    return 'Low Relevance';
+  };
+
+  const getRelevanceColor = (category: string) => {
+    if (category === 'High Relevance') return 'bg-purple-500 text-white';
+    if (category === 'Medium Relevance') return 'bg-blue-500 text-white';
+    return 'bg-gray-500 text-white';
+  };
   
-  // Determine which score to use for display
-  const displayScore = normalizedThreatSeverity > 0 ? normalizedThreatSeverity / 10 : normalizedSecurityScore;
-  const threatLevel = article.threatLevel || (
-    displayScore >= 8 ? 'critical' :
-    displayScore >= 6 ? 'high' :
-    displayScore >= 4 ? 'medium' : 'low'
-  );
+  // Get threat level from article
+  const threatLevel = article.threatLevel || 'low';
+  const relevanceCategory = getRelevanceCategory(normalizedRelevanceScore);
 
   // Get all detected keywords from the different categories
   const getDetectedKeywords = (): KeywordCategories => {
@@ -176,13 +168,15 @@ export function ThreatArticleCard({
     (arr: string[]) => arr.length > 0,
   );
 
-  // Unified accent color based on threat severity using consistent scale
+  // Unified accent color based on threat level
   const getUnifiedAccentColor = () => {
-    if (normalizedSecurityScore >= 8) return "from-red-500/30";    // Critical - red
-    if (normalizedSecurityScore >= 6) return "from-orange-500/30"; // High - orange  
-    if (normalizedSecurityScore >= 4) return "from-yellow-500/30"; // Medium - yellow
-    if (normalizedSecurityScore >= 2) return "from-blue-500/30";   // Low - blue
-    return "from-[#00FFFF]/30"; // Minimal - primary cyan
+    switch(threatLevel?.toLowerCase()) {
+      case 'critical': return "from-red-500/30";
+      case 'high': return "from-orange-500/30";
+      case 'medium': return "from-yellow-500/30";  
+      case 'low': return "from-blue-500/30";
+      default: return "from-[#00FFFF]/30";
+    }
   };
 
   return (
@@ -218,67 +212,30 @@ export function ThreatArticleCard({
               </a>
             </h3>
 
-            {/* Threat level and severity score badges */}
+            {/* Threat level and relevance badges */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Threat level badge */}
-              {threatLevel && (
-                <Badge
-                  className={cn(
-                    "text-xs px-2 py-0.5",
-                    getThreatLevelColor(threatLevel)
-                  )}
-                >
-                  {threatLevel.toUpperCase()}
-                </Badge>
-              )}
+              {/* Threat severity badge */}
+              <Badge
+                className={cn(
+                  "text-xs px-2 py-0.5",
+                  getThreatLevelColor(threatLevel)
+                )}
+              >
+                {threatLevel.toUpperCase()}
+              </Badge>
               
-              {/* Threat severity score */}
-              <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full">
-                <Zap
-                  className={cn(
-                    "h-3.5 w-3.5",
-                    getScoreColor(displayScore),
-                  )}
-                />
-                <span
-                  className={cn(
-                    "text-xs font-semibold leading-4",
-                    getScoreColor(displayScore),
-                  )}
-                >
-                  {displayScore.toFixed(1)}/10
-                </span>
-              </div>
+              {/* Relevance badge */}
+              <Badge
+                className={cn(
+                  "text-xs px-2 py-0.5",
+                  getRelevanceColor(relevanceCategory)
+                )}
+              >
+                {relevanceCategory.replace(' Relevance', '')}
+              </Badge>
             </div>
           </div>
 
-          {/* Score indicators */}
-          <div className="space-y-3 mb-3">
-            {/* Severity score indicator */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-400 flex items-center gap-1 leading-4">
-                  <Zap className="h-3 w-3" /> Threat Severity
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium leading-4",
-                    getScoreColor(normalizedSecurityScore),
-                  )}
-                >
-                  {normalizedSecurityScore * 10}%
-                </span>
-              </div>
-              <Progress
-                value={normalizedSecurityScore * 10}
-                className="h-1.5 bg-slate-700/50"
-                indicatorClassName={cn(
-                  "transition-all",
-                  getProgressColor(normalizedSecurityScore),
-                )}
-              />
-            </div>
-          </div>
 
           <div className="flex items-center gap-3 mb-3">
             {(article.author && article.author !== "Unknown") ? (

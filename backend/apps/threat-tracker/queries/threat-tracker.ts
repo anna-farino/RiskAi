@@ -62,8 +62,8 @@ async function executeRawSql<T>(
 ): Promise<T[]> {
   try {
     // Direct execution with the pool instead of through drizzle
-    const result = await pool.query(sqlStr, params);
-    return result.rows as T[];
+    const result = await pool.query<T>(sqlStr, params);
+    return (result as any).rows as T[];
   } catch (error) {
     console.error("SQL execution error:", error);
     return [];
