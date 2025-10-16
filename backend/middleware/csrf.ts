@@ -14,6 +14,10 @@ type CsrfCookieOptions = {
 
 let domain: string | undefined = ''
 
+// Check if we're on Replit based on environment
+const isReplit = process.env.REPL_OWNER || process.env.REPLIT_DEPLOYMENT || 
+                 process.env.HOSTNAME?.includes('replit');
+
 switch(process.env.NODE_ENV) {
   case 'production':
     domain = "app.risqai.co"
@@ -22,7 +26,9 @@ switch(process.env.NODE_ENV) {
     domain = "preview.risqai.co"
     break
   case 'development':
-    domain = "localhost"
+    // If on Replit, don't set domain (empty string works for Replit)
+    // Otherwise use localhost for local development
+    domain = isReplit ? "" : "localhost"
     break
   case 'replit':
     domain = ""

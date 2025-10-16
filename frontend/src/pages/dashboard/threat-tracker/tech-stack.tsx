@@ -388,10 +388,14 @@ export default function TechStackPage() {
       const formData = new FormData();
       formData.append('file', file);
       
+      // Debug: Show all cookies
+      console.log('[UPLOAD] All cookies:', document.cookie);
+      
       // Add CSRF token to FormData for multipart requests
-      const csrfCookie = document.cookie
-        .split("; ")
-        .find((entry) => entry.startsWith("csrf-token="));
+      const cookies = document.cookie.split("; ");
+      console.log('[UPLOAD] Cookie array:', cookies);
+      
+      const csrfCookie = cookies.find((entry) => entry.startsWith("csrf-token="));
       
       let csrfToken = "";
       if (csrfCookie) {
@@ -400,6 +404,12 @@ export default function TechStackPage() {
           const decodedValue = decodeURIComponent(cookieValue);
           csrfToken = decodedValue.split("|")[0];
         }
+      } else {
+        // Try to get token from csfrHeader utility
+        const { csfrHeader } = await import('@/utils/csrf-header');
+        const csrfData = csfrHeader();
+        csrfToken = csrfData.token;
+        console.log('[UPLOAD] CSRF from utility:', csrfData);
       }
       
       console.log('[UPLOAD] CSRF Cookie:', csrfCookie);
@@ -407,6 +417,8 @@ export default function TechStackPage() {
       
       if (csrfToken) {
         formData.append('_csrf', csrfToken);
+      } else {
+        console.error('[UPLOAD] No CSRF token available!');
       }
       
       console.log('[UPLOAD] Sending FormData with file:', file.name);
