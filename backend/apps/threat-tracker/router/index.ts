@@ -675,6 +675,64 @@ threatRouter.get("/articles/count", async (req, res) => {
   }
 });
 
+// POST endpoint for articles - handles large keyword lists in body
+threatRouter.post("/articles/query", async (req, res) => {
+  reqLog(req, "POST /articles/query");
+  try {
+    const userId = getUserId(req);
+    
+    // Extract filters from request body instead of query params
+    const {
+      search,
+      keywordIds,
+      startDate: startDateString,
+      endDate: endDateString,
+      limit = 50,
+      page = 1,
+      sortBy
+    } = req.body;
+    
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+    
+    if (startDateString) {
+      startDate = new Date(startDateString);
+    }
+    
+    if (endDateString) {
+      endDate = new Date(endDateString);
+    }
+    
+    // Prepare keyword IDs array
+    let keywordIdsArray: string[] | undefined;
+    if (keywordIds) {
+      if (Array.isArray(keywordIds)) {
+        keywordIdsArray = keywordIds.filter(id => typeof id === 'string') as string[];
+      } else if (typeof keywordIds === 'string') {
+        keywordIdsArray = [keywordIds];
+      }
+    }
+    
+    // Call threat-tracker storage directly with Technology Stack support
+    const articles = await storage.getArticles({
+      search,
+      keywordIds: keywordIdsArray,
+      startDate,
+      endDate,
+      userId,
+      limit,
+      page,
+      sortBy
+    });
+    
+    res.json(articles);
+  } catch (error: any) {
+    console.error("Error fetching articles:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch articles" });
+  }
+});
+
+// Keep GET endpoint for backward compatibility (but it won't handle large keyword lists)
 threatRouter.get("/articles", async (req, res) => {
   reqLog(req, "GET /articles");
   try {
