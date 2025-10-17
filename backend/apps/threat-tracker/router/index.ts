@@ -510,6 +510,22 @@ threatRouter.get("/threat-actors/:id", async (req, res) => {
 });
 
 // Keywords API
+
+// POST endpoint for fetching keywords - handles potential future filtering
+threatRouter.post("/keywords/list", async (req, res) => {
+  reqLog(req, "POST /keywords/list");
+  try {
+    const userId = getUserId(req);
+    const { category } = req.body;
+    const keywords = await storage.getKeywords(category, userId);
+    res.json(keywords);
+  } catch (error: any) {
+    console.error("Error fetching keywords:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch keywords" });
+  }
+});
+
+// Keep GET endpoint for backward compatibility
 threatRouter.get("/keywords", async (req, res) => {
   reqLog(req, "GET /keywords");
   try {
