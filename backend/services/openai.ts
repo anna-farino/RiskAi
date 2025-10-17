@@ -286,6 +286,31 @@ export async function extractArticleEntities(article: {
     
     **IMPORTANT: Extract PARTIAL entities too - don't skip mentions just because they lack details.**
     
+    **CRITICAL VENDOR IDENTIFICATION RULES:**
+    
+    **ALWAYS IDENTIFY THE VENDOR/PARENT COMPANY for all software products.**
+    Even when a product name is mentioned alone (e.g., just "Photoshop"), you MUST identify and include the vendor.
+    
+    Common products and their vendors (ALWAYS include vendor even if not mentioned):
+    - Adobe products: Photoshop, Illustrator, Acrobat, After Effects, Premiere Pro, InDesign, Lightroom, XD, Creative Cloud
+    - Microsoft products: Excel, Word, PowerPoint, Outlook, Teams, Edge, Windows, Office, OneDrive, SharePoint, Defender, Sentinel, Azure
+    - Google products: Chrome, Gmail, Drive, Docs, Sheets, Slides, Android, Maps, Meet, Workspace, Cloud Platform
+    - Apple products: iOS, macOS, Safari, Pages, Numbers, Keynote, Final Cut Pro, Logic Pro, Xcode
+    - AWS/Amazon products: Lambda, S3, EC2, RDS, DynamoDB, CloudFront, Route53, GuardDuty
+    - Meta/Facebook products: WhatsApp, Instagram, Messenger, Oculus, Portal
+    - Autodesk products: AutoCAD, Maya, 3ds Max, Revit, Fusion 360
+    - JetBrains products: IntelliJ IDEA, WebStorm, PyCharm, PhpStorm, RubyMine, CLion
+    - VMware products: vSphere, vCenter, ESXi, Workstation, Fusion, Horizon
+    - Salesforce products: Sales Cloud, Service Cloud, Marketing Cloud, Commerce Cloud
+    - Oracle products: Database, WebLogic, Java, MySQL, VirtualBox
+    - Atlassian products: Jira, Confluence, Bitbucket, Trello, Bamboo
+    - Cisco products: Webex, AnyConnect, Umbrella, Meraki
+    - GitHub products: Copilot, Actions, Pages (vendor: Microsoft)
+    - Docker products: Desktop, Hub, Compose (vendor: Docker Inc.)
+    - Red Hat products: Enterprise Linux, OpenShift, Ansible
+    - Canonical products: Ubuntu
+    - Mozilla products: Firefox, Thunderbird
+    
     **CRITICAL COMPANY/PRODUCT RELATIONSHIP RULES:**
     - When you see patterns like "Google DeepMind", "Microsoft Sentinel", "AWS GuardDuty", these are PRODUCTS of a parent company
     - For such cases:
@@ -297,6 +322,10 @@ export async function extractArticleEntities(article: {
       * "[Company]'s [Product]" → Software: "Product", Vendor: "Company"
       * "[Product] by [Company]" → Software: "Product", Vendor: "Company"
     - Examples:
+      * "Photoshop" → Software name: "Photoshop", Vendor: "Adobe" (ALWAYS include vendor!)
+      * "Excel" → Software name: "Excel", Vendor: "Microsoft"
+      * "Chrome" → Software name: "Chrome", Vendor: "Google"
+      * "VS Code" → Software name: "VS Code", Vendor: "Microsoft"
       * "Google Threat Intelligence" → Software name: "Google Threat Intelligence", Vendor: "Google"
       * "Microsoft Defender" → Software name: "Microsoft Defender", Vendor: "Microsoft"
       * "AWS Lambda" → Software name: "AWS Lambda", Vendor: "AWS" (or "Amazon Web Services")
