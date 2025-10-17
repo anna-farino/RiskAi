@@ -32,8 +32,12 @@ export default function Keywords() {
     queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithAuth('/api/news-tracker/keywords', {
-          method: 'GET',
+        const response = await fetchWithAuth('/api/news-tracker/keywords/list', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
         })
         if (!response.ok) throw new Error('Failed to fetch keywords')
         const data = await response.json()
