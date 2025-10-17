@@ -25,16 +25,33 @@ export default function Dashboard() {
     staleTime: 60000, // Keywords don't change often
   });
 
-  // Fetch News Radar articles with enhanced real-time updates
+  // Fetch News Radar articles with enhanced real-time updates (using POST for large keyword lists)
   const { data: newsArticles, isLoading: newsLoading, error: newsError, refetch: refetchNews } = useQuery({
     queryKey: ['news-radar-articles-dashboard', newsKeywords],
     queryFn: async () => {
       // Get active keyword IDs
       const activeKeywordIds = newsKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
-      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
-      const url = `/api/news-tracker/articles?limit=10&sortBy=createdAt&order=desc${keywordParams ? '&' + keywordParams : ''}`;
       
-      const response = await fetchWithAuth(url);
+      const requestBody = {
+        keywordIds: activeKeywordIds.length > 0 ? activeKeywordIds : undefined,
+        limit: 10,
+        sortBy: 'createdAt',
+        order: 'desc',
+        page: 1
+      };
+      
+      // Remove undefined values
+      const cleanBody = Object.fromEntries(
+        Object.entries(requestBody).filter(([_, v]) => v !== undefined)
+      );
+      
+      const response = await fetchWithAuth('/api/news-tracker/articles/query', {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cleanBody)
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch news articles: ${response.statusText}`);
@@ -95,14 +112,28 @@ export default function Dashboard() {
   const activeTheatKeywordIds = threatKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
   const hasActiveTheatKeywords = activeTheatKeywordIds.length > 0;
 
-  // Fetch Threat Tracker articles with real-time updates
+  // Fetch Threat Tracker articles with real-time updates (using POST for large keyword lists)
   const { data: threatArticles, isLoading: threatLoading, error: threatError, refetch: refetchThreats } = useQuery({
     queryKey: ['threat-tracker-articles-dashboard', threatKeywords],
     queryFn: async () => {
-      const keywordParams = activeTheatKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
-      const url = `/api/threat-tracker/articles?${keywordParams ? keywordParams + '&' : ''}limit=50`;
+      const requestBody = {
+        keywordIds: activeTheatKeywordIds.length > 0 ? activeTheatKeywordIds : undefined,
+        limit: 50,
+        page: 1
+      };
       
-      const response = await fetchWithAuth(url);
+      // Remove undefined values
+      const cleanBody = Object.fromEntries(
+        Object.entries(requestBody).filter(([_, v]) => v !== undefined)
+      );
+      
+      const response = await fetchWithAuth('/api/threat-tracker/articles/query', {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(cleanBody)
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch threat articles: ${response.statusText}`);
