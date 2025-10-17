@@ -20,7 +20,7 @@ import {
 import { entityResolutionCache } from '../../shared/db/schema/threat-tracker/entity-resolution';
 import { globalArticles } from '../../shared/db/schema/global-tables';
 import { cveData } from '../../shared/db/schema/cve-data';
-import { eq, and, isNull, ilike, sql, gte } from 'drizzle-orm';
+import { eq, and, or, isNull, ilike, sql, gte } from 'drizzle-orm';
 import { extractArticleEntities, resolveEntity } from './openai';
 
 // Types for extracted entities
@@ -238,7 +238,38 @@ export class EntityManager {
   }
   
   /**
-   * Find or create a software entity with normalization
+   * Calculate similarity between two strings (0-1)
+   */
+  private calculateSimilarity(str1: string, str2: string): number {
+    const s1 = str1.toLowerCase();
+    const s2 = str2.toLowerCase();
+    
+    // Exact match
+    if (s1 === s2) return 1.0;
+    
+    // One string contains the other
+    if (s1.includes(s2) || s2.includes(s1)) {
+      const shorter = s1.length < s2.length ? s1 : s2;
+      const longer = s1.length >= s2.length ? s1 : s2;
+      return shorter.length / longer.length * 0.9; // 90% max for contains
+    }
+    
+    // Levenshtein-like simple similarity
+    const maxLen = Math.max(s1.length, s2.length);
+    if (maxLen === 0) return 1.0;
+    
+    // Count matching characters
+    let matches = 0;
+    const minLen = Math.min(s1.length, s2.length);
+    for (let i = 0; i < minLen; i++) {
+      if (s1[i] === s2[i]) matches++;
+    }
+    
+    return matches / maxLen;
+  }
+
+  /**
+   * Find or create a software entity with normalization and fuzzy matching
    */
   async findOrCreateSoftware(data: {
     name: string;
@@ -266,8 +297,8 @@ export class EntityManager {
     // Normalize the name for consistency
     const normalizedName = this.normalizeEntityName(data.name);
     
-    // Check if software exists with same normalized name and company
-    const existingSoftware = await db.select()
+    // Step 1: Check for exact match with same normalized name and company
+    const exactMatch = await db.select()
       .from(software)
       .where(and(
         eq(software.normalizedName, normalizedName),
@@ -275,25 +306,93 @@ export class EntityManager {
       ))
       .limit(1);
     
-    // Create if doesn't exist
-    if (existingSoftware.length === 0) {
-      const [newSoftware] = await db.insert(software)
-        .values({
-          name: data.name,
-          normalizedName,
-          companyId: data.companyId,
-          category: data.category,
-          description: data.description,
-          createdBy: data.createdBy,
-          discoveredFrom: data.discoveredFrom,
-          isVerified: data.isVerified || false,
-          metadata: data.metadata
-        })
-        .returning();
-      return newSoftware.id;
+    if (exactMatch.length > 0) {
+      console.log(`[EntityManager] Found exact match for software: "${data.name}"`);
+      return exactMatch[0].id;
     }
     
-    return existingSoftware[0].id;
+    // Step 2: Fuzzy matching - look for similar names
+    // Using ILIKE for case-insensitive pattern matching
+    const fuzzyMatches = await db.select()
+      .from(software)
+      .where(
+        or(
+          // Name contains the search term
+          sql`${software.name} ILIKE ${`%${data.name}%`}`,
+          // Search term contains the name
+          sql`${`${data.name}`} ILIKE '%' || ${software.name} || '%'`,
+          // Normalized names are similar
+          sql`${software.normalizedName} ILIKE ${`%${normalizedName}%`}`,
+          sql`${`${normalizedName}`} ILIKE '%' || ${software.normalizedName} || '%'`
+        )
+      );
+    
+    // Step 3: Calculate similarity scores and find best match
+    let bestMatch = null;
+    let bestScore = 0;
+    
+    for (const match of fuzzyMatches) {
+      // Calculate similarity between the names
+      const nameSimilarity = this.calculateSimilarity(data.name, match.name);
+      
+      // Boost score if company matches
+      let score = nameSimilarity;
+      if (data.companyId && match.companyId === data.companyId) {
+        score = Math.min(1.0, score * 1.2); // 20% boost for same company
+      }
+      
+      // Check for common variations
+      const variations = [
+        // Adobe Photoshop vs Photoshop
+        match.name.toLowerCase().endsWith(nameLower),
+        nameLower.endsWith(match.name.toLowerCase()),
+        // Photoshop CC vs Photoshop
+        match.name.toLowerCase().replace(/\s+(cc|cs\d+|20\d{2})$/i, '') === nameLower,
+        nameLower.replace(/\s+(cc|cs\d+|20\d{2})$/i, '') === match.name.toLowerCase()
+      ];
+      
+      if (variations.some(v => v)) {
+        score = Math.max(score, 0.85); // High confidence for known variations
+      }
+      
+      if (score > bestScore) {
+        bestScore = score;
+        bestMatch = match;
+      }
+    }
+    
+    // Step 4: Decision based on similarity score
+    if (bestMatch && bestScore > 0.8) {
+      // High confidence match (>80%) - use existing entry
+      console.log(`[EntityManager] Auto-matched "${data.name}" to existing "${bestMatch.name}" (score: ${bestScore.toFixed(2)})`);
+      return bestMatch.id;
+    } else if (bestMatch && bestScore > 0.6) {
+      // Medium confidence (60-80%) - could implement user confirmation here
+      // For now, we'll use it if it has the same company
+      if (data.companyId && bestMatch.companyId === data.companyId) {
+        console.log(`[EntityManager] Matched "${data.name}" to "${bestMatch.name}" with same company (score: ${bestScore.toFixed(2)})`);
+        return bestMatch.id;
+      }
+      // Otherwise create new entry but log the potential match
+      console.log(`[EntityManager] Potential match for "${data.name}": "${bestMatch.name}" (score: ${bestScore.toFixed(2)}) - creating new entry`);
+    }
+    
+    // Step 5: No good match found - create new entry
+    console.log(`[EntityManager] Creating new software entry: "${data.name}" (no match found or score too low)`);
+    const [newSoftware] = await db.insert(software)
+      .values({
+        name: data.name,
+        normalizedName,
+        companyId: data.companyId,
+        category: data.category,
+        description: data.description,
+        createdBy: data.createdBy,
+        discoveredFrom: data.discoveredFrom,
+        isVerified: data.isVerified || false,
+        metadata: data.metadata
+      })
+      .returning();
+    return newSoftware.id;
   }
   
   /**
