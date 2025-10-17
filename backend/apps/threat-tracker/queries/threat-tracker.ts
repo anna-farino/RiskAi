@@ -854,18 +854,32 @@ export const storage: IStorage = {
         conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
       }
 
-      // Apply threat keyword filtering for cross-referencing
-      if (threatTerms.length > 0) {
-        const threatConditions = threatTerms.map((term) => {
-          return sql`(
-            ${globalArticles.title} ILIKE ${"%" + term + "%"} OR 
-            ${globalArticles.content} ILIKE ${"%" + term + "%"}
-          )`;
-        });
+      // REQUIRE threat indicators to be present in articles
+      // Check for CVEs, threat actors, or threat keywords
+      const threatIndicatorCondition = sql`(
+        -- Check for CVE patterns (CVE-YYYY-NNNNN)
+        ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
+        OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
         
-        const combinedThreatCondition = sql`(${sql.join(threatConditions, sql` OR `)})`;
-        conditions.push(combinedThreatCondition);
-      }
+        -- Check for threat metadata (populated by AI analysis)
+        OR ${globalArticles.threatMetadata} IS NOT NULL
+        
+        -- Check for high threat severity score
+        OR ${globalArticles.threatSeverityScore} >= 40
+        
+        -- Check for explicit threat keywords if configured
+        ${threatTerms.length > 0 ? sql`
+          OR (${sql.join(
+            threatTerms.map((term) => sql`
+              ${globalArticles.title} ILIKE ${"%" + term + "%"} 
+              OR ${globalArticles.content} ILIKE ${"%" + term + "%"}
+            `),
+            sql` OR `
+          )})
+        ` : sql``}
+      )`;
+      
+      conditions.push(threatIndicatorCondition);
 
       // Add date range filters - use publishDate for filtering
       if (startDate) {
@@ -997,7 +1011,16 @@ export const storage: IStorage = {
         matchedKeywords: row.matchedKeywords || [],
       }));
 
-      return mappedArticles as ThreatArticle[];
+      // Filter out articles with no matched entities
+      const filteredArticles = mappedArticles.filter(article => {
+        const totalMatches = 
+          article.matchedSoftware.length + 
+          article.matchedCompanies.length + 
+          article.matchedHardware.length;
+        return totalMatches > 0;
+      });
+
+      return filteredArticles as ThreatArticle[];
     } catch (error) {
       console.error("Error fetching threat articles:", error);
       return [];
