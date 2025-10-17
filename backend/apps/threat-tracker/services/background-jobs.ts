@@ -240,12 +240,40 @@ async function processArticle(
       }) : null
     };
 
+    // Validate that the URL hasn't been corrupted before saving
+    // Check for common URL corruption patterns
+    try {
+      const originalUrl = new URL(articleUrl);
+      const pathSegments = originalUrl.pathname.split('/').filter(s => s.length > 0);
+      
+      // Log if we detect potential URL issues
+      if (pathSegments.length > 0) {
+        // Check for missing duplicate segments (like "microsoft/microsoft" becoming just "microsoft")
+        const uniqueSegments = [...new Set(pathSegments)];
+        if (uniqueSegments.length < pathSegments.length) {
+          log(
+            `[Global ThreatTracker] WARNING: URL contains duplicate path segments that should be preserved: ${articleUrl}`,
+            "scraper"
+          );
+          log(
+            `[Global ThreatTracker] Path segments: [${pathSegments.join(', ')}] -> Unique: [${uniqueSegments.join(', ')}]`,
+            "scraper"
+          );
+        }
+      }
+    } catch (urlError) {
+      log(
+        `[Global ThreatTracker] WARNING: Could not validate URL structure: ${articleUrl} - ${urlError}`,
+        "scraper"
+      );
+    }
+
     // Store the article in the GLOBAL database (no userId)
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-      url: articleUrl, // Use original URL to preserve exact structure
+      url: articleUrl, // Use original URL to preserve exact structure - DO NOT MODIFY
       author: articleData.author,
       publishDate: publishDate,
       summary: analysis.summary,
