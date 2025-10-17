@@ -402,13 +402,15 @@ export function ThreatArticleCard({
           )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
-            <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-              {/* Matched Tech Stack Items */}
-              {((article.matchedSoftware && article.matchedSoftware.length > 0) ||
-                (article.matchedHardware && article.matchedHardware.length > 0) ||
-                (article.matchedCompanies && article.matchedCompanies.length > 0) ||
-                (article.matchedKeywords && article.matchedKeywords.length > 0)) && (
-                <>
+            <div className="flex-1 min-w-0">
+              {/* Tech Stack Matches Container */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Matched Tech Stack Items */}
+                {((article.matchedSoftware && article.matchedSoftware.length > 0) ||
+                  (article.matchedHardware && article.matchedHardware.length > 0) ||
+                  (article.matchedCompanies && article.matchedCompanies.length > 0) ||
+                  (article.matchedKeywords && article.matchedKeywords.length > 0)) && (
+                  <>
                   {/* Software Matches */}
                   {article.matchedSoftware && article.matchedSoftware.slice(0, 2).map((item) => (
                     <Badge
@@ -503,12 +505,13 @@ export function ThreatArticleCard({
                   })()}
                 </>
               )}
+              </div>
               
               {/* Threat Indicators - Show below tech stack pills */}
               {((article.matchedThreatActors && article.matchedThreatActors.length > 0) ||
                 (article.matchedCves && article.matchedCves.length > 0) ||
                 (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0)) && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-slate-800">
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-800">
                   {/* Threat Actors */}
                   {article.matchedThreatActors && article.matchedThreatActors.slice(0, 2).map((actor) => (
                     <Badge
@@ -575,7 +578,7 @@ export function ThreatArticleCard({
                (!article.matchedCompanies || article.matchedCompanies.length === 0) && 
                (!article.matchedKeywords || article.matchedKeywords.length === 0) && 
                articleIndex !== undefined && totalArticles !== undefined && (
-                <div className="text-xs text-slate-400 flex-shrink-0">
+                <div className="text-xs text-slate-400 flex-shrink-0 mt-2">
                   Article {articleIndex + 1} of {totalArticles}
                 </div>
               )}
