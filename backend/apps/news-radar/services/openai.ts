@@ -65,35 +65,30 @@ export async function analyzeContent(
       }
     }
 
-    // Double-check keyword matches against the provided list and content validation
-    const validatedKeywords = result.detectedKeywords.filter(
-      (detectedKeyword: string) => {
-        // First, check if the keyword is in our provided keywords list (exact match)
-        const isInProvidedList = keywords.some(
-          keyword => keyword.toLowerCase() === detectedKeyword.toLowerCase()
+    // Skip validation if no keywords provided (global scraping case)
+    const validatedKeywords = keywords.length === 0 
+      ? [] 
+      : result.detectedKeywords.filter(
+          (detectedKeyword: string) => {
+            // Check if the keyword is in our provided keywords list (exact match)
+            const isInProvidedList = keywords.some(
+              keyword => keyword.toLowerCase() === detectedKeyword.toLowerCase()
+            );
+            
+            if (!isInProvidedList) {
+              // Only log if we're actually checking keywords (not global scraping)
+              return false;
+            }
+            
+            // Verify that it actually appears in the content with word boundaries
+            const keywordRegex = new RegExp(
+              `\\b${detectedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\\b`,
+              "i",
+            );
+            
+            return keywordRegex.test(title) || keywordRegex.test(content);
+          },
         );
-        
-        if (!isInProvidedList) {
-          console.log(`[OpenAI] Filtering out invalid keyword match: "${detectedKeyword}" - not in provided list`);
-          return false;
-        }
-        
-        // Second, verify that it actually appears in the content with word boundaries
-        // Use flexible matching to handle plurals and variations
-        const keywordRegex = new RegExp(
-          `\\b${detectedKeyword.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}s?\\b`,
-          "i",
-        );
-        
-        const foundInContent = keywordRegex.test(title) || keywordRegex.test(content);
-        
-        if (!foundInContent) {
-          console.log(`[OpenAI] Filtering out invalid keyword match: "${detectedKeyword}" - not found in content with word boundaries`);
-        }
-        
-        return foundInContent;
-      },
-    );
 
     return {
       summary: result.summary,

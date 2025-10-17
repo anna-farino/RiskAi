@@ -53,12 +53,6 @@ interface ThreatArticleCardProps {
   totalArticles?: number;
 }
 
-interface KeywordCategories {
-  threats: string[];
-  vendors: string[];
-  clients: string[];
-  hardware: string[];
-}
 
 export function ThreatArticleCard({
   article,
@@ -137,41 +131,8 @@ export function ThreatArticleCard({
   const threatLevel = article.threatLevel || 'low';
   const relevanceCategory = getRelevanceCategory(normalizedRelevanceScore);
 
-  // Get all detected keywords from the different categories
-  const getDetectedKeywords = (): KeywordCategories => {
-    if (!article.detectedKeywords)
-      return { threats: [], vendors: [], clients: [], hardware: [] };
-
-    try {
-      // If it's already an object with categories
-      if (
-        typeof article.detectedKeywords === "object" &&
-        !Array.isArray(article.detectedKeywords)
-      ) {
-        return article.detectedKeywords as KeywordCategories;
-      }
-
-      // If it's a string, parse it
-      if (typeof article.detectedKeywords === "string") {
-        try {
-          return JSON.parse(article.detectedKeywords) as KeywordCategories;
-        } catch (e) {
-          return { threats: [], vendors: [], clients: [], hardware: [] };
-        }
-      }
-
-      // Default empty structure
-      return { threats: [], vendors: [], clients: [], hardware: [] };
-    } catch (e) {
-      console.error("Error parsing detected keywords:", e);
-      return { threats: [], vendors: [], clients: [], hardware: [] };
-    }
-  };
-
-  const detectedKeywords = getDetectedKeywords();
-  const hasKeywords = Object.values(detectedKeywords).some(
-    (arr: string[]) => arr.length > 0,
-  );
+  // detectedKeywords is no longer used - we get threat indicators from other sources
+  // (matchedThreatKeywords, matchedCves, matchedThreatActors)
 
   // Unified accent color based on threat level
   const getUnifiedAccentColor = () => {
@@ -264,142 +225,6 @@ export function ThreatArticleCard({
           <p className="text-sm text-slate-300 mb-4 line-clamp-3 flex-1 leading-5">
             {article.summary}
           </p>
-
-          {hasKeywords && (
-            <div className="space-y-2 mb-4">
-              {detectedKeywords.threats &&
-                detectedKeywords.threats.length > 0 && (
-                  <div>
-                    <span className="text-xs text-red-400 flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <AlertTriangle className="h-3 w-3" /> Threats
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.threats
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`threat-${keyword}`}
-                            variant="outline"
-                            className="bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 hover:text-red-400 border-red-500/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "threat");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.threats.length > 3 && (
-                        <span className="text-xs font-medium text-red-400 leading-4">
-                          +{detectedKeywords.threats.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {detectedKeywords.vendors &&
-                detectedKeywords.vendors.length > 0 && (
-                  <div>
-                    <span className="text-xs text-blue-400 flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <Shield className="h-3 w-3" /> Vendors
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.vendors
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`vendor-${keyword}`}
-                            variant="outline"
-                            className="bg-blue-500/10 text-xs font-medium text-blue-400 hover:bg-blue-500/20 hover:text-blue-400 border-blue-500/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "vendor");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.vendors.length > 3 && (
-                        <span className="text-xs font-medium text-blue-400 leading-4">
-                          +{detectedKeywords.vendors.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {detectedKeywords.clients &&
-                detectedKeywords.clients.length > 0 && (
-                  <div>
-                    <span className="text-xs text-[#BF00FF] flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <CheckCircle2 className="h-3 w-3" /> Clients
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.clients
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`client-${keyword}`}
-                            variant="outline"
-                            className="bg-[#BF00FF]/10 text-xs font-medium text-[#BF00FF] hover:bg-[#BF00FF]/20 hover:text-[#BF00FF] border-[#BF00FF]/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "client");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.clients.length > 3 && (
-                        <span className="text-xs font-medium text-[#BF00FF] leading-4">
-                          +{detectedKeywords.clients.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {detectedKeywords.hardware &&
-                detectedKeywords.hardware.length > 0 && (
-                  <div>
-                    <span className="text-xs text-[#00FFFF] flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <Shield className="h-3 w-3" /> Hardware/Software
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.hardware
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`hardware-${keyword}`}
-                            variant="outline"
-                            className="bg-[#00FFFF]/10 text-xs font-medium text-[#00FFFF] hover:bg-[#00FFFF]/20 hover:text-[#00FFFF] border-[#00FFFF]/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "hardware");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.hardware.length > 3 && (
-                        <span className="text-xs font-medium text-[#00FFFF] leading-4">
-                          +{detectedKeywords.hardware.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-            </div>
-          )}
 
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
             <div className="flex-1 min-w-0">

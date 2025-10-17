@@ -43,11 +43,11 @@ let globalJobRunning = false;
  */
 function createGlobalContext(sourceId?: string, sourceUrl?: string, sourceName?: string): ScrapingContextInfo {
   return {
-    userId: undefined, // Global scraping has no user
+    userId: undefined, // Global scraping has no user - optional field
     sourceId,
     sourceUrl,
     sourceName,
-    appType: 'news-radar' // Use news-radar as default for global scraping
+    appType: 'threat-tracker' as AppType // Use threat-tracker for global cybersecurity analysis
   };
 }
 

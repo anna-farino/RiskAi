@@ -223,22 +223,8 @@ async function processArticle(
       severityScore = 0;
     }
 
-    // Store cybersecurity metadata in detectedKeywords object
-    // Add special keys for cybersecurity detection
-    const keywordsWithMeta = {
-      ...analysis.detectedKeywords,
-      _cyber: cyberAnalysis.isCybersecurity ? "true" : "false",
-      _confidence: cyberAnalysis.confidence.toString(),
-      _categories: (cyberAnalysis.categories || []).join(","),
-      _severityLevel: severityLevel,
-      _entities: extractedEntities ? JSON.stringify({
-        software: extractedEntities.software?.length || 0,
-        hardware: extractedEntities.hardware?.length || 0,
-        companies: extractedEntities.companies?.length || 0,
-        cves: extractedEntities.cves?.length || 0,
-        threatActors: extractedEntities.threatActors?.length || 0
-      }) : null
-    };
+    // Don't store metadata in detectedKeywords - it's not used and causes confusion
+    // All necessary data is stored in proper fields (isCybersecurity, entitiesExtracted, etc.)
 
     // Validate that the URL hasn't been corrupted before saving
     // Check for common URL corruption patterns
@@ -286,7 +272,7 @@ async function processArticle(
       threatMetadata: cyberAnalysis.isCybersecurity && severityResult ? severityResult.metadata : null, // Add detailed scoring
       threatLevel: cyberAnalysis.isCybersecurity ? severityLevel : null, // Add threat level
       entitiesExtracted: cyberAnalysis.isCybersecurity && extractedEntities !== null, // Mark extraction done
-      detectedKeywords: keywordsWithMeta, // Store cyber info in keywords
+      detectedKeywords: {}, // Empty object for compatibility with downstream consumers
       userId: undefined, // No userId for global articles
     });
 
