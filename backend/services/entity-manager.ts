@@ -250,6 +250,19 @@ export class EntityManager {
     isVerified?: boolean;
     metadata?: any;
   }): Promise<string> {
+    // Reject overly generic software names
+    const genericTerms = new Set([
+      'server', 'client', 'database', 'app', 'application', 'software', 
+      'system', 'platform', 'tool', 'service', 'program', 'utility',
+      'framework', 'library', 'api', 'sdk', 'module', 'package'
+    ]);
+    
+    const nameLower = data.name.toLowerCase().trim();
+    if (genericTerms.has(nameLower)) {
+      console.log(`[EntityManager] Rejected generic software name: "${data.name}"`);
+      throw new Error(`Cannot create software with generic name: "${data.name}". Please provide a specific product name.`);
+    }
+    
     // Normalize the name for consistency
     const normalizedName = this.normalizeEntityName(data.name);
     
@@ -465,6 +478,20 @@ export class EntityManager {
     isVerified?: boolean;
     metadata?: any;
   }): Promise<string> {
+    // Reject overly generic hardware names without manufacturer/model
+    const genericHardware = new Set([
+      'router', 'switch', 'firewall', 'server', 'laptop', 'desktop',
+      'phone', 'tablet', 'device', 'hardware', 'appliance', 'equipment',
+      'computer', 'workstation', 'modem', 'printer', 'scanner'
+    ]);
+    
+    const nameLower = data.name.toLowerCase().trim();
+    // Only reject if it's JUST the generic term with no manufacturer or model
+    if (genericHardware.has(nameLower) && !data.manufacturer && !data.model) {
+      console.log(`[EntityManager] Rejected generic hardware name: "${data.name}" without manufacturer/model`);
+      throw new Error(`Cannot create hardware with generic name: "${data.name}". Please provide manufacturer and/or model information.`);
+    }
+    
     const normalizedName = this.normalizeEntityName(data.name);
     
     // Check if hardware exists with same normalized name, model, and manufacturer
