@@ -154,14 +154,18 @@ export default function Keywords() {
     },
   });
 
-  // Fetch keywords
+  // Fetch keywords (using POST for consistency)
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: ["/api/threat-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithAuth("/api/threat-tracker/keywords", {
-            method: "GET",
-          });
+        const response = await fetchWithAuth("/api/threat-tracker/keywords/list", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
+        });
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
         return data || [];
