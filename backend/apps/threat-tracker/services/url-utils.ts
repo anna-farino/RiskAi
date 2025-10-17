@@ -43,6 +43,48 @@ export function normalizeUrl(url: string): string {
 }
 
 /**
+ * Validate and normalize a URL, checking for path segment corruption
+ * Returns the normalized URL if safe, or the original URL if normalization breaks it
+ */
+export function validateAndNormalizeUrl(originalUrl: string): string {
+  try {
+    const normalizedUrl = normalizeUrl(originalUrl);
+    
+    // Parse both URLs to compare paths
+    const originalObj = new URL(originalUrl);
+    const normalizedObj = new URL(normalizedUrl);
+    
+    // Get path segments (filter out empty strings from splitting)
+    const originalSegments = originalObj.pathname.split('/').filter(s => s.length > 0);
+    const normalizedSegments = normalizedObj.pathname.split('/').filter(s => s.length > 0);
+    
+    // Check if we lost segments during normalization
+    if (originalSegments.length !== normalizedSegments.length) {
+      console.warn(`URL normalization would remove path segments: ${originalUrl} -> ${normalizedUrl}`);
+      console.warn(`Original segments: ${originalSegments.join('/')}`);
+      console.warn(`Normalized segments: ${normalizedSegments.join('/')}`);
+      return originalUrl; // Use original URL to preserve path structure
+    }
+    
+    // Check if any segments were modified (could indicate deduplication issues)
+    for (let i = 0; i < originalSegments.length; i++) {
+      // Allow case changes but not complete segment changes
+      if (originalSegments[i].toLowerCase() !== normalizedSegments[i].toLowerCase()) {
+        console.warn(`URL normalization altered path segment: "${originalSegments[i]}" -> "${normalizedSegments[i]}"`);
+        return originalUrl; // Use original URL to preserve path structure
+      }
+    }
+    
+    // Normalization is safe, use the normalized URL
+    return normalizedUrl;
+  } catch (error) {
+    // If anything fails, safer to use original URL
+    console.warn(`Failed to validate/normalize URL: ${originalUrl}`, error);
+    return originalUrl;
+  }
+}
+
+/**
  * Check if two URLs are likely the same article
  */
 export function urlsMatch(url1: string, url2: string): boolean {
