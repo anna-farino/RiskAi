@@ -223,7 +223,7 @@ Be inclusive - if it could be used as an attack technique, mark it TRUE.
             },
             { role: "user", content: prompt }
           ],
-          model: "gpt-5-nano",  // Using gpt-5-nano for faster processing
+          model: "gpt-4o-mini",  // Using gpt-4o-mini for faster processing
           response_format: { type: "json_object" },
           temperature: 0.2,
           max_tokens: 8000  // Sufficient for batch response

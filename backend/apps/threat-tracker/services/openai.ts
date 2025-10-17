@@ -71,7 +71,7 @@ ARTICLE CONTENT: ${articleContent.substring(0, 8000)}
 `;
 
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",

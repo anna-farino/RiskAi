@@ -15,7 +15,7 @@ import { unifiedScraper } from 'backend/services/scraping/scrapers/main-scraper'
 async function generateExecutiveSummary(content: any): Promise<any> {
   try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-5-nano",
+      model: "gpt-4o-mini",
       messages: [
         {
           role: "system",
