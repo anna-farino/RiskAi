@@ -68,16 +68,22 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Fetch News Radar article count
+  // Fetch News Radar article count (using POST for large keyword lists)
   const { data: newsCount } = useQuery({
     queryKey: ['news-radar-count-dashboard', newsKeywords],
     queryFn: async () => {
       // Get active keyword IDs
       const activeKeywordIds = newsKeywords?.filter((k: any) => k.active !== false).map((k: any) => k.id) || [];
-      const keywordParams = activeKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
-      const url = `/api/news-tracker/articles/count${keywordParams ? '?' + keywordParams : ''}`;
       
-      const response = await fetchWithAuth(url);
+      const response = await fetchWithAuth('/api/news-tracker/articles/count', {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keywordIds: activeKeywordIds.length > 0 ? activeKeywordIds : undefined
+        })
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch news article count: ${response.statusText}`);
@@ -150,14 +156,19 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
 
-  // Fetch Threat Tracker article count
+  // Fetch Threat Tracker article count (using POST for large keyword lists)
   const { data: threatCount } = useQuery({
     queryKey: ['threat-tracker-count-dashboard', threatKeywords],
     queryFn: async () => {
-      const keywordParams = activeTheatKeywordIds.map((id: string) => `keywordIds=${id}`).join('&');
-      const url = `/api/threat-tracker/articles/count${keywordParams ? '?' + keywordParams : ''}`;
-      
-      const response = await fetchWithAuth(url);
+      const response = await fetchWithAuth('/api/threat-tracker/articles/count', {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          keywordIds: activeTheatKeywordIds.length > 0 ? activeTheatKeywordIds : undefined
+        })
+      });
       
       if (!response.ok) {
         throw new Error(`Failed to fetch threat article count: ${response.statusText}`);
