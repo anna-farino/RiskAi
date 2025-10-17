@@ -159,38 +159,7 @@ export default function ThreatHome() {
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
-  // Build query string for filtering
-  const buildQueryString = () => {
-    const params = new URLSearchParams();
-
-    if (searchTerm) {
-      params.append("search", searchTerm);
-    }
-
-    if (selectedKeywordIds.length > 0) {
-      selectedKeywordIds.forEach((id) => {
-        params.append("keywordIds", id);
-      });
-    }
-
-    if (originalDateRange.startDate) {
-      params.append("startDate", `${originalDateRange.startDate}T00:00:00.000Z`);
-    }
-
-    if (originalDateRange.endDate) {
-      params.append("endDate", `${originalDateRange.endDate}T23:59:59.999Z`);
-    }
-    
-    // Add sort order parameter
-    params.append("sortBy", sortOrder.toLowerCase().replace(" ", "_"));
-
-    // Send a high limit to get more articles (instead of backend default 50)
-    params.append("limit", "1000");
-
-    return params.toString();
-  };
-
-  // Articles query - now automatically loads based on Technology Stack
+  // Articles query - now uses POST to handle large keyword lists
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
       "/api/threat-tracker/articles",
@@ -201,11 +170,32 @@ export default function ThreatHome() {
     ],
     queryFn: async () => {
       try {
-        const queryString = buildQueryString();
-        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+        // Build request body for POST request
+        const requestBody = {
+          search: searchTerm || undefined,
+          keywordIds: selectedKeywordIds.length > 0 ? selectedKeywordIds : undefined,
+          startDate: originalDateRange.startDate 
+            ? `${originalDateRange.startDate}T00:00:00.000Z` 
+            : undefined,
+          endDate: originalDateRange.endDate 
+            ? `${originalDateRange.endDate}T23:59:59.999Z` 
+            : undefined,
+          sortBy: sortOrder.toLowerCase().replace(" ", "_"),
+          limit: 1000, // Get more articles instead of backend default 50
+          page: 1
+        };
 
-        const response = await fetchWithAuth(url, {
-          method: "GET",
+        // Remove undefined values from request body
+        const cleanBody = Object.fromEntries(
+          Object.entries(requestBody).filter(([_, v]) => v !== undefined)
+        );
+
+        const response = await fetchWithAuth("/api/threat-tracker/articles/query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(cleanBody),
         });
 
         if (!response.ok) throw new Error("Failed to fetch articles");
