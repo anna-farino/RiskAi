@@ -1009,6 +1009,10 @@ export const storage: IStorage = {
           .map(id => hardwareMap.get(id))
           .filter(name => name != null) as string[],
         matchedKeywords: row.matchedKeywords || [],
+        // Extract threat indicators from metadata
+        matchedThreatActors: row.relevanceMetadata?.matchedThreatActors || [],
+        matchedCVEs: row.relevanceMetadata?.matchedCVEs || [],
+        matchedThreatKeywords: row.relevanceMetadata?.matchedThreatKeywords || [],
       }));
 
       // Filter out articles with no matched entities
