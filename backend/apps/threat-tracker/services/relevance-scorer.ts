@@ -662,12 +662,18 @@ export class RelevanceScorer {
     userSoftware: UserEntities['software']
   ): Promise<string[]> {
     const matched: string[] = [];
+    const addedIds = new Set<string>();
     
-    for (const articleSw of articleSoftware) {
-      for (const userSw of userSoftware) {
+    // Only return IDs that are actually in the user's tech stack
+    for (const userSw of userSoftware) {
+      for (const articleSw of articleSoftware) {
         if (articleSw.id === userSw.id || 
             this.isSoftwareRelated(articleSw.name, userSw.name || '')) {
-          matched.push(articleSw.id);
+          // Push the USER'S entity ID, not the article's, and avoid duplicates
+          if (!addedIds.has(userSw.id)) {
+            matched.push(userSw.id);
+            addedIds.add(userSw.id);
+          }
           break;
         }
       }
@@ -681,12 +687,18 @@ export class RelevanceScorer {
     userCompanies: UserEntities['companies']
   ): Promise<string[]> {
     const matched: string[] = [];
+    const addedIds = new Set<string>();
     
-    for (const articleCo of articleCompanies) {
-      for (const userCo of userCompanies) {
+    // Only return IDs that are actually in the user's tech stack
+    for (const userCo of userCompanies) {
+      for (const articleCo of articleCompanies) {
         if (articleCo.id === userCo.id || 
             this.isCompanyRelated(articleCo.name, userCo.name || '')) {
-          matched.push(articleCo.id);
+          // Push the USER'S entity ID, not the article's, and avoid duplicates
+          if (!addedIds.has(userCo.id)) {
+            matched.push(userCo.id);
+            addedIds.add(userCo.id);
+          }
           break;
         }
       }
@@ -700,12 +712,18 @@ export class RelevanceScorer {
     userHardware: UserEntities['hardware']
   ): Promise<string[]> {
     const matched: string[] = [];
+    const addedIds = new Set<string>();
     
-    for (const articleHw of articleHardware) {
-      for (const userHw of userHardware) {
+    // Only return IDs that are actually in the user's tech stack
+    for (const userHw of userHardware) {
+      for (const articleHw of articleHardware) {
         if (articleHw.id === userHw.id || 
             this.isHardwareRelated(articleHw.name, userHw.name || '', userHw.model || '')) {
-          matched.push(articleHw.id);
+          // Push the USER'S entity ID, not the article's, and avoid duplicates
+          if (!addedIds.has(userHw.id)) {
+            matched.push(userHw.id);
+            addedIds.add(userHw.id);
+          }
           break;
         }
       }
