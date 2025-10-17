@@ -476,14 +476,6 @@ newsRouter.post("/keywords/list", async (req, res) => {
   res.json(keywords);
 });
 
-// Keep GET endpoint for backward compatibility
-newsRouter.get("/keywords", async (req, res) => {
-  console.log("Getting keywords...")
-  const userId = (req.user as User).id as string;
-  const keywords = await storage.getKeywords(userId);
-  res.json(keywords);
-});
-
 newsRouter.post("/keywords", async (req, res) => {
   try {
     const userId = (req.user as User).id as string;
