@@ -72,8 +72,7 @@ Consider cybersecurity-related if it mentions:
         { role: "user", content: prompt }
       ],
       model: "gpt-5-nano",
-      response_format: { type: "json_object" },
-      temperature: 0.3
+      response_format: { type: "json_object" }
     });
 
     const responseContent = completion.choices[0].message.content;
@@ -167,8 +166,7 @@ Respond in JSON format:
         { role: "user", content: prompt }
       ],
       model: "gpt-5-nano",
-      response_format: { type: "json_object" },
-      temperature: 0.3
+      response_format: { type: "json_object" }
     });
 
     const responseContent = completion.choices[0].message.content;
@@ -465,7 +463,6 @@ export async function extractArticleEntities(article: {
       ],
       model: "gpt-4-turbo-preview",
       response_format: { type: "json_object" },
-      temperature: 0.3, // Lower temperature for more consistent extraction
       max_tokens: 4000
     });
     
