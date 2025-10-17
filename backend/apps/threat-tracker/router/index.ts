@@ -2,7 +2,7 @@ import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { unifiedStorage } from "backend/services/unified-storage";
-import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
+import { isUserJobRunning } from "../services/background-jobs";
 // Using global scheduler from backend/services/global-scheduler.ts
 import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
 import { log } from "backend/utils/log";
@@ -855,82 +855,7 @@ threatRouter.get("/articles/marked-for-capsule", async (req, res) => {
   }
 });
 
-// Scraping API
-threatRouter.post("/scrape/source/:id", async (req, res) => {
-  reqLog(req, `POST /scrape/source/${req.params.id}`);
-  try {
-    const sourceId = req.params.id;
-    const userId = getUserId(req);
-    
-    // Check if the source exists and belongs to the user
-    const source = await storage.getSource(sourceId);
-    if (!source) {
-      return res.status(404).json({ error: "Source not found" });
-    }
-    
-    if (source.userId && source.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to scrape this source" });
-    }
-    
-    // Scrape the source (global - no userId needed)
-    const newArticles = await scrapeSource(source);
-    
-    res.json({
-      message: `Successfully scraped source: ${source.name}`,
-      articleCount: newArticles ? newArticles.length : 0,
-      articles: newArticles
-    });
-  } catch (error: any) {
-    console.error("Error scraping source:", error);
-    res.status(500).json({ error: error.message || "Failed to scrape source" });
-  }
-});
-
-threatRouter.post("/scrape/all", async (req, res) => {
-  reqLog(req, "POST /scrape/all");
-  try {
-    // Global scrape no longer needs userId - runs for all sources
-    
-    // Start the global scrape job (no userId needed)
-    const job = runGlobalScrapeJob();
-    
-    res.json({
-      message: "Global scrape job started",
-      job
-    });
-  } catch (error: any) {
-    console.error("Error starting global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to start global scrape job" });
-  }
-});
-
-threatRouter.post("/scrape/stop", async (req, res) => {
-  reqLog(req, "POST /scrape/stop");
-  try {
-    // Stop global scrape job (no userId needed)
-    const result = stopGlobalScrapeJob();
-    res.json(result);
-  } catch (error: any) {
-    console.error("Error stopping global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to stop global scrape job" });
-  }
-});
-
-threatRouter.get("/scrape/status", async (req, res) => {
-  reqLog(req, "GET /scrape/status");
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    const isRunning = isUserJobRunning(userId);
-    res.json({ running: isRunning });
-  } catch (error: any) {
-    console.error("Error checking scrape job status:", error);
-    res.status(500).json({ error: error.message || "Failed to check scrape job status" });
-  }
-});
+// Scraping API removed - all scraping now handled by global scheduler
 
 // Auto-scrape settings API - now returns global scheduler status
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
