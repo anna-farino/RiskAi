@@ -525,20 +525,6 @@ threatRouter.post("/keywords/list", async (req, res) => {
   }
 });
 
-// Keep GET endpoint for backward compatibility
-threatRouter.get("/keywords", async (req, res) => {
-  reqLog(req, "GET /keywords");
-  try {
-    const userId = getUserId(req);
-    const category = req.query.category as string | undefined;
-    const keywords = await storage.getKeywords(category, userId);
-    res.json(keywords);
-  } catch (error: any) {
-    console.error("Error fetching keywords:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch keywords" });
-  }
-});
-
 threatRouter.post("/keywords", async (req, res) => {
   reqLog(req, "POST /keywords");
   try {
