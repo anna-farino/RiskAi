@@ -1182,7 +1182,6 @@ export const storage: IStorage = {
             title: article.title,
             content: article.content,
             url: article.url,
-            originalUrl: article.url, // Store the original URL - same as url for now since we're preserving it
             author: article.author,
             publishDate: article.publishDate,
             summary: article.summary,
