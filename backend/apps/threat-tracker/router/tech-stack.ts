@@ -1594,7 +1594,7 @@ Return a JSON array of extracted entities with this structure:
               content: extractionPrompt,
             },
           ],
-          model: "gpt-3.5-turbo-16k", // Using 16K context model for better handling of large batches
+          model: "gpt-5-nano", // Using 16K context model for better handling of large batches
           response_format: { type: "json_object" },
           max_tokens: 4000,
         });

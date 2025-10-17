@@ -19,7 +19,7 @@ export async function summarizeArticle(articleText: string, options?: { maxToken
           content: `Please summarize this article: ${articleText}` 
         }
       ],
-      model: "gpt-3.5-turbo",
+      model: "gpt-5-nano",
       max_tokens: options?.maxTokens || 500,
     });
     
@@ -71,7 +71,7 @@ Consider cybersecurity-related if it mentions:
         },
         { role: "user", content: prompt }
       ],
-      model: "gpt-3.5-turbo",
+      model: "gpt-5-nano",
       response_format: { type: "json_object" },
       temperature: 0.3
     });
@@ -166,7 +166,7 @@ Respond in JSON format:
         },
         { role: "user", content: prompt }
       ],
-      model: "gpt-3.5-turbo",
+      model: "gpt-5-nano",
       response_format: { type: "json_object" },
       temperature: 0.3
     });
@@ -578,7 +578,7 @@ export async function detectCompanyProductRelationship(
         },
         { role: "user", content: prompt }
       ],
-      model: "gpt-3.5-turbo",
+      model: "gpt-5-nano",
       response_format: { type: "json_object" },
       temperature: 0.2,
       max_tokens: 500
