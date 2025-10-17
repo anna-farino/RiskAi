@@ -79,9 +79,6 @@ interface RelevanceScoreResult {
   matchedCompanies: string[];
   matchedHardware: string[];
   matchedKeywords: string[];
-  matchedThreatActors: string[];
-  matchedCVEs: string[];
-  matchedThreatKeywords: string[];
   metadata: any;
 }
 
@@ -198,12 +195,7 @@ export class RelevanceScorer {
         matchedKeywords: score.matchedKeywords,
         calculatedAt: new Date(),
         calculationVersion: '1.0',
-        metadata: {
-          ...score.metadata,
-          matchedThreatActors: score.matchedThreatActors,
-          matchedCVEs: score.matchedCVEs,
-          matchedThreatKeywords: score.matchedThreatKeywords
-        }
+        metadata: score.metadata
       });
     }
     
@@ -274,9 +266,6 @@ export class RelevanceScorer {
       matchedCompanies: await this.getMatchedCompanyIds(articleEntities.companies, userEntities.companies),
       matchedHardware: await this.getMatchedHardwareIds(articleEntities.hardware, userEntities.hardware),
       matchedKeywords: await this.getMatchedKeywords(articleId, userId),
-      matchedThreatActors: await this.getMatchedThreatActors(articleId),
-      matchedCVEs: await this.getMatchedCVEs(articleId),
-      matchedThreatKeywords: await this.getMatchedThreatKeywords(articleId),
       metadata: {
         userEntityCounts: {
           software: userEntities.software.length,
@@ -769,102 +758,6 @@ export class RelevanceScorer {
     }
     
     return matched;
-  }
-  
-  /**
-   * Get threat actors from article's threat metadata
-   */
-  private async getMatchedThreatActors(articleId: string): Promise<string[]> {
-    const [article] = await db.select()
-      .from(globalArticles)
-      .where(eq(globalArticles.id, articleId))
-      .limit(1);
-    
-    if (!article || !article.threatMetadata) return [];
-    
-    try {
-      const metadata = typeof article.threatMetadata === 'string' 
-        ? JSON.parse(article.threatMetadata) 
-        : article.threatMetadata;
-      
-      const threatActors: string[] = [];
-      
-      // Extract from threatActors array
-      if (metadata.threatActors && Array.isArray(metadata.threatActors)) {
-        for (const actor of metadata.threatActors) {
-          if (actor.name) {
-            threatActors.push(actor.name);
-          }
-        }
-      }
-      
-      return [...new Set(threatActors)]; // Remove duplicates
-    } catch (error) {
-      console.error('Error extracting threat actors:', error);
-      return [];
-    }
-  }
-  
-  /**
-   * Get CVEs from article's threat metadata
-   */
-  private async getMatchedCVEs(articleId: string): Promise<string[]> {
-    const [article] = await db.select()
-      .from(globalArticles)
-      .where(eq(globalArticles.id, articleId))
-      .limit(1);
-    
-    if (!article || !article.threatMetadata) return [];
-    
-    try {
-      const metadata = typeof article.threatMetadata === 'string' 
-        ? JSON.parse(article.threatMetadata) 
-        : article.threatMetadata;
-      
-      const cves: string[] = [];
-      
-      // Extract from cves array
-      if (metadata.cves && Array.isArray(metadata.cves)) {
-        for (const cve of metadata.cves) {
-          if (cve.id) {
-            cves.push(cve.id);
-          }
-        }
-      }
-      
-      return [...new Set(cves)]; // Remove duplicates
-    } catch (error) {
-      console.error('Error extracting CVEs:', error);
-      return [];
-    }
-  }
-  
-  /**
-   * Get threat keywords from article's detected keywords
-   */
-  private async getMatchedThreatKeywords(articleId: string): Promise<string[]> {
-    const [article] = await db.select()
-      .from(globalArticles)
-      .where(eq(globalArticles.id, articleId))
-      .limit(1);
-    
-    if (!article || !article.detectedKeywords) return [];
-    
-    try {
-      const detectedKeywords = typeof article.detectedKeywords === 'string'
-        ? JSON.parse(article.detectedKeywords)
-        : article.detectedKeywords;
-      
-      // Return threat keywords if they exist
-      if (detectedKeywords.threats && Array.isArray(detectedKeywords.threats)) {
-        return detectedKeywords.threats;
-      }
-      
-      return [];
-    } catch (error) {
-      console.error('Error extracting threat keywords:', error);
-      return [];
-    }
   }
   
   /**
