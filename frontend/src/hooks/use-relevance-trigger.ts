@@ -7,7 +7,7 @@ import { useAuth0 } from '@auth0/auth0-react';
  * This should be called from the main threat tracker component
  */
 export function useRelevanceTrigger() {
-  const { fetchWithAuth } = useFetch();
+  const fetchWithAuth = useFetch();
   const { isAuthenticated, user } = useAuth0();
   const hasTriggered = useRef(false);
   const lastUserId = useRef<string | null>(null);
