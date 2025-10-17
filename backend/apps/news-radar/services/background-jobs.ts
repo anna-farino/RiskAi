@@ -1,5 +1,4 @@
 import { log } from "backend/utils/log";
-import { sendEmailJs } from "backend/utils/sendEmailJs";
 import { db } from "backend/db/db";
 import { users } from "@shared/db/schema/user";
 import { eq } from "drizzle-orm";
@@ -50,20 +49,16 @@ export async function sendNewArticlesEmail(
       ${newArticles.length > 10 ? `<p>...and ${newArticles.length - 10} more articles.</p>` : ""}
     `;
 
-    // Use sendGrid if available, otherwise use sendEmailJs
+    // Use sendGrid if available
     if (process.env.SENDGRID_API_KEY) {
-      await sendGrid(
-        userEmail,
-        "New Articles Found",
-        emailContent,
-        emailContent // Plain text version
-      );
+      await sendGrid({
+        to: userEmail,
+        subject: "New Articles Found",
+        html: emailContent,
+        text: emailContent // Plain text version
+      });
     } else {
-      await sendEmailJs(
-        userEmail,
-        "New Articles Found",
-        emailContent
-      );
+      log("[News Radar] SendGrid not configured - skipping email", "email");
     }
 
     log(`[News Radar] Email sent to ${userEmail} with ${newArticles.length} articles`, "email");
