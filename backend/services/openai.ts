@@ -332,14 +332,15 @@ export async function extractArticleEntities(article: {
       * Specific model name/number (e.g., "ASA 5500", "PowerEdge R740", "R7000")  
       * Manufacturer + specific product line (e.g., "Cisco ASA", "Dell PowerEdge", "Netgear Nighthawk")
       * Full product name (e.g., "iPhone 14", "SurfaceBook 3", "MacBook Pro M2")
-    - **IMPORTANT NETWORK HARDWARE RECOGNITION**: These are ALWAYS hardware devices, not software:
-      * Cisco Catalyst series (switches) - e.g., "Catalyst 9300", "Catalyst 2960"
-      * Cisco Nexus series (data center switches) - e.g., "Nexus 9000", "Nexus 7000"
-      * Cisco Meraki devices (cloud-managed hardware) - e.g., "Meraki MX", "Meraki MS"
-      * Cisco ASA (security appliances) - e.g., "ASA 5500", "ASA 5505"
-      * Juniper devices - e.g., "Juniper MX", "Juniper EX"
-      * Arista switches - e.g., "Arista 7050", "Arista 7280"
-      * Note: Even if these have firmware/OS versions (like IOS-XE, NX-OS), they are HARDWARE devices
+    - **CRITICAL HARDWARE RECOGNITION PATTERNS**:
+      * Network equipment with model numbers are ALWAYS hardware (switches, routers, firewalls, appliances)
+      * Pattern: "[Manufacturer] [Product Line] [Model]" where Product Line indicates hardware type
+      * Hardware keywords that indicate physical devices: Catalyst (switch), Nexus (switch), Meraki (appliance), 
+        ASA (appliance), FortiGate (firewall), Palo Alto (firewall), Juniper (router/switch), Arista (switch),
+        PowerEdge (server), ProLiant (server), ThinkPad (laptop), OptiPlex (desktop)
+      * Even if firmware/OS versions are mentioned (IOS, IOS-XE, NX-OS, FortiOS, PAN-OS), the device is still HARDWARE
+      * Examples: "Catalyst 9300" = hardware switch, "Nexus 9000" = hardware switch, "FortiGate 60F" = hardware firewall
+      * When in doubt: If it has a model number and relates to networking/infrastructure, it's likely hardware
     - Device names WITHOUT the manufacturer prefix (e.g., "Microsoft SurfaceBook 3" → name: "SurfaceBook 3")
     - Model field should contain the FULL model designation, not just the number
     - Manufacturer as separate field (e.g., "Microsoft", "Cisco", "Dell")
