@@ -14,8 +14,7 @@ import { detectHtmlStructure } from "backend/services/scraping/extractors/struct
 // Global strategy
 import { GlobalStrategy } from "backend/services/scraping/strategies/global-strategy";
 // AI services
-import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities } from "backend/services/openai";
-import { analyzeContent } from "../../apps/news-radar/services/openai";
+import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities, summarizeArticle } from "backend/services/openai";
 import { EntityManager } from "backend/services/entity-manager";
 import { ThreatAnalyzer } from "backend/services/threat-analysis";
 // Content validation
@@ -193,9 +192,8 @@ async function scrapeGlobalSource(
 
         // Step 4: AI Analysis for ALL articles
         log(`[Global Scraping] Analyzing article with AI`, "scraper");
-        const analysis = await analyzeContent(
-          articleContent.content,
-          [], // No keywords for global scraping
+        const summary = await summarizeArticle(
+          `${articleContent.title || finalTitle}\n\n${articleContent.content}`
         );
 
         // Analyze for cybersecurity relevance (adds metadata, doesn't filter)
@@ -254,11 +252,7 @@ async function scrapeGlobalSource(
           securityScore = riskAnalysis?.score || null;
         }
 
-        // Prepare detected keywords with cybersecurity flag
-        const detectedKeywords = analysis.detectedKeywords || [];
-        if (isCybersecurity) {
-          detectedKeywords.push('_cyber:true');
-        }
+        // No keywords are used in global scraping
 
         // Step 5: Save article to globalArticles table
         const [savedArticle] = await db
@@ -270,8 +264,8 @@ async function scrapeGlobalSource(
             url: link,
             author: articleContent.author || "Unknown",
             publishDate: articleContent.publishDate || new Date(),
-            summary: analysis.summary || "",
-            detectedKeywords: detectedKeywords,
+            summary: summary || "",
+            detectedKeywords: {}, // Empty object for backward compatibility
             isCybersecurity: isCybersecurity, // Mark if it's a cybersecurity article
             securityScore: securityScore, // Add security score if it's a cybersecurity article
             threatSeverityScore: threatSeverityScore ? threatSeverityScore.toString() : null, // Add threat severity score
