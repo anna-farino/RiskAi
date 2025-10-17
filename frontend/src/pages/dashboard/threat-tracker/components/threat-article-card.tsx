@@ -5,6 +5,7 @@ import {
   User,
   Loader2,
   AlertTriangle,
+  AlertCircle,
   Shield,
   CheckCircle2,
   Zap,
