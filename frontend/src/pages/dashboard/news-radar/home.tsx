@@ -86,13 +86,17 @@ export default function NewsHome() {
   // Available keywords display state
   const [showAllAvailableKeywords, setShowAllAvailableKeywords] = useState<boolean>(false);
   
-  // Fetch keywords for filter dropdown
+  // Fetch keywords for filter dropdown (using POST for consistency)
   const keywords = useQuery<Keyword[]>({
     queryKey: ["/api/news-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithAuth("/api/news-tracker/keywords", {
-          method: "GET",
+        const response = await fetchWithAuth("/api/news-tracker/keywords/list", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
         });
         if (!response.ok) throw new Error('Failed to fetch keywords');
         const data = await response.json();
