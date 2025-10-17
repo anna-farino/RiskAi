@@ -467,6 +467,16 @@ newsRouter.delete("/admin/sources/:id", async (req, res) => {
 });
 
 // Keywords
+
+// POST endpoint for fetching keywords - handles potential future filtering
+newsRouter.post("/keywords/list", async (req, res) => {
+  console.log("POST /keywords/list - Getting keywords...")
+  const userId = (req.user as User).id as string;
+  const keywords = await storage.getKeywords(userId);
+  res.json(keywords);
+});
+
+// Keep GET endpoint for backward compatibility
 newsRouter.get("/keywords", async (req, res) => {
   console.log("Getting keywords...")
   const userId = (req.user as User).id as string;
