@@ -732,59 +732,6 @@ threatRouter.post("/articles/query", async (req, res) => {
   }
 });
 
-// Keep GET endpoint for backward compatibility (but it won't handle large keyword lists)
-threatRouter.get("/articles", async (req, res) => {
-  reqLog(req, "GET /articles");
-  try {
-    const userId = getUserId(req);
-    
-    // BYPASS unified storage for now - use threat-tracker storage directly
-    // This allows us to use the new Technology Stack filtering
-    const search = req.query.search as string | undefined;
-    const keywordIds = req.query.keywordIds;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
-    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
-    const sortBy = req.query.sortBy as string | undefined;
-    
-    let startDate: Date | undefined;
-    let endDate: Date | undefined;
-    
-    if (req.query.startDate) {
-      startDate = new Date(req.query.startDate as string);
-    }
-    
-    if (req.query.endDate) {
-      endDate = new Date(req.query.endDate as string);
-    }
-    
-    // Prepare keyword IDs array
-    let keywordIdsArray: string[] | undefined;
-    if (keywordIds) {
-      if (Array.isArray(keywordIds)) {
-        keywordIdsArray = keywordIds.filter(id => typeof id === 'string') as string[];
-      } else if (typeof keywordIds === 'string') {
-        keywordIdsArray = [keywordIds];
-      }
-    }
-    
-    // Call threat-tracker storage directly with Technology Stack support
-    const articles = await storage.getArticles({
-      search,
-      keywordIds: keywordIdsArray,
-      startDate,
-      endDate,
-      userId,
-      limit,
-      page,
-      sortBy
-    });
-    
-    res.json(articles);
-  } catch (error: any) {
-    console.error("Error fetching articles:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch articles" });
-  }
-});
 
 threatRouter.get("/articles/:id", async (req, res) => {
   reqLog(req, `GET /articles/${req.params.id}`);
