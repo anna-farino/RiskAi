@@ -513,9 +513,9 @@ export function ThreatArticleCard({
                 (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0)) && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-800">
                   {/* Threat Actors */}
-                  {article.matchedThreatActors && article.matchedThreatActors.slice(0, 2).map((actor) => (
+                  {article.matchedThreatActors && article.matchedThreatActors.slice(0, 2).map((actor, index) => (
                     <Badge
-                      key={`actor-${actor}`}
+                      key={`actor-${index}-${actor}`}
                       variant="outline"
                       className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-red-500/10 text-red-400 border-red-500/30"
                       title={`Threat Actor: ${actor}`}
@@ -526,9 +526,9 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* CVEs */}
-                  {article.matchedCves && article.matchedCves.slice(0, 2).map((cve) => (
+                  {article.matchedCves && article.matchedCves.slice(0, 2).map((cve, index) => (
                     <Badge
-                      key={`cve-${cve}`}
+                      key={`cve-${index}-${cve}`}
                       variant="outline"
                       className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-orange-500/10 text-orange-400 border-orange-500/30"
                       title={`CVE: ${cve}`}
@@ -539,9 +539,9 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* Threat Keywords */}
-                  {article.matchedThreatKeywords && article.matchedThreatKeywords.slice(0, 2).map((keyword) => (
+                  {article.matchedThreatKeywords && article.matchedThreatKeywords.slice(0, 2).map((keyword, index) => (
                     <Badge
-                      key={`threat-kw-${keyword}`}
+                      key={`threat-kw-${index}-${keyword}`}
                       variant="outline"
                       className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
                       title={`Threat Keyword: ${keyword}`}
