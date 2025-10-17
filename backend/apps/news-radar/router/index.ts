@@ -532,6 +532,83 @@ newsRouter.get("/articles/count", async (req, res) => {
   }
 });
 
+// POST endpoint for articles - handles large keyword lists in body
+newsRouter.post("/articles/query", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  
+  // Extract filters from request body instead of query params
+  const { 
+    search, 
+    keywordIds, 
+    startDate: startDateString, 
+    endDate: endDateString, 
+    page = 1, 
+    limit = 50,
+    sort,
+    relevanceFilter 
+  } = req.body;
+  
+  // Prepare filter object for unified storage
+  const filter: {
+    searchTerm?: string;
+    keywordIds?: string[];
+    startDate?: Date;
+    endDate?: Date;
+    limit?: number;
+    offset?: number;
+  } = {};
+  
+  // Add search filter if provided
+  if (search && typeof search === 'string') {
+    filter.searchTerm = search;
+  }
+  
+  // Add keyword IDs filter if provided
+  if (keywordIds) {
+    if (Array.isArray(keywordIds)) {
+      filter.keywordIds = keywordIds.filter(id => typeof id === 'string') as string[];
+    } else if (typeof keywordIds === 'string') {
+      filter.keywordIds = [keywordIds];
+    }
+  }
+  
+  // Parse date range filters
+  if (startDateString) {
+    try {
+      filter.startDate = new Date(startDateString);
+    } catch (error) {
+      console.error("Invalid startDate format:", error);
+    }
+  }
+  
+  if (endDateString) {
+    try {
+      filter.endDate = new Date(endDateString);
+    } catch (error) {
+      console.error("Invalid endDate format:", error);
+    }
+  }
+  
+  // Parse pagination parameters
+  filter.limit = limit;
+  filter.offset = (page - 1) * limit;
+  
+  console.log("Filter parameters:", filter);
+  console.log("[NEWS-RADAR-DEBUG] userId being passed:", userId);
+  
+  try {
+    // Use unified storage to get articles from global_articles table
+    const articles = await unifiedStorage.getUserArticles(userId, 'news-radar', filter);
+    console.log("Received articles from global pool:", articles.length);
+    
+    res.json(articles);
+  } catch (error: any) {
+    console.error("Error fetching articles:", error);
+    res.status(500).json({ error: error.message || 'Failed to fetch articles' });
+  }
+});
+
+// Keep GET endpoint for backward compatibility (but it won't handle large keyword lists)
 newsRouter.get("/articles", async (req, res) => {
   const userId = (req.user as User).id as string;
   
