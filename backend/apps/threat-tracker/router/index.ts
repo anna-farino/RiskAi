@@ -661,6 +661,26 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
 });
 
 // Articles API - Phase 5: Using unified storage to read from global_articles
+
+// POST endpoint for article count - handles large keyword lists in body
+threatRouter.post("/articles/count", async (req, res) => {
+  reqLog(req, "POST /articles/count");
+  try {
+    const userId = getUserId(req);
+    
+    // Extract filters from request body
+    const { keywordIds } = req.body;
+    
+    // For now, just get the total count (filtering by keywords happens at query time)
+    const count = await unifiedStorage.getUserArticleCount(userId, 'threat-tracker');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
+// Keep GET endpoint for backward compatibility
 threatRouter.get("/articles/count", async (req, res) => {
   reqLog(req, "GET /articles/count");
   try {

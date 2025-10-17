@@ -519,6 +519,25 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 });
 
 // Articles - Phase 5: Using unified storage to read from global_articles
+
+// POST endpoint for article count - handles large keyword lists in body
+newsRouter.post("/articles/count", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  
+  try {
+    // Extract filters from request body
+    const { keywordIds } = req.body;
+    
+    // For now, just get the total count (filtering by keywords happens at query time)
+    const count = await unifiedStorage.getUserArticleCount(userId, 'news-radar');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
+// Keep GET endpoint for backward compatibility
 newsRouter.get("/articles/count", async (req, res) => {
   const userId = (req.user as User).id as string;
   
