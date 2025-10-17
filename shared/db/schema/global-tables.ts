@@ -16,6 +16,7 @@ export const globalArticles = pgTable('global_articles', {
   title: text('title').notNull(),
   content: text('content').notNull(),
   url: text('url').notNull().unique(),
+  originalUrl: text('original_url'), // Store the original URL before any normalization
   author: text('author'),
   publishDate: timestamp('publish_date'),
   summary: text('summary'),
