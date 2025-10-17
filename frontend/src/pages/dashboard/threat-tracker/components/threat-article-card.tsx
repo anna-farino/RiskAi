@@ -107,25 +107,25 @@ export function ThreatArticleCard({
   // Get threat level badge color and styling
   const getThreatLevelColor = (level: string) => {
     switch(level?.toLowerCase()) {
-      case 'critical': return 'bg-red-500 text-white';
-      case 'high': return 'bg-orange-500 text-white';
-      case 'medium': return 'bg-yellow-500 text-black';
-      case 'low': return 'bg-green-500 text-white';
-      default: return 'bg-gray-500 text-white';
+      case 'critical': return 'bg-red-500 text-white border-red-600';
+      case 'high': return 'bg-orange-500 text-white border-orange-600';
+      case 'medium': return 'bg-yellow-400 text-black border-yellow-500';
+      case 'low': return 'bg-green-500 text-white border-green-600';
+      default: return 'bg-gray-500 text-white border-gray-600';
     }
   };
 
   // Convert relevance score to categorical
   const getRelevanceCategory = (score: number): string => {
-    if (score >= 70) return 'High Relevance';
-    if (score >= 40) return 'Medium Relevance';
-    return 'Low Relevance';
+    if (score >= 70) return 'High';
+    if (score >= 40) return 'Medium';
+    return 'Low';
   };
 
   const getRelevanceColor = (category: string) => {
-    if (category === 'High Relevance') return 'bg-purple-500 text-white';
-    if (category === 'Medium Relevance') return 'bg-blue-500 text-white';
-    return 'bg-gray-500 text-white';
+    if (category === 'High') return 'bg-purple-500 text-white border-purple-600';
+    if (category === 'Medium') return 'bg-blue-500 text-white border-blue-600';
+    return 'bg-gray-400 text-black border-gray-500';
   };
   
   // Get threat level from article
@@ -199,40 +199,34 @@ export function ThreatArticleCard({
         ></div>
 
         <div className="flex-1 p-4 sm:p-5 flex flex-col">
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="text-lg font-semibold text-white line-clamp-2 leading-6 group-hover:text-[#00FFFF] transition-colors flex-1 pr-2">
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline cursor-pointer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {article.title}
-              </a>
-            </h3>
+          <h3 className="text-lg font-semibold text-white line-clamp-2 leading-6 group-hover:text-[#00FFFF] transition-colors mb-2">
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {article.title}
+            </a>
+          </h3>
 
-            {/* Threat level and relevance badges */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {/* Threat severity badge */}
-              <Badge
-                className={cn(
-                  "text-xs px-2 py-0.5",
-                  getThreatLevelColor(threatLevel)
-                )}
-              >
-                {threatLevel.toUpperCase()}
-              </Badge>
-              
-              {/* Relevance badge */}
-              <Badge
-                className={cn(
-                  "text-xs px-2 py-0.5",
-                  getRelevanceColor(relevanceCategory)
-                )}
-              >
-                {relevanceCategory.replace(' Relevance', '')}
-              </Badge>
+          {/* Threat level and relevance badges */}
+          <div className="flex items-center gap-2 mb-3">
+            {/* Threat severity badge */}
+            <div className={cn(
+              "text-xs px-3 py-1.5 rounded-md font-medium whitespace-nowrap border",
+              getThreatLevelColor(threatLevel)
+            )}>
+              <span className="font-normal">Threat Severity :</span> <span className="font-bold">{threatLevel.charAt(0).toUpperCase() + threatLevel.slice(1).toLowerCase()}</span>
+            </div>
+            
+            {/* Relevance badge */}
+            <div className={cn(
+              "text-xs px-3 py-1.5 rounded-md font-medium whitespace-nowrap border",
+              getRelevanceColor(relevanceCategory)
+            )}>
+              <span className="font-normal">Relevance :</span> <span className="font-bold">{relevanceCategory}</span>
             </div>
           </div>
 
