@@ -16,7 +16,8 @@ import {
 import {
   software,
   hardware,
-  companies
+  companies,
+  threatActors
 } from '../../../../shared/db/schema/threat-tracker/entities';
 import { userKeywords } from '../../../../shared/db/schema/global-tables';
 import { eq, and, inArray, isNull, gte, desc, sql } from 'drizzle-orm';
@@ -749,6 +750,65 @@ export class RelevanceScorer {
     if (!article) return [];
     
     const contentLower = (article.content + ' ' + article.title).toLowerCase();
+    const matched: string[] = [];
+    
+    for (const keyword of keywords) {
+      if (keyword.term && contentLower.includes(keyword.term.toLowerCase())) {
+        matched.push(keyword.term);
+      }
+    }
+    
+    return matched;
+  }
+  
+  /**
+   * Get threat actors associated with an article
+   */
+  private async getArticleThreatActors(articleId: string): Promise<string[]> {
+    const actors = await db.select({
+      name: threatActors.name
+    })
+    .from(articleThreatActors)
+    .innerJoin(threatActors, eq(articleThreatActors.threatActorId, threatActors.id))
+    .where(eq(articleThreatActors.articleId, articleId));
+    
+    return actors.map(a => a.name);
+  }
+  
+  /**
+   * Get CVEs associated with an article
+   */
+  private async getArticleCves(articleId: string): Promise<string[]> {
+    const cves = await db.select({
+      cveId: articleCves.cveId
+    })
+    .from(articleCves)
+    .where(eq(articleCves.articleId, articleId));
+    
+    return cves.map(c => c.cveId);
+  }
+  
+  /**
+   * Get threat keywords that match article content
+   */
+  private async getMatchedThreatKeywords(articleId: string, userId: string): Promise<string[]> {
+    const keywords = await db.select()
+      .from(userKeywords)
+      .where(and(
+        eq(userKeywords.userId, userId),
+        eq(userKeywords.appContext, 'threat_tracker'),
+        eq(userKeywords.isActive, true)
+        // All threat_tracker keywords are considered threat keywords
+      ));
+    
+    const [article] = await db.select()
+      .from(globalArticles)
+      .where(eq(globalArticles.id, articleId))
+      .limit(1);
+    
+    if (!article) return [];
+    
+    const contentLower = ((article.content || '') + ' ' + (article.title || '')).toLowerCase();
     const matched: string[] = [];
     
     for (const keyword of keywords) {

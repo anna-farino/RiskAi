@@ -24,6 +24,8 @@ import {
   articleSoftware,
   articleHardware,
   articleCompanies,
+  articleCves,
+  articleThreatActors,
 } from "@shared/db/schema/threat-tracker/entity-associations";
 import {
   usersSoftware,
@@ -34,6 +36,7 @@ import {
   software,
   hardware,
   companies,
+  threatActors,
 } from "@shared/db/schema/threat-tracker/entities";
 import { db, pool } from "backend/db/db";
 import {
@@ -944,15 +947,17 @@ export const storage: IStorage = {
       const allSoftwareIds = new Set<string>();
       const allCompanyIds = new Set<string>();
       const allHardwareIds = new Set<string>();
+      const allArticleIds = new Set<string>();
       
       result.forEach(row => {
         (row.matchedSoftware || []).forEach(id => allSoftwareIds.add(id));
         (row.matchedCompanies || []).forEach(id => allCompanyIds.add(id));
         (row.matchedHardware || []).forEach(id => allHardwareIds.add(id));
+        allArticleIds.add(row.article.id);
       });
       
-      // Fetch entity names in parallel
-      const [softwareMap, companyMap, hardwareMap] = await Promise.all([
+      // Fetch entity names and threat data in parallel
+      const [softwareMap, companyMap, hardwareMap, threatActorsMap, cvesMap, threatKeywordsMap] = await Promise.all([
         // Fetch software names
         allSoftwareIds.size > 0 
           ? db.select({ id: software.id, name: software.name })
@@ -975,7 +980,74 @@ export const storage: IStorage = {
               .from(hardware)
               .where(inArray(hardware.id, Array.from(allHardwareIds)))
               .then(rows => new Map(rows.map(r => [r.id, r.name])))
-          : new Map<string, string | null>()
+          : new Map<string, string | null>(),
+          
+        // Fetch threat actors for articles
+        allArticleIds.size > 0
+          ? db.select({ 
+              articleId: articleThreatActors.articleId,
+              actorName: threatActors.name 
+            })
+              .from(articleThreatActors)
+              .innerJoin(threatActors, eq(articleThreatActors.threatActorId, threatActors.id))
+              .where(inArray(articleThreatActors.articleId, Array.from(allArticleIds)))
+              .then(rows => {
+                const map = new Map<string, string[]>();
+                rows.forEach(row => {
+                  if (!map.has(row.articleId)) {
+                    map.set(row.articleId, []);
+                  }
+                  map.get(row.articleId)!.push(row.actorName);
+                });
+                return map;
+              })
+          : new Map<string, string[]>(),
+          
+        // Fetch CVEs for articles
+        allArticleIds.size > 0
+          ? db.select({ 
+              articleId: articleCves.articleId,
+              cveId: articleCves.cveId 
+            })
+              .from(articleCves)
+              .where(inArray(articleCves.articleId, Array.from(allArticleIds)))
+              .then(rows => {
+                const map = new Map<string, string[]>();
+                rows.forEach(row => {
+                  if (!map.has(row.articleId)) {
+                    map.set(row.articleId, []);
+                  }
+                  map.get(row.articleId)!.push(row.cveId);
+                });
+                return map;
+              })
+          : new Map<string, string[]>(),
+          
+        // Process threat keywords for each article
+        allArticleIds.size > 0 && threatTerms.length > 0
+          ? Promise.all(Array.from(allArticleIds).map(async (articleId) => {
+              const [article] = await db.select()
+                .from(globalArticles)
+                .where(eq(globalArticles.id, articleId))
+                .limit(1);
+                
+              const contentLower = ((article?.content || '') + ' ' + (article?.title || '')).toLowerCase();
+              const matched: string[] = [];
+              
+              for (const term of threatTerms) {
+                if (contentLower.includes(term)) {
+                  matched.push(term);
+                }
+              }
+              
+              return { articleId, keywords: matched };
+            }))
+            .then(results => {
+              const map = new Map<string, string[]>();
+              results.forEach(r => map.set(r.articleId, r.keywords));
+              return map;
+            })
+          : new Map<string, string[]>()
       ]);
 
       // Map global articles to ThreatArticle format for compatibility
@@ -1009,15 +1081,28 @@ export const storage: IStorage = {
           .map(id => hardwareMap.get(id))
           .filter(name => name != null) as string[],
         matchedKeywords: row.matchedKeywords || [],
+        // Add threat-related data
+        matchedThreatActors: threatActorsMap.get(row.article.id) || [],
+        matchedCves: cvesMap.get(row.article.id) || [],
+        matchedThreatKeywords: threatKeywordsMap.get(row.article.id) || [],
       }));
 
-      // Filter out articles with no matched entities
+      // Filter articles to require BOTH tech stack AND threat elements
       const filteredArticles = mappedArticles.filter(article => {
-        const totalMatches = 
-          article.matchedSoftware.length + 
-          article.matchedCompanies.length + 
-          article.matchedHardware.length;
-        return totalMatches > 0;
+        // Check for tech stack matches
+        const hasTechStackMatch = 
+          article.matchedSoftware.length > 0 || 
+          article.matchedCompanies.length > 0 || 
+          article.matchedHardware.length > 0;
+        
+        // Check for threat element matches
+        const hasThreatMatch = 
+          article.matchedThreatActors.length > 0 ||
+          article.matchedCves.length > 0 ||
+          article.matchedThreatKeywords.length > 0;
+        
+        // Require BOTH tech stack AND threat elements
+        return hasTechStackMatch && hasThreatMatch;
       });
 
       return filteredArticles as ThreatArticle[];

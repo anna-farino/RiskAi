@@ -37,6 +37,10 @@ interface ExtendedThreatArticle extends ThreatArticle {
   }>;
   attackVectors?: string[];
   threatActors?: string[];
+  // New threat-related fields
+  matchedThreatActors?: string[];
+  matchedCves?: string[];
+  matchedThreatKeywords?: string[];
 }
 
 interface ThreatArticleCardProps {
@@ -497,6 +501,71 @@ export function ThreatArticleCard({
                     ) : null;
                   })()}
                 </>
+              )}
+              
+              {/* Threat Indicators - Show below tech stack pills */}
+              {((article.matchedThreatActors && article.matchedThreatActors.length > 0) ||
+                (article.matchedCves && article.matchedCves.length > 0) ||
+                (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0)) && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-1.5 pt-1.5 border-t border-slate-800">
+                  {/* Threat Actors */}
+                  {article.matchedThreatActors && article.matchedThreatActors.slice(0, 2).map((actor) => (
+                    <Badge
+                      key={`actor-${actor}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-red-500/10 text-red-400 border-red-500/30"
+                      title={`Threat Actor: ${actor}`}
+                    >
+                      <Shield className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {actor}
+                    </Badge>
+                  ))}
+                  
+                  {/* CVEs */}
+                  {article.matchedCves && article.matchedCves.slice(0, 2).map((cve) => (
+                    <Badge
+                      key={`cve-${cve}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-orange-500/10 text-orange-400 border-orange-500/30"
+                      title={`CVE: ${cve}`}
+                    >
+                      <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {cve}
+                    </Badge>
+                  ))}
+                  
+                  {/* Threat Keywords */}
+                  {article.matchedThreatKeywords && article.matchedThreatKeywords.slice(0, 2).map((keyword) => (
+                    <Badge
+                      key={`threat-kw-${keyword}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                      title={`Threat Keyword: ${keyword}`}
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {keyword}
+                    </Badge>
+                  ))}
+                  
+                  {/* Show count of additional threat indicators */}
+                  {(() => {
+                    const totalThreatIndicators = 
+                      (article.matchedThreatActors?.length || 0) + 
+                      (article.matchedCves?.length || 0) + 
+                      (article.matchedThreatKeywords?.length || 0);
+                    const shownThreatIndicators = 
+                      Math.min(2, article.matchedThreatActors?.length || 0) + 
+                      Math.min(2, article.matchedCves?.length || 0) + 
+                      Math.min(2, article.matchedThreatKeywords?.length || 0);
+                    const additionalThreatCount = totalThreatIndicators - shownThreatIndicators;
+                    
+                    return additionalThreatCount > 0 ? (
+                      <span className="text-xs font-medium text-slate-400 leading-4">
+                        +{additionalThreatCount} more threats
+                      </span>
+                    ) : null;
+                  })()}
+                </div>
               )}
               
               {/* Article counter - only show if no matches */}
