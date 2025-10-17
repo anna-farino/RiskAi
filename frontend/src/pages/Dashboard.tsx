@@ -11,11 +11,17 @@ export default function Dashboard() {
   const fetchWithAuth = useFetch();
   const { data: userData } = useAuth();
   
-  // Fetch News Radar keywords
+  // Fetch News Radar keywords (using POST for consistency and future filtering)
   const { data: newsKeywords } = useQuery({
     queryKey: ['news-radar-keywords-dashboard'],
     queryFn: async () => {
-      const response = await fetchWithAuth('/api/news-tracker/keywords');
+      const response = await fetchWithAuth('/api/news-tracker/keywords/list', {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch news keywords: ${response.statusText}`);
       }
@@ -100,11 +106,17 @@ export default function Dashboard() {
     retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Fetch Threat Tracker keywords
+  // Fetch Threat Tracker keywords (using POST for consistency and future filtering)
   const { data: threatKeywords } = useQuery({
     queryKey: ['threat-tracker-keywords-dashboard'],
     queryFn: async () => {
-      const response = await fetchWithAuth('/api/threat-tracker/keywords');
+      const response = await fetchWithAuth('/api/threat-tracker/keywords/list', {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({})
+      });
       if (!response.ok) {
         throw new Error(`Failed to fetch threat keywords: ${response.statusText}`);
       }
