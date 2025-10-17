@@ -62,7 +62,7 @@ async function executeRawSql<T>(
 ): Promise<T[]> {
   try {
     // Direct execution with the pool instead of through drizzle
-    const result = await pool.query<T>(sqlStr, params);
+    const result = await pool.query(sqlStr, params);
     return (result as any).rows as T[];
   } catch (error) {
     console.error("SQL execution error:", error);
@@ -1010,9 +1010,9 @@ export const storage: IStorage = {
           .filter(name => name != null) as string[],
         matchedKeywords: row.matchedKeywords || [],
         // Extract threat indicators from metadata
-        matchedThreatActors: row.relevanceMetadata?.matchedThreatActors || [],
-        matchedCVEs: row.relevanceMetadata?.matchedCVEs || [],
-        matchedThreatKeywords: row.relevanceMetadata?.matchedThreatKeywords || [],
+        matchedThreatActors: (row.relevanceMetadata as any)?.matchedThreatActors || [],
+        matchedCVEs: (row.relevanceMetadata as any)?.matchedCVEs || [],
+        matchedThreatKeywords: (row.relevanceMetadata as any)?.matchedThreatKeywords || [],
       }));
 
       // Filter out articles with no matched entities
