@@ -7,7 +7,7 @@ import { ThreatAnalyzer } from "backend/services/threat-analysis";
 
 import { log } from "backend/utils/log";
 import { ThreatArticle, ThreatSource } from "@shared/db/schema/threat-tracker";
-import { normalizeUrl, titleSimilarity } from "./url-utils";
+import { validateAndNormalizeUrl, titleSimilarity } from "./url-utils";
 import { 
   logSourceScrapingError, 
   logArticleScrapingError,
@@ -269,11 +269,14 @@ async function processArticle(
     }
 
     // Store the article in the GLOBAL database (no userId)
+    // Validate and normalize the URL before saving to prevent path segment corruption
+    const safeUrl = validateAndNormalizeUrl(articleUrl);
+    
     const newArticle = await storage.createArticle({
       sourceId,
       title: articleData.title,
       content: articleData.content,
-      url: articleUrl, // Use original URL to preserve exact structure - DO NOT MODIFY
+      url: safeUrl, // Use validated URL that preserves path structure
       author: articleData.author,
       publishDate: publishDate,
       summary: analysis.summary,
