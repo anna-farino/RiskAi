@@ -140,16 +140,34 @@ export default function NewsHome() {
     return params.toString();
   };
   
-  // Articles query with filtering
+  // Articles query with filtering (using POST for large keyword lists)
   const articles = useQuery<Article[]>({
     queryKey: ["/api/news-tracker/articles", searchTerm, selectedKeywordIds, dateRange, sortOrder, relevanceFilter],
     queryFn: async () => {
       try {
-        const queryString = buildQueryString();
-        const url = `/api/news-tracker/articles${queryString ? `?${queryString}` : ''}`;
+        // Build request body for POST endpoint
+        const requestBody = {
+          search: searchTerm || undefined,
+          keywordIds: selectedKeywordIds.length > 0 ? selectedKeywordIds : undefined,
+          startDate: dateRange.startDate ? `${dateRange.startDate}T00:00:00.000Z` : undefined,
+          endDate: dateRange.endDate ? `${dateRange.endDate}T23:59:59.999Z` : undefined,
+          sort: sortOrder,
+          relevanceFilter: relevanceFilter !== "all" ? relevanceFilter : undefined,
+          limit: 1000,
+          page: 1
+        };
         
-        const response = await fetchWithAuth(url, {
-          method: "GET",
+        // Remove undefined values
+        const cleanBody = Object.fromEntries(
+          Object.entries(requestBody).filter(([_, v]) => v !== undefined)
+        );
+        
+        const response = await fetchWithAuth('/api/news-tracker/articles/query', {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(cleanBody)
         });
         
         if (!response.ok) throw new Error('Failed to fetch articles');
