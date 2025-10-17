@@ -332,6 +332,14 @@ export async function extractArticleEntities(article: {
       * Specific model name/number (e.g., "ASA 5500", "PowerEdge R740", "R7000")  
       * Manufacturer + specific product line (e.g., "Cisco ASA", "Dell PowerEdge", "Netgear Nighthawk")
       * Full product name (e.g., "iPhone 14", "SurfaceBook 3", "MacBook Pro M2")
+    - **IMPORTANT NETWORK HARDWARE RECOGNITION**: These are ALWAYS hardware devices, not software:
+      * Cisco Catalyst series (switches) - e.g., "Catalyst 9300", "Catalyst 2960"
+      * Cisco Nexus series (data center switches) - e.g., "Nexus 9000", "Nexus 7000"
+      * Cisco Meraki devices (cloud-managed hardware) - e.g., "Meraki MX", "Meraki MS"
+      * Cisco ASA (security appliances) - e.g., "ASA 5500", "ASA 5505"
+      * Juniper devices - e.g., "Juniper MX", "Juniper EX"
+      * Arista switches - e.g., "Arista 7050", "Arista 7280"
+      * Note: Even if these have firmware/OS versions (like IOS-XE, NX-OS), they are HARDWARE devices
     - Device names WITHOUT the manufacturer prefix (e.g., "Microsoft SurfaceBook 3" → name: "SurfaceBook 3")
     - Model field should contain the FULL model designation, not just the number
     - Manufacturer as separate field (e.g., "Microsoft", "Cisco", "Dell")
