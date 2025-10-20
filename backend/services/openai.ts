@@ -349,16 +349,20 @@ export async function extractArticleEntities(article: {
     - **EXTRACT if specific product mentioned** (e.g., "attackers exploited Apache HTTP Server" → EXTRACT)
     - The sentence/context where mentioned
     
-    For HARDWARE, extract ONLY SPECIFIC devices:
+    For HARDWARE, extract ONLY SPECIFIC devices that are EXPLICITLY NAMED in the article:
+    - **CRITICAL RULE**: The exact hardware name/model MUST appear verbatim in the article text
+    - **DO NOT INFER OR GUESS**: If article mentions "storage arrays" or "network switches", do NOT extract 
+      PowerStore, FlashArray, Nimble Storage, Catalyst, etc. unless those specific names are in the text
     - **DO NOT EXTRACT generic device categories like**: "laptop", "router", "server", "phone", "desktop",
       "hard drives", "hard disk", "microwave", "SIM cards", "SIM card", "bank cards", "bank card", 
       "mobile devices", "mobile device", "IP cameras", "IP camera", "DVRs", "DVR", "switches", "switch",
       "firewall", "modem", "printer", "scanner", "network equipment", "IoT devices", "smart devices",
-      "home routers", "home router", "USB drive", "USB drives", "memory card", "memory cards"
-    - **MINIMUM REQUIREMENT**: Must have at least ONE of:
-      * Specific model name/number (e.g., "ASA 5500", "PowerEdge R740", "R7000")  
-      * Manufacturer + specific product line (e.g., "Cisco ASA", "Dell PowerEdge", "Netgear Nighthawk")
-      * Full product name (e.g., "iPhone 14", "SurfaceBook 3", "MacBook Pro M2")
+      "home routers", "home router", "USB drive", "USB drives", "memory card", "memory cards",
+      "storage arrays", "flash storage", "enterprise storage", "network switches", "storage systems"
+    - **MINIMUM REQUIREMENT**: The article must explicitly mention:
+      * Specific model name/number that appears in text (e.g., "ASA 5500", "PowerEdge R740", "R7000")  
+      * Manufacturer + specific product line in text (e.g., "Cisco ASA", "Dell PowerEdge", "Netgear Nighthawk")
+      * Full product name in text (e.g., "iPhone 14", "SurfaceBook 3", "MacBook Pro M2")
     - **CRITICAL HARDWARE RECOGNITION PATTERNS**:
       * Network equipment with model numbers are ALWAYS hardware (switches, routers, firewalls, appliances)
       * Pattern: "[Manufacturer] [Product Line] [Model]" where Product Line indicates hardware type
@@ -418,8 +422,14 @@ export async function extractArticleEntities(article: {
     Also identify:
     - Attack vectors used (network, email, physical, supply chain, etc.)
     
-    Be very precise - only extract entities explicitly mentioned, not implied.
+    Be very precise - only extract entities explicitly mentioned, not implied or inferred.
+    For hardware and software: The entity name MUST appear in the article text. Do not make assumptions.
     Include confidence score (0-1) for each extraction.
+    
+    **VALIDATION**: Before including any hardware or software entity, verify that:
+    1. The exact product/device name appears in the article text (not just a generic category)
+    2. You can quote the specific sentence where it appears
+    3. You are not inferring based on context or category mentions
     
     Article Title: ${article.title}
     Article Content: ${article.content.substring(0, 8000)}
