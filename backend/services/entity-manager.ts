@@ -687,14 +687,28 @@ export class EntityManager {
   /**
    * Link an article to all its extracted entities
    */
-  async linkArticleToEntities(articleId: string, entities: ExtractedEntities): Promise<void> {
+  async linkArticleToEntities(articleId: string, entities: ExtractedEntities, articleContent?: string): Promise<void> {
+    // If article content not provided, fetch it from database
+    let fullContent = articleContent;
+    if (!fullContent) {
+      const article = await db.select()
+        .from(globalArticles)
+        .where(eq(globalArticles.id, articleId))
+        .limit(1);
+      
+      if (article.length > 0) {
+        // Combine title, content, and summary for complete text
+        fullContent = `${article[0].title || ''} ${article[0].content || ''} ${article[0].summary || ''}`;
+      }
+    }
+    
     // Process all entity types in parallel for efficiency
     await Promise.all([
       // Link software
-      this.linkArticleToSoftware(articleId, entities.software),
+      this.linkArticleToSoftware(articleId, entities.software, fullContent),
       
       // Link hardware
-      this.linkArticleToHardware(articleId, entities.hardware),
+      this.linkArticleToHardware(articleId, entities.hardware, fullContent),
       
       // Link companies
       this.linkArticleToCompanies(articleId, entities.companies),
@@ -726,7 +740,7 @@ export class EntityManager {
   /**
    * Link article to software entities
    */
-  private async linkArticleToSoftware(articleId: string, softwareList: SoftwareExtraction[]): Promise<void> {
+  private async linkArticleToSoftware(articleId: string, softwareList: SoftwareExtraction[], fullContent?: string): Promise<void> {
     for (const sw of softwareList) {
       // Filter out generic software terms
       if (this.isGenericSoftware(sw.name)) {
@@ -740,17 +754,20 @@ export class EntityManager {
         continue;
       }
       
-      // CRITICAL VALIDATION: Verify the software name actually appears in the context
-      if (sw.context) {
-        const contextLower = sw.context.toLowerCase();
+      // CRITICAL VALIDATION: Verify the software name actually appears in the full article content
+      if (fullContent) {
+        const contentLower = fullContent.toLowerCase();
         const nameLower = sw.name.toLowerCase();
         
-        // Check if the name appears in the context (allowing for vendor prefix)
-        const nameAppears = contextLower.includes(nameLower);
-        const vendorNameAppears = sw.vendor && contextLower.includes(`${sw.vendor.toLowerCase()} ${nameLower}`);
+        // Check if the name appears in the full article content (allowing for vendor prefix)
+        const nameAppears = contentLower.includes(nameLower);
+        const vendorNameAppears = sw.vendor && contentLower.includes(`${sw.vendor.toLowerCase()} ${nameLower}`);
+        // Also check for common variations (e.g., "Amazon Web Services" vs "AWS")
+        const awsVariation = nameLower === 'amazon web services' && contentLower.includes('aws');
+        const gcpVariation = nameLower === 'google cloud platform' && contentLower.includes('gcp');
         
-        if (!nameAppears && !vendorNameAppears) {
-          console.log(`[EntityManager] Rejecting software "${sw.name}" - not found in context: "${sw.context.substring(0, 100)}..."`);
+        if (!nameAppears && !vendorNameAppears && !awsVariation && !gcpVariation) {
+          console.log(`[EntityManager] Rejecting software "${sw.name}" - not found in full article content`);
           continue;
         }
       }
@@ -790,7 +807,7 @@ export class EntityManager {
   /**
    * Link article to hardware entities
    */
-  private async linkArticleToHardware(articleId: string, hardwareList: HardwareExtraction[]): Promise<void> {
+  private async linkArticleToHardware(articleId: string, hardwareList: HardwareExtraction[], fullContent?: string): Promise<void> {
     for (const hw of hardwareList) {
       // Filter out generic hardware terms
       if (this.isGenericHardware(hw.name)) {
@@ -811,19 +828,19 @@ export class EntityManager {
         continue;
       }
       
-      // CRITICAL VALIDATION: Verify the hardware name actually appears in the context
-      if (hw.context) {
-        const contextLower = hw.context.toLowerCase();
+      // CRITICAL VALIDATION: Verify the hardware name actually appears in the full article content
+      if (fullContent) {
+        const contentLower = fullContent.toLowerCase();
         const nameLower = hw.name.toLowerCase();
         const modelLower = hw.model?.toLowerCase();
         
-        // Check if the name or model appears in the context
-        const nameAppears = contextLower.includes(nameLower);
-        const modelAppears = modelLower && contextLower.includes(modelLower);
-        const fullNameAppears = hw.manufacturer && contextLower.includes(fullName.toLowerCase());
+        // Check if the name or model appears in the full article content
+        const nameAppears = contentLower.includes(nameLower);
+        const modelAppears = modelLower && contentLower.includes(modelLower);
+        const fullNameAppears = hw.manufacturer && contentLower.includes(fullName.toLowerCase());
         
         if (!nameAppears && !modelAppears && !fullNameAppears) {
-          console.log(`[EntityManager] Rejecting hardware "${hw.name}" - not found in context: "${hw.context.substring(0, 100)}..."`);
+          console.log(`[EntityManager] Rejecting hardware "${hw.name}" - not found in full article content`);
           continue;
         }
       }
