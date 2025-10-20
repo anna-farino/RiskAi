@@ -829,10 +829,10 @@ export const storage: IStorage = {
       if (hasSoftware.length > 0) {
         entityConditions.push(sql`
           EXISTS (
-            SELECT 1 FROM ${articleSoftware} AS art_sw
-            INNER JOIN ${usersSoftware} AS user_sw 
+            SELECT 1 FROM article_software AS art_sw
+            INNER JOIN users_software AS user_sw 
               ON art_sw.software_id = user_sw.software_id
-            WHERE art_sw.article_id = ${globalArticles.id}
+            WHERE art_sw.article_id = global_articles.id
               AND user_sw.user_id = ${userId}
               AND user_sw.is_active = true
           )
@@ -843,10 +843,10 @@ export const storage: IStorage = {
       if (hasHardware.length > 0) {
         entityConditions.push(sql`
           EXISTS (
-            SELECT 1 FROM ${articleHardware} AS art_hw
-            INNER JOIN ${usersHardware} AS user_hw 
+            SELECT 1 FROM article_hardware AS art_hw
+            INNER JOIN users_hardware AS user_hw 
               ON art_hw.hardware_id = user_hw.hardware_id
-            WHERE art_hw.article_id = ${globalArticles.id}
+            WHERE art_hw.article_id = global_articles.id
               AND user_hw.user_id = ${userId}
               AND user_hw.is_active = true
           )
@@ -857,10 +857,10 @@ export const storage: IStorage = {
       if (hasCompanies.length > 0) {
         entityConditions.push(sql`
           EXISTS (
-            SELECT 1 FROM ${articleCompanies} AS art_co
-            INNER JOIN ${usersCompanies} AS user_co 
+            SELECT 1 FROM article_companies AS art_co
+            INNER JOIN users_companies AS user_co 
               ON art_co.company_id = user_co.company_id
-            WHERE art_co.article_id = ${globalArticles.id}
+            WHERE art_co.article_id = global_articles.id
               AND user_co.user_id = ${userId}
               AND user_co.is_active = true
           )
