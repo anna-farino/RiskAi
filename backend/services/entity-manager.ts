@@ -739,6 +739,21 @@ export class EntityManager {
         console.log(`[EntityManager] Skipping generic specificity software: ${sw.name}`);
         continue;
       }
+      
+      // CRITICAL VALIDATION: Verify the software name actually appears in the context
+      if (sw.context) {
+        const contextLower = sw.context.toLowerCase();
+        const nameLower = sw.name.toLowerCase();
+        
+        // Check if the name appears in the context (allowing for vendor prefix)
+        const nameAppears = contextLower.includes(nameLower);
+        const vendorNameAppears = sw.vendor && contextLower.includes(`${sw.vendor.toLowerCase()} ${nameLower}`);
+        
+        if (!nameAppears && !vendorNameAppears) {
+          console.log(`[EntityManager] Rejecting software "${sw.name}" - not found in context: "${sw.context.substring(0, 100)}..."`);
+          continue;
+        }
+      }
       // Find or create company if vendor is specified
       let companyId: string | null = null;
       if (sw.vendor) {
@@ -794,6 +809,23 @@ export class EntityManager {
       if ('specificity' in hw && hw.specificity === 'generic') {
         console.log(`[EntityManager] Skipping generic specificity hardware: ${hw.name}`);
         continue;
+      }
+      
+      // CRITICAL VALIDATION: Verify the hardware name actually appears in the context
+      if (hw.context) {
+        const contextLower = hw.context.toLowerCase();
+        const nameLower = hw.name.toLowerCase();
+        const modelLower = hw.model?.toLowerCase();
+        
+        // Check if the name or model appears in the context
+        const nameAppears = contextLower.includes(nameLower);
+        const modelAppears = modelLower && contextLower.includes(modelLower);
+        const fullNameAppears = hw.manufacturer && contextLower.includes(fullName.toLowerCase());
+        
+        if (!nameAppears && !modelAppears && !fullNameAppears) {
+          console.log(`[EntityManager] Rejecting hardware "${hw.name}" - not found in context: "${hw.context.substring(0, 100)}..."`);
+          continue;
+        }
       }
       const hardwareId = await this.findOrCreateHardware({
         name: hw.name,
