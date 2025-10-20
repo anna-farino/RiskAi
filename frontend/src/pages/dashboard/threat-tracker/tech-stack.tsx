@@ -1,6 +1,5 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +65,6 @@ interface ExtractedEntity {
 
 export default function TechStackPage() {
   const fetchWithAuth = useFetch();
-  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [softwareOpen, setSoftwareOpen] = useState(true);
   const [hardwareOpen, setHardwareOpen] = useState(false);
@@ -269,7 +267,7 @@ export default function TechStackPage() {
           <button
             onClick={() => {
               // Navigate to threats page with filter
-              navigate(`/dashboard/threat/home?filter=${type}:${item.id}`);
+              window.location.href = `/dashboard/threat-tracker?filter=${type}:${item.id}`;
             }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity mr-4"
             data-testid={`button-threat-indicator-${item.id}`}
