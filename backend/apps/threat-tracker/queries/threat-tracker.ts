@@ -825,52 +825,67 @@ export const storage: IStorage = {
       // Build the tech stack filtering conditions
       const entityConditions = [];
 
-      // Software match
-      if (hasSoftware.length > 0) {
-        entityConditions.push(
-          exists(
-            db.select()
-              .from(articleSoftware)
-              .innerJoin(usersSoftware, eq(articleSoftware.softwareId, usersSoftware.softwareId))
-              .where(and(
-                eq(articleSoftware.articleId, globalArticles.id),
-                eq(usersSoftware.userId, userId),
-                eq(usersSoftware.isActive, true)
-              ))
-          )
-        );
+      // Get user's active software IDs
+      const userSoftwareIds = await db
+        .select({ softwareId: usersSoftware.softwareId })
+        .from(usersSoftware)
+        .where(and(
+          eq(usersSoftware.userId, userId),
+          eq(usersSoftware.isActive, true)
+        ));
+
+      // Get user's active hardware IDs
+      const userHardwareIds = await db
+        .select({ hardwareId: usersHardware.hardwareId })
+        .from(usersHardware)
+        .where(and(
+          eq(usersHardware.userId, userId),
+          eq(usersHardware.isActive, true)
+        ));
+
+      // Get user's active company IDs
+      const userCompanyIds = await db
+        .select({ companyId: usersCompanies.companyId })
+        .from(usersCompanies)
+        .where(and(
+          eq(usersCompanies.userId, userId),
+          eq(usersCompanies.isActive, true)
+        ));
+
+      // Software match - get article IDs that match user's software
+      if (userSoftwareIds.length > 0) {
+        const softwareArticleIds = await db
+          .selectDistinct({ articleId: articleSoftware.articleId })
+          .from(articleSoftware)
+          .where(inArray(articleSoftware.softwareId, userSoftwareIds.map(s => s.softwareId)));
+        
+        if (softwareArticleIds.length > 0) {
+          entityConditions.push(inArray(globalArticles.id, softwareArticleIds.map(a => a.articleId)));
+        }
       }
 
-      // Hardware match
-      if (hasHardware.length > 0) {
-        entityConditions.push(
-          exists(
-            db.select()
-              .from(articleHardware)
-              .innerJoin(usersHardware, eq(articleHardware.hardwareId, usersHardware.hardwareId))
-              .where(and(
-                eq(articleHardware.articleId, globalArticles.id),
-                eq(usersHardware.userId, userId),
-                eq(usersHardware.isActive, true)
-              ))
-          )
-        );
+      // Hardware match - get article IDs that match user's hardware
+      if (userHardwareIds.length > 0) {
+        const hardwareArticleIds = await db
+          .selectDistinct({ articleId: articleHardware.articleId })
+          .from(articleHardware)
+          .where(inArray(articleHardware.hardwareId, userHardwareIds.map(h => h.hardwareId)));
+        
+        if (hardwareArticleIds.length > 0) {
+          entityConditions.push(inArray(globalArticles.id, hardwareArticleIds.map(a => a.articleId)));
+        }
       }
 
-      // Company match (vendors and clients)
-      if (hasCompanies.length > 0) {
-        entityConditions.push(
-          exists(
-            db.select()
-              .from(articleCompanies)
-              .innerJoin(usersCompanies, eq(articleCompanies.companyId, usersCompanies.companyId))
-              .where(and(
-                eq(articleCompanies.articleId, globalArticles.id),
-                eq(usersCompanies.userId, userId),
-                eq(usersCompanies.isActive, true)
-              ))
-          )
-        );
+      // Company match - get article IDs that match user's companies
+      if (userCompanyIds.length > 0) {
+        const companyArticleIds = await db
+          .selectDistinct({ articleId: articleCompanies.articleId })
+          .from(articleCompanies)
+          .where(inArray(articleCompanies.companyId, userCompanyIds.map(c => c.companyId)));
+        
+        if (companyArticleIds.length > 0) {
+          entityConditions.push(inArray(globalArticles.id, companyArticleIds.map(a => a.articleId)));
+        }
       }
 
       // Articles must match at least one tech stack entity
