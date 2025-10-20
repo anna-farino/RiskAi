@@ -137,8 +137,6 @@ export interface IStorage {
   getArticles(options?: {
     search?: string;
     keywordIds?: string[];
-    entityType?: string;
-    entityId?: string;
     startDate?: Date;
     endDate?: Date;
     userId?: string;
@@ -390,6 +388,11 @@ export const storage: IStorage = {
         const error = new Error(`ARTICLES_EXIST`);
         (error as any).articleCount = articleCount;
         throw error;
+      }
+
+      // Delete associated articles if requested
+      if (articleCount > 0) {
+        await db.delete(threatArticles).where(eq(threatArticles.sourceId, id));
       }
 
       // Delete the source
@@ -720,20 +723,12 @@ export const storage: IStorage = {
   },
 
   // ARTICLES
-  getArticles: async (filters = {}) => {
+  getArticles: async (options = {}) => {
     try {
-      const {
-        search,
-        keywordIds,
-        entityType,
-        entityId,
-        startDate,
-        endDate,
-        userId,
-        limit = 50,
-        page = 1,
-        sortBy = "createdAt",
-      } = filters;
+      const { search, keywordIds, startDate, endDate, userId, limit, page, sortBy = 'relevance' } =
+        options;
+      const pageNum = page || 1;
+      const pageSize = limit || 50;
 
       // Step 1: Get user's enabled sources
       const sourceIds = await getUserEnabledSources(userId, "threat_tracker");
@@ -743,41 +738,31 @@ export const storage: IStorage = {
 
       // Step 2: Check if user has Technology Stack entities configured
       const [hasSoftware, hasHardware, hasCompanies] = await Promise.all([
-        db
-          .select({ id: usersSoftware.softwareId })
+        db.select({ id: usersSoftware.softwareId })
           .from(usersSoftware)
-          .where(
-            and(
-              eq(usersSoftware.userId, userId),
-              eq(usersSoftware.isActive, true),
-            ),
-          )
+          .where(and(
+            eq(usersSoftware.userId, userId),
+            eq(usersSoftware.isActive, true)
+          ))
           .limit(1),
-        db
-          .select({ id: usersHardware.hardwareId })
+        db.select({ id: usersHardware.hardwareId })
           .from(usersHardware)
-          .where(
-            and(
-              eq(usersHardware.userId, userId),
-              eq(usersHardware.isActive, true),
-            ),
-          )
+          .where(and(
+            eq(usersHardware.userId, userId),
+            eq(usersHardware.isActive, true)
+          ))
           .limit(1),
-        db
-          .select({ id: usersCompanies.companyId })
+        db.select({ id: usersCompanies.companyId })
           .from(usersCompanies)
-          .where(
-            and(
-              eq(usersCompanies.userId, userId),
-              eq(usersCompanies.isActive, true),
-            ),
-          )
-          .limit(1),
+          .where(and(
+            eq(usersCompanies.userId, userId),
+            eq(usersCompanies.isActive, true)
+          ))
+          .limit(1)
       ]);
 
-      const hasTechStack =
-        hasSoftware.length > 0 || hasHardware.length > 0 || hasCompanies.length > 0;
-
+      const hasTechStack = hasSoftware.length > 0 || hasHardware.length > 0 || hasCompanies.length > 0;
+      
       // REQUIRE tech stack to be configured - no articles without it
       if (!hasTechStack) {
         return []; // Return empty array if no tech stack configured
@@ -786,7 +771,7 @@ export const storage: IStorage = {
       // Step 3: Get active threat keywords for cross-referencing
       const userKeywords = await storage.getKeywords(undefined, userId);
       const threatTerms = userKeywords
-        .filter((k) => k.active !== false && k.category === "threat")
+        .filter((k) => k.active !== false && k.category === 'threat')
         .map((k) => k.term.toLowerCase());
 
       // Build WHERE clause based on search parameters
@@ -794,7 +779,7 @@ export const storage: IStorage = {
 
       // Filter by user's enabled sources
       conditions.push(inArray(globalArticles.sourceId, sourceIds));
-
+      
       // Only cybersecurity articles
       conditions.push(eq(globalArticles.isCybersecurity, true));
 
@@ -824,70 +809,49 @@ export const storage: IStorage = {
       // Technology Stack entity filtering is REQUIRED
       // Build the tech stack filtering conditions
       const entityConditions = [];
-
-      // Get user's active software IDs
-      const userSoftwareIds = await db
-        .select({ softwareId: usersSoftware.softwareId })
-        .from(usersSoftware)
-        .where(and(
-          eq(usersSoftware.userId, userId),
-          eq(usersSoftware.isActive, true)
-        ));
-
-      // Get user's active hardware IDs
-      const userHardwareIds = await db
-        .select({ hardwareId: usersHardware.hardwareId })
-        .from(usersHardware)
-        .where(and(
-          eq(usersHardware.userId, userId),
-          eq(usersHardware.isActive, true)
-        ));
-
-      // Get user's active company IDs
-      const userCompanyIds = await db
-        .select({ companyId: usersCompanies.companyId })
-        .from(usersCompanies)
-        .where(and(
-          eq(usersCompanies.userId, userId),
-          eq(usersCompanies.isActive, true)
-        ));
-
-      // Software match - get article IDs that match user's software
-      if (userSoftwareIds.length > 0) {
-        const softwareArticleIds = await db
-          .selectDistinct({ articleId: articleSoftware.articleId })
-          .from(articleSoftware)
-          .where(inArray(articleSoftware.softwareId, userSoftwareIds.map(s => s.softwareId)));
-        
-        if (softwareArticleIds.length > 0) {
-          entityConditions.push(inArray(globalArticles.id, softwareArticleIds.map(a => a.articleId)));
-        }
+      
+      // Software match
+      if (hasSoftware.length > 0) {
+        entityConditions.push(sql`
+          EXISTS (
+            SELECT 1 FROM ${articleSoftware} AS art_sw
+            INNER JOIN ${usersSoftware} AS user_sw 
+              ON art_sw.software_id = user_sw.software_id
+            WHERE art_sw.article_id = ${globalArticles.id}
+              AND user_sw.user_id = ${userId}
+              AND user_sw.is_active = true
+          )
+        `);
       }
-
-      // Hardware match - get article IDs that match user's hardware
-      if (userHardwareIds.length > 0) {
-        const hardwareArticleIds = await db
-          .selectDistinct({ articleId: articleHardware.articleId })
-          .from(articleHardware)
-          .where(inArray(articleHardware.hardwareId, userHardwareIds.map(h => h.hardwareId)));
-        
-        if (hardwareArticleIds.length > 0) {
-          entityConditions.push(inArray(globalArticles.id, hardwareArticleIds.map(a => a.articleId)));
-        }
+      
+      // Hardware match
+      if (hasHardware.length > 0) {
+        entityConditions.push(sql`
+          EXISTS (
+            SELECT 1 FROM ${articleHardware} AS art_hw
+            INNER JOIN ${usersHardware} AS user_hw 
+              ON art_hw.hardware_id = user_hw.hardware_id
+            WHERE art_hw.article_id = ${globalArticles.id}
+              AND user_hw.user_id = ${userId}
+              AND user_hw.is_active = true
+          )
+        `);
       }
-
-      // Company match - get article IDs that match user's companies
-      if (userCompanyIds.length > 0) {
-        const companyArticleIds = await db
-          .selectDistinct({ articleId: articleCompanies.articleId })
-          .from(articleCompanies)
-          .where(inArray(articleCompanies.companyId, userCompanyIds.map(c => c.companyId)));
-        
-        if (companyArticleIds.length > 0) {
-          entityConditions.push(inArray(globalArticles.id, companyArticleIds.map(a => a.articleId)));
-        }
+      
+      // Company match (vendors and clients)
+      if (hasCompanies.length > 0) {
+        entityConditions.push(sql`
+          EXISTS (
+            SELECT 1 FROM ${articleCompanies} AS art_co
+            INNER JOIN ${usersCompanies} AS user_co 
+              ON art_co.company_id = user_co.company_id
+            WHERE art_co.article_id = ${globalArticles.id}
+              AND user_co.user_id = ${userId}
+              AND user_co.is_active = true
+          )
+        `);
       }
-
+      
       // Articles must match at least one tech stack entity
       if (entityConditions.length > 0) {
         conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
@@ -899,13 +863,13 @@ export const storage: IStorage = {
         -- Check for CVE patterns (CVE-YYYY-NNNNN)
         ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
         OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-
+        
         -- Check for threat metadata (populated by AI analysis)
         OR ${globalArticles.threatMetadata} IS NOT NULL
-
+        
         -- Check for high threat severity score
         OR ${globalArticles.threatSeverityScore} >= 40
-
+        
         -- Check for explicit threat keywords if configured
         ${threatTerms.length > 0 ? sql`
           OR (${sql.join(
@@ -917,7 +881,7 @@ export const storage: IStorage = {
           )})
         ` : sql``}
       )`;
-
+      
       conditions.push(threatIndicatorCondition);
 
       // Add date range filters - use publishDate for filtering
@@ -926,157 +890,6 @@ export const storage: IStorage = {
       }
       if (endDate) {
         conditions.push(lte(globalArticles.publishDate, endDate));
-      }
-
-      // PHASE 5: Build subqueries based on specific entity, tech stack, or keyword filtering
-      let articleSubquery;
-
-      if (entityType && entityId) {
-        // Filter by specific entity from tech stack
-        console.log(`[ENTITY FILTER] Filtering by ${entityType}:${entityId}`);
-
-        if (entityType === "software") {
-          articleSubquery = db
-            .selectDistinct({ id: globalArticles.id })
-            .from(globalArticles)
-            .innerJoin(articleSoftware, eq(articleSoftware.articleId, globalArticles.id))
-            .where(
-              and(
-                eq(globalArticles.isCybersecurity, true),
-                eq(articleSoftware.softwareId, entityId),
-              ),
-            );
-        } else if (entityType === "hardware") {
-          articleSubquery = db
-            .selectDistinct({ id: globalArticles.id })
-            .from(globalArticles)
-            .innerJoin(articleHardware, eq(articleHardware.articleId, globalArticles.id))
-            .where(
-              and(
-                eq(globalArticles.isCybersecurity, true),
-                eq(articleHardware.hardwareId, entityId),
-              ),
-            );
-        } else if (entityType === "vendor" || entityType === "client") {
-          articleSubquery = db
-            .selectDistinct({ id: globalArticles.id })
-            .from(globalArticles)
-            .innerJoin(articleCompanies, eq(articleCompanies.articleId, globalArticles.id))
-            .where(
-              and(
-                eq(globalArticles.isCybersecurity, true),
-                eq(articleCompanies.companyId, entityId),
-              ),
-            );
-        }
-      } else if (userId) {
-        // Check if user has any tech stack items
-        const [userSoftware, userHardware, userVendors, userClients] = await Promise.all([
-          db
-            .select({ id: usersSoftware.softwareId })
-            .from(usersSoftware)
-            .where(
-              and(
-                eq(usersSoftware.userId, userId),
-                eq(usersSoftware.isActive, true),
-              ),
-            )
-            .limit(1),
-
-          db
-            .select({ id: usersHardware.hardwareId })
-            .from(usersHardware)
-            .where(
-              and(
-                eq(usersHardware.userId, userId),
-                eq(usersHardware.isActive, true),
-              ),
-            )
-            .limit(1),
-
-          db
-            .select({ id: usersCompanies.companyId })
-            .from(usersCompanies)
-            .where(
-              and(
-                eq(usersCompanies.userId, userId),
-                eq(usersCompanies.relationshipType, "vendor"),
-                eq(usersCompanies.isActive, true),
-              ),
-            )
-            .limit(1),
-
-          db
-            .select({ id: usersCompanies.companyId })
-            .from(usersCompanies)
-            .where(
-              and(
-                eq(usersCompanies.userId, userId),
-                eq(usersCompanies.relationshipType, "client"),
-                eq(usersCompanies.isActive, true),
-              ),
-            )
-            .limit(1),
-        ]);
-
-        const hasTechStack =
-          userSoftware.length > 0 ||
-          userHardware.length > 0 ||
-          userVendors.length > 0 ||
-          userClients.length > 0;
-
-        if (hasTechStack) {
-          console.log("[TECH STACK] User has tech stack, filtering by stack");
-
-          // Build the tech stack filtering subquery
-          const techStackConditions = [];
-          if (userSoftware.length > 0) {
-            techStackConditions.push(sql`EXISTS (SELECT 1 FROM ${articleSoftware} WHERE articleSoftware.article_id = ${globalArticles.id} AND articleSoftware.software_id IN (SELECT software_id FROM ${usersSoftware} WHERE user_id = ${userId} AND is_active = true))`);
-          }
-          if (userHardware.length > 0) {
-            techStackConditions.push(sql`EXISTS (SELECT 1 FROM ${articleHardware} WHERE articleHardware.article_id = ${globalArticles.id} AND articleHardware.hardware_id IN (SELECT hardware_id FROM ${usersHardware} WHERE user_id = ${userId} AND is_active = true))`);
-          }
-          if (userVendors.length > 0) {
-            techStackConditions.push(sql`EXISTS (SELECT 1 FROM ${articleCompanies} WHERE articleCompanies.article_id = ${globalArticles.id} AND articleCompanies.company_id IN (SELECT company_id FROM ${usersCompanies} WHERE user_id = ${userId} AND relationship_type = 'vendor' AND is_active = true))`);
-          }
-          if (userClients.length > 0) {
-            techStackConditions.push(sql`EXISTS (SELECT 1 FROM ${articleCompanies} WHERE articleCompanies.article_id = ${globalArticles.id} AND articleCompanies.company_id IN (SELECT company_id FROM ${usersCompanies} WHERE user_id = ${userId} AND relationship_type = 'client' AND is_active = true))`);
-          }
-
-          if (techStackConditions.length > 0) {
-            articleSubquery = db
-              .selectDistinct({ id: globalArticles.id })
-              .from(globalArticles)
-              .where(and(
-                eq(globalArticles.isCybersecurity, true),
-                sql`(${sql.join(techStackConditions, sql` OR `)})`
-              ));
-          }
-        }
-      }
-
-      // If no specific entity or tech stack filter, fall back to keywordIds if provided
-      if (!articleSubquery && keywordIds && keywordIds.length > 0) {
-        console.log('[KEYWORD FILTER] Filtering by keywordIds:', keywordIds);
-        articleSubquery = db
-          .selectDistinct({ id: globalArticles.id })
-          .from(globalArticles)
-          .innerJoin(articleThreatActors, eq(articleThreatActors.articleId, globalArticles.id)) // Dummy join to satisfy typing if needed
-          .where(and(
-            eq(globalArticles.isCybersecurity, true),
-            inArray(articleThreatActors.threatActorId, keywordIds) // Placeholder, needs actual keyword association table
-          ));
-        // TODO: Implement proper filtering using threat_keywords table and entity associations
-      }
-
-      // If no subquery is generated, it means no filtering criteria matched or were provided.
-      // We should ensure a valid subquery exists before proceeding to avoid errors.
-      if (!articleSubquery) {
-        // As a fallback, if no other filters apply, we might consider fetching general articles if needed.
-        // However, given the logic, it's more likely an empty result is intended if no specific filters are met.
-        // For now, we'll return an empty array if no subquery is formed.
-        console.log("No article subquery generated, returning empty array.");
-        return [];
       }
 
       // Build the query with relevance scores and matched entities
@@ -1090,10 +903,6 @@ export const storage: IStorage = {
         matchedKeywords: articleRelevanceScores.matchedKeywords
       })
       .from(globalArticles)
-      .innerJoin(
-        articleSubquery,
-        eq(globalArticles.id, articleSubquery.id)
-      )
       .leftJoin(
         articleRelevanceScores,
         and(
@@ -1124,29 +933,29 @@ export const storage: IStorage = {
           ? baseQuery
               .where(and(...conditions))
               .orderBy(...orderByClause)
-              .limit(limit)
-              .offset((page - 1) * limit)
+              .limit(pageSize)
+              .offset((pageNum - 1) * pageSize)
           : baseQuery
               .orderBy(...orderByClause)
-              .limit(limit)
-              .offset((page - 1) * limit);
+              .limit(pageSize)
+              .offset((pageNum - 1) * pageSize);
 
       // Execute the query
       const result = await finalQuery.execute();
-
+      
       // Collect all entity IDs to fetch names
       const allSoftwareIds = new Set<string>();
       const allCompanyIds = new Set<string>();
       const allHardwareIds = new Set<string>();
       const allArticleIds = new Set<string>();
-
+      
       result.forEach(row => {
         (row.matchedSoftware || []).forEach(id => allSoftwareIds.add(id));
         (row.matchedCompanies || []).forEach(id => allCompanyIds.add(id));
         (row.matchedHardware || []).forEach(id => allHardwareIds.add(id));
         allArticleIds.add(row.article.id);
       });
-
+      
       // Fetch entity names and threat data in parallel
       const [softwareMap, companyMap, hardwareMap, threatActorsMap, cvesMap, threatKeywordsMap] = await Promise.all([
         // Fetch software names
@@ -1156,7 +965,7 @@ export const storage: IStorage = {
               .where(inArray(software.id, Array.from(allSoftwareIds)))
               .then(rows => new Map(rows.map(r => [r.id, r.name])))
           : new Map<string, string | null>(),
-
+        
         // Fetch company names  
         allCompanyIds.size > 0
           ? db.select({ id: companies.id, name: companies.name })
@@ -1164,7 +973,7 @@ export const storage: IStorage = {
               .where(inArray(companies.id, Array.from(allCompanyIds)))
               .then(rows => new Map(rows.map(r => [r.id, r.name])))
           : new Map<string, string | null>(),
-
+          
         // Fetch hardware names
         allHardwareIds.size > 0
           ? db.select({ id: hardware.id, name: hardware.name })
@@ -1172,7 +981,7 @@ export const storage: IStorage = {
               .where(inArray(hardware.id, Array.from(allHardwareIds)))
               .then(rows => new Map(rows.map(r => [r.id, r.name])))
           : new Map<string, string | null>(),
-
+          
         // Fetch threat actors for articles
         allArticleIds.size > 0
           ? db.select({ 
@@ -1193,7 +1002,7 @@ export const storage: IStorage = {
                 return map;
               })
           : new Map<string, string[]>(),
-
+          
         // Fetch CVEs for articles
         allArticleIds.size > 0
           ? db.select({ 
@@ -1213,7 +1022,7 @@ export const storage: IStorage = {
                 return map;
               })
           : new Map<string, string[]>(),
-
+          
         // Process threat keywords for each article
         allArticleIds.size > 0 && threatTerms.length > 0
           ? Promise.all(Array.from(allArticleIds).map(async (articleId) => {
@@ -1221,16 +1030,16 @@ export const storage: IStorage = {
                 .from(globalArticles)
                 .where(eq(globalArticles.id, articleId))
                 .limit(1);
-
+                
               const contentLower = ((article?.content || '') + ' ' + (article?.title || '')).toLowerCase();
               const matched: string[] = [];
-
+              
               for (const term of threatTerms) {
                 if (contentLower.includes(term)) {
                   matched.push(term);
                 }
               }
-
+              
               return { articleId, keywords: matched };
             }))
             .then(results => {
@@ -1285,13 +1094,13 @@ export const storage: IStorage = {
           article.matchedSoftware.length > 0 || 
           article.matchedCompanies.length > 0 || 
           article.matchedHardware.length > 0;
-
+        
         // Check for threat element matches
         const hasThreatMatch = 
           article.matchedThreatActors.length > 0 ||
           article.matchedCves.length > 0 ||
           article.matchedThreatKeywords.length > 0;
-
+        
         // Require BOTH tech stack AND threat elements
         return hasTechStackMatch && hasThreatMatch;
       });
@@ -1587,12 +1396,12 @@ export const storage: IStorage = {
   getThreatActors: async () => {
     try {
       const { threatActors } = await import('@shared/db/schema/threat-tracker/entities');
-
+      
       const actors = await db
         .select()
         .from(threatActors)
         .orderBy(desc(threatActors.createdAt));
-
+      
       return actors;
     } catch (error) {
       console.error("Error fetching threat actors:", error);
@@ -1603,13 +1412,13 @@ export const storage: IStorage = {
   getThreatActor: async (id: string) => {
     try {
       const { threatActors } = await import('@shared/db/schema/threat-tracker/entities');
-
+      
       const results = await db
         .select()
         .from(threatActors)
         .where(eq(threatActors.id, id))
         .limit(1);
-
+      
       return results[0];
     } catch (error) {
       console.error("Error fetching threat actor:", error);
