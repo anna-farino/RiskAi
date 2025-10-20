@@ -827,44 +827,50 @@ export const storage: IStorage = {
 
       // Software match
       if (hasSoftware.length > 0) {
-        entityConditions.push(sql`
-          EXISTS (
-            SELECT 1 FROM article_software AS art_sw
-            INNER JOIN users_software AS user_sw 
-              ON art_sw.software_id = user_sw.software_id
-            WHERE art_sw.article_id = global_articles.id
-              AND user_sw.user_id = ${userId}
-              AND user_sw.is_active = true
+        entityConditions.push(
+          exists(
+            db.select()
+              .from(articleSoftware)
+              .innerJoin(usersSoftware, eq(articleSoftware.softwareId, usersSoftware.softwareId))
+              .where(and(
+                eq(articleSoftware.articleId, globalArticles.id),
+                eq(usersSoftware.userId, userId),
+                eq(usersSoftware.isActive, true)
+              ))
           )
-        `);
+        );
       }
 
       // Hardware match
       if (hasHardware.length > 0) {
-        entityConditions.push(sql`
-          EXISTS (
-            SELECT 1 FROM article_hardware AS art_hw
-            INNER JOIN users_hardware AS user_hw 
-              ON art_hw.hardware_id = user_hw.hardware_id
-            WHERE art_hw.article_id = global_articles.id
-              AND user_hw.user_id = ${userId}
-              AND user_hw.is_active = true
+        entityConditions.push(
+          exists(
+            db.select()
+              .from(articleHardware)
+              .innerJoin(usersHardware, eq(articleHardware.hardwareId, usersHardware.hardwareId))
+              .where(and(
+                eq(articleHardware.articleId, globalArticles.id),
+                eq(usersHardware.userId, userId),
+                eq(usersHardware.isActive, true)
+              ))
           )
-        `);
+        );
       }
 
       // Company match (vendors and clients)
       if (hasCompanies.length > 0) {
-        entityConditions.push(sql`
-          EXISTS (
-            SELECT 1 FROM article_companies AS art_co
-            INNER JOIN users_companies AS user_co 
-              ON art_co.company_id = user_co.company_id
-            WHERE art_co.article_id = global_articles.id
-              AND user_co.user_id = ${userId}
-              AND user_co.is_active = true
+        entityConditions.push(
+          exists(
+            db.select()
+              .from(articleCompanies)
+              .innerJoin(usersCompanies, eq(articleCompanies.companyId, usersCompanies.companyId))
+              .where(and(
+                eq(articleCompanies.articleId, globalArticles.id),
+                eq(usersCompanies.userId, userId),
+                eq(usersCompanies.isActive, true)
+              ))
           )
-        `);
+        );
       }
 
       // Articles must match at least one tech stack entity
