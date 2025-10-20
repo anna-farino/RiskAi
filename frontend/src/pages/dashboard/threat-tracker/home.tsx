@@ -1065,7 +1065,7 @@ export default function ThreatHome() {
 
                           return (
                             <Button
-                              key={pageNumber}
+                              key={`page-${pageNumber}-${i}`}
                               variant={
                                 currentPage === pageNumber
                                   ? "default"
