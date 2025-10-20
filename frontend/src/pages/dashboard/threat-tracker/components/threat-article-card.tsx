@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   Zap,
   Send,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
@@ -64,6 +66,8 @@ export function ThreatArticleCard({
 }: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
+  const [expandedEntities, setExpandedEntities] = useState(false);
+  const [expandedThreats, setExpandedThreats] = useState(false);
 
   const handleSendToCapsule = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -237,7 +241,7 @@ export function ThreatArticleCard({
                   (article.matchedKeywords && article.matchedKeywords.length > 0)) && (
                   <>
                   {/* Software Matches */}
-                  {article.matchedSoftware && article.matchedSoftware.slice(0, 2).map((item) => (
+                  {article.matchedSoftware && article.matchedSoftware.slice(0, expandedEntities ? undefined : 2).map((item) => (
                     <Badge
                       key={`software-${item}`}
                       variant="outline"
@@ -255,7 +259,7 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* Hardware Matches */}
-                  {article.matchedHardware && article.matchedHardware.slice(0, 2).map((item) => (
+                  {article.matchedHardware && article.matchedHardware.slice(0, expandedEntities ? undefined : 2).map((item) => (
                     <Badge
                       key={`hardware-${item}`}
                       variant="outline"
@@ -273,7 +277,7 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* Company Matches */}
-                  {article.matchedCompanies && article.matchedCompanies.slice(0, 2).map((item) => (
+                  {article.matchedCompanies && article.matchedCompanies.slice(0, expandedEntities ? undefined : 2).map((item) => (
                     <Badge
                       key={`company-${item}`}
                       variant="outline"
@@ -291,7 +295,7 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* Keyword Matches */}
-                  {article.matchedKeywords && article.matchedKeywords.slice(0, 2).map((keyword) => (
+                  {article.matchedKeywords && article.matchedKeywords.slice(0, expandedEntities ? undefined : 2).map((keyword) => (
                     <Badge
                       key={`keyword-${keyword}`}
                       variant="outline"
@@ -308,14 +312,14 @@ export function ThreatArticleCard({
                     </Badge>
                   ))}
                   
-                  {/* Show count of additional matches */}
+                  {/* Show expand/collapse button for additional matches */}
                   {(() => {
                     const totalMatches = 
                       (article.matchedSoftware?.length || 0) + 
                       (article.matchedHardware?.length || 0) + 
                       (article.matchedCompanies?.length || 0) + 
                       (article.matchedKeywords?.length || 0);
-                    const shownMatches = 
+                    const shownMatches = expandedEntities ? totalMatches :
                       Math.min(2, article.matchedSoftware?.length || 0) + 
                       Math.min(2, article.matchedHardware?.length || 0) + 
                       Math.min(2, article.matchedCompanies?.length || 0) + 
@@ -323,9 +327,28 @@ export function ThreatArticleCard({
                     const additionalCount = totalMatches - shownMatches;
                     
                     return additionalCount > 0 ? (
-                      <span className="text-xs font-medium text-slate-400 leading-4">
-                        +{additionalCount} more
-                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setExpandedEntities(!expandedEntities);
+                        }}
+                        className="h-5 px-1.5 text-xs font-medium text-slate-400 hover:text-slate-300 hover:bg-slate-800/50"
+                      >
+                        {expandedEntities ? (
+                          <>
+                            <ChevronUp className="h-3 w-3 mr-1" />
+                            Show less
+                          </>
+                        ) : (
+                          <>
+                            +{additionalCount} more
+                            <ChevronDown className="h-3 w-3 ml-1" />
+                          </>
+                        )}
+                      </Button>
                     ) : null;
                   })()}
                 </>
@@ -338,7 +361,7 @@ export function ThreatArticleCard({
                 (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0)) && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-800">
                   {/* Threat Actors */}
-                  {article.matchedThreatActors && article.matchedThreatActors.slice(0, 2).map((actor, index) => (
+                  {article.matchedThreatActors && article.matchedThreatActors.slice(0, expandedThreats ? undefined : 2).map((actor, index) => (
                     <Badge
                       key={`actor-${index}-${actor}`}
                       variant="outline"
@@ -351,7 +374,7 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* CVEs */}
-                  {article.matchedCves && article.matchedCves.slice(0, 2).map((cve, index) => (
+                  {article.matchedCves && article.matchedCves.slice(0, expandedThreats ? undefined : 2).map((cve, index) => (
                     <Badge
                       key={`cve-${index}-${cve}`}
                       variant="outline"
@@ -364,7 +387,7 @@ export function ThreatArticleCard({
                   ))}
                   
                   {/* Threat Keywords */}
-                  {article.matchedThreatKeywords && article.matchedThreatKeywords.slice(0, 2).map((keyword, index) => (
+                  {article.matchedThreatKeywords && article.matchedThreatKeywords.slice(0, expandedThreats ? undefined : 2).map((keyword, index) => (
                     <Badge
                       key={`threat-kw-${index}-${keyword}`}
                       variant="outline"
@@ -376,22 +399,41 @@ export function ThreatArticleCard({
                     </Badge>
                   ))}
                   
-                  {/* Show count of additional threat indicators */}
+                  {/* Show expand/collapse button for additional threat indicators */}
                   {(() => {
                     const totalThreatIndicators = 
                       (article.matchedThreatActors?.length || 0) + 
                       (article.matchedCves?.length || 0) + 
                       (article.matchedThreatKeywords?.length || 0);
-                    const shownThreatIndicators = 
+                    const shownThreatIndicators = expandedThreats ? totalThreatIndicators :
                       Math.min(2, article.matchedThreatActors?.length || 0) + 
                       Math.min(2, article.matchedCves?.length || 0) + 
                       Math.min(2, article.matchedThreatKeywords?.length || 0);
                     const additionalThreatCount = totalThreatIndicators - shownThreatIndicators;
                     
                     return additionalThreatCount > 0 ? (
-                      <span className="text-xs font-medium text-slate-400 leading-4">
-                        +{additionalThreatCount} more threats
-                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setExpandedThreats(!expandedThreats);
+                        }}
+                        className="h-5 px-1.5 text-xs font-medium text-slate-400 hover:text-slate-300 hover:bg-slate-800/50"
+                      >
+                        {expandedThreats ? (
+                          <>
+                            <ChevronUp className="h-3 w-3 mr-1" />
+                            Show less threats
+                          </>
+                        ) : (
+                          <>
+                            +{additionalThreatCount} more threats
+                            <ChevronDown className="h-3 w-3 ml-1" />
+                          </>
+                        )}
+                      </Button>
                     ) : null;
                   })()}
                 </div>
