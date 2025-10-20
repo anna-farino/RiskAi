@@ -282,7 +282,9 @@ async function scrapeGlobalSource(
           try {
             log(`[Global Scraping] Linking entities to article ${savedArticle.id}`, "scraper");
             const entityManager = new EntityManager();
-            await entityManager.linkArticleToEntities(savedArticle.id, extractedEntities);
+            // Pass the full article content for validation
+            const fullContent = `${savedArticle.title || ''} ${articleContent.content || ''} ${summary || ''}`;
+            await entityManager.linkArticleToEntities(savedArticle.id, extractedEntities, fullContent);
             log(`[Global Scraping] Successfully linked entities to article`, "scraper");
           } catch (error) {
             log(`[Global Scraping] Failed to link entities: ${error.message}`, "scraper");
