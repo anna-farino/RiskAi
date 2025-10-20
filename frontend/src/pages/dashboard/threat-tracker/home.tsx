@@ -40,6 +40,7 @@ export default function ThreatHome() {
   const [sortOrder, setSortOrder] = useState<string>("Relevance");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
+  const [entityFilter, setEntityFilter] = useState<{type: string, id: string} | null>(null);
 
   // Helper function to convert date range labels to actual dates
   const getDateRangeFromLabel = (label: string) => {
@@ -171,13 +172,13 @@ export default function ThreatHome() {
       selectedKeywordIds,
       originalDateRange,
       sortOrder,
+      entityFilter,
     ],
     queryFn: async () => {
       try {
         // Build request body for POST request
-        const requestBody = {
+        const requestBody: any = {
           search: searchTerm || undefined,
-          keywordIds: selectedKeywordIds.length > 0 ? selectedKeywordIds : undefined,
           startDate: originalDateRange.startDate 
             ? `${originalDateRange.startDate}T00:00:00.000Z` 
             : undefined,
@@ -185,14 +186,26 @@ export default function ThreatHome() {
             ? `${originalDateRange.endDate}T23:59:59.999Z` 
             : undefined,
           sortBy: sortOrder.toLowerCase().replace(" ", "_"),
-          limit: 1000, // Get more articles instead of backend default 50
+          limit: 1000,
           page: 1
         };
+
+        // Add entity filter if present (from tech stack)
+        if (entityFilter) {
+          console.log("[FILTER] Using entity filter:", entityFilter);
+          requestBody.entityType = entityFilter.type;
+          requestBody.entityId = entityFilter.id;
+        } else if (selectedKeywordIds.length > 0) {
+          // Only use keyword filter if no entity filter
+          requestBody.keywordIds = selectedKeywordIds;
+        }
 
         // Remove undefined values from request body
         const cleanBody = Object.fromEntries(
           Object.entries(requestBody).filter(([_, v]) => v !== undefined)
         );
+
+        console.log("[FILTER] Request body:", cleanBody);
 
         const response = await fetchWithAuth("/api/threat-tracker/articles/query", {
           method: "POST",
@@ -219,29 +232,29 @@ export default function ThreatHome() {
     const urlParams = new URLSearchParams(window.location.search);
     const filterParam = urlParams.get('filter');
     
-    if (filterParam && keywords.data) {
+    if (filterParam) {
       // Parse filter format: "type:id" (e.g., "software:123", "hardware:456")
       const [filterType, filterId] = filterParam.split(':');
       
       if (filterType && filterId) {
-        // Find the matching keyword/entity
-        const matchingKeyword = keywords.data.find(
-          (k) => k.id === filterId && k.category === filterType
-        );
+        console.log(`[FILTER] Applying entity filter from URL: ${filterType}:${filterId}`);
         
-        if (matchingKeyword && !selectedKeywordIds.includes(filterId)) {
-          setSelectedKeywordIds([filterId]);
-          toast({
-            title: `Filtered by ${filterType}`,
-            description: `Showing articles related to ${matchingKeyword.term}`,
-          });
-        }
+        // Set entity filter for tech stack filtering
+        setEntityFilter({ type: filterType, id: filterId });
+        
+        // Clear keyword filters to show only tech stack filtered articles
+        setSelectedKeywordIds([]);
+        
+        toast({
+          title: `Filtered by ${filterType}`,
+          description: `Showing articles related to this ${filterType}`,
+        });
       }
       
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [keywords.data, toast]);
+  }, [toast]);
 
   // Auto-select active keywords when keywords are loaded
   useEffect(() => {
@@ -447,6 +460,7 @@ export default function ThreatHome() {
   const clearFilters = () => {
     setSearchTerm("");
     setSelectedKeywordIds([]);
+    setEntityFilter(null);
     setThreatLevel("All");
     const newDateRange = "Today";
     setDateRange(newDateRange);
