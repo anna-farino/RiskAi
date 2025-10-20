@@ -41,35 +41,6 @@ export default function ThreatHome() {
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
-  // Check for filter parameter from URL (e.g., from tech stack page)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const filterParam = urlParams.get('filter');
-    
-    if (filterParam) {
-      // Parse filter format: "type:id" (e.g., "software:123", "hardware:456")
-      const [filterType, filterId] = filterParam.split(':');
-      
-      if (filterType && filterId) {
-        // Find the matching keyword/entity
-        const matchingKeyword = keywords.data?.find(
-          (k) => k.id === filterId && k.category === filterType
-        );
-        
-        if (matchingKeyword && !selectedKeywordIds.includes(filterId)) {
-          setSelectedKeywordIds([filterId]);
-          toast({
-            title: `Filtered by ${filterType}`,
-            description: `Showing articles related to ${matchingKeyword.term}`,
-          });
-        }
-      }
-      
-      // Clean up URL
-      window.history.replaceState({}, '', window.location.pathname);
-    }
-  }, [keywords.data, toast]);
-
   // Helper function to convert date range labels to actual dates
   const getDateRangeFromLabel = (label: string) => {
     const now = new Date();
@@ -242,6 +213,35 @@ export default function ThreatHome() {
     },
     enabled: true, // Always fetch - backend will use Tech Stack or fallback to keywords
   });
+
+  // Check for filter parameter from URL (e.g., from tech stack page)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterParam = urlParams.get('filter');
+    
+    if (filterParam && keywords.data) {
+      // Parse filter format: "type:id" (e.g., "software:123", "hardware:456")
+      const [filterType, filterId] = filterParam.split(':');
+      
+      if (filterType && filterId) {
+        // Find the matching keyword/entity
+        const matchingKeyword = keywords.data.find(
+          (k) => k.id === filterId && k.category === filterType
+        );
+        
+        if (matchingKeyword && !selectedKeywordIds.includes(filterId)) {
+          setSelectedKeywordIds([filterId]);
+          toast({
+            title: `Filtered by ${filterType}`,
+            description: `Showing articles related to ${matchingKeyword.term}`,
+          });
+        }
+      }
+      
+      // Clean up URL
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [keywords.data, toast]);
 
   // Auto-select active keywords when keywords are loaded
   useEffect(() => {
