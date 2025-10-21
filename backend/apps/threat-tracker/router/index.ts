@@ -770,7 +770,7 @@ threatRouter.post("/articles/query", async (req, res) => {
       limit,
       page,
       sortBy,
-      entityFilter
+      entityFilter: entityFilter as { type: 'software' | 'hardware' | 'vendor' | 'client'; name: string } | undefined
     });
     
     res.json(articles);

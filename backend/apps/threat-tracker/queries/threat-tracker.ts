@@ -844,10 +844,15 @@ export const storage: IStorage = {
         let entityFound = false;
         
         if (type === 'software') {
-          // Find the specific software entity (case-insensitive)
+          // Find the specific software entity (case-insensitive) that the user has in their tech stack
           const softwareEntity = await db.select({ id: software.id })
             .from(software)
-            .where(sql`LOWER(${software.name}) = LOWER(${trimmedName})`)
+            .innerJoin(usersSoftware, eq(usersSoftware.softwareId, software.id))
+            .where(and(
+              sql`LOWER(${software.name}) = LOWER(${trimmedName})`,
+              eq(usersSoftware.userId, userId),
+              eq(usersSoftware.isActive, true)
+            ))
             .limit(1);
           
           if (softwareEntity.length > 0) {
@@ -861,10 +866,15 @@ export const storage: IStorage = {
             `);
           }
         } else if (type === 'hardware') {
-          // Find the specific hardware entity (case-insensitive)
+          // Find the specific hardware entity (case-insensitive) that the user has in their tech stack
           const hardwareEntity = await db.select({ id: hardware.id })
             .from(hardware)
-            .where(sql`LOWER(${hardware.name}) = LOWER(${trimmedName})`)
+            .innerJoin(usersHardware, eq(usersHardware.hardwareId, hardware.id))
+            .where(and(
+              sql`LOWER(${hardware.name}) = LOWER(${trimmedName})`,
+              eq(usersHardware.userId, userId),
+              eq(usersHardware.isActive, true)
+            ))
             .limit(1);
           
           if (hardwareEntity.length > 0) {
@@ -878,10 +888,15 @@ export const storage: IStorage = {
             `);
           }
         } else if (type === 'vendor' || type === 'client') {
-          // Find the specific company entity (case-insensitive)
+          // Find the specific company entity (case-insensitive) that the user has in their tech stack
           const companyEntity = await db.select({ id: companies.id })
             .from(companies)
-            .where(sql`LOWER(${companies.name}) = LOWER(${trimmedName})`)
+            .innerJoin(usersCompanies, eq(usersCompanies.companyId, companies.id))
+            .where(and(
+              sql`LOWER(${companies.name}) = LOWER(${trimmedName})`,
+              eq(usersCompanies.userId, userId),
+              eq(usersCompanies.isActive, true)
+            ))
             .limit(1);
           
           if (companyEntity.length > 0) {
