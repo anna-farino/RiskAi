@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
 import { db } from '../db/db';
-import { eq } from 'drizzle-orm';
-import { auth0Ids, User, users } from '@shared/db/schema/user';
+import { eq, or, and } from 'drizzle-orm';
+import { allowedEmails, auth0Ids, User, users } from '@shared/db/schema/user';
 import { attachPermissionsAndRoleToRequest, FullRequest } from '.';
 import attachOrganizationToRequest from './utils/attach-org';
 
@@ -14,14 +14,12 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
   const email_verified = req.auth?.payload['user/email_verified'] || req.auth?.payload['email_verified']
   const organizationId = req.auth?.payload['user/organization_id'] || req.auth?.payload['organization_id'] || '' 
   const sub = req.auth?.payload.sub
-
   //const payload = req.auth
   //req.log("payload", payload)
   //req.log("userAuth0", userAuth0)
   //req.log("email: ", email)
   //req.log("sub: ", sub)
   //req.log("Organization id from payload: ", organizationId)
-
   //console.log("auth0middleware...")
 
   if (!sub) {
@@ -83,6 +81,25 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
       .limit(1);
 
     if (!userFromEmail) {
+
+      const domain = email.split('@')[1];
+      const [ allowedUser ] = await db
+        .select()
+        .from(allowedEmails)
+        .where(
+          domain
+            ? or(
+                eq(allowedEmails.name, email),
+                eq(allowedEmails.name, domain)
+              )
+            : eq(allowedEmails.name, email)
+        )
+
+      if (!allowedUser) {
+        res.status(401).json({ message: "User not whitelisted" })
+        return
+      }
+
       let user: User | undefined;
       try {
         await db.transaction(async (tx) => {

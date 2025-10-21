@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth0 } from "@auth0/auth0-react";
 import { User } from "@shared/db/schema/user"
 import { useFetch } from "@/hooks/use-fetch";
+import { useLogout } from "@/hooks/use-logout";
 
 export type Role = 'admin' | 'user'
 export type UserWithPerm = User
@@ -13,7 +14,8 @@ export type UserWithPerm = User
 
 export function useAuth() {
   const { isAuthenticated, user: auth0User } = useAuth0();
-  const fetchWithTokens = useFetch()
+  const fetchWithTokens = useFetch();
+  const { logout } = useLogout();
 
   return useQuery<UserWithPerm | null>({
     queryKey: ['auth-user', auth0User?.sub],
@@ -28,7 +30,12 @@ export function useAuth() {
 
         if (!response.ok) {
           console.error("User data fetch failed with status:", response.status);
-          // Don't navigate - let Auth0 handle authentication state
+
+          // If user is not authorized (not in whitelist), log them out immediately
+          if (response.status === 401) {
+            logout('not_authorized');
+          }
+
           return null;
         }
 
