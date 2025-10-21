@@ -271,7 +271,7 @@ export default function TechStackPage() {
             onClick={() => {
               // Navigate to threats page with filter for this specific entity
               const filterParam = encodeURIComponent(`${type}:${item.name}`);
-              navigate(`/dashboard/threat-tracker?entityFilter=${filterParam}`);
+              navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
             }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity mr-4 px-2 py-1 rounded-md hover:bg-muted/50"
             data-testid={`button-threat-indicator-${item.id}`}
