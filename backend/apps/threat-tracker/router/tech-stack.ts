@@ -245,14 +245,7 @@ router.get("/", async (req: any, res) => {
         globalArticles,
         and(
           eq(globalArticles.id, articleSoftware.articleId),
-          eq(globalArticles.isCybersecurity, true),
-          // REQUIRE threat indicators (matches article filtering logic)
-          sql`(
-            ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.threatMetadata} IS NOT NULL
-            OR ${globalArticles.threatSeverityScore} >= 40
-          )`
+          eq(globalArticles.isCybersecurity, true)
         ),
       )
       .where(eq(usersSoftware.userId, userId))
@@ -294,14 +287,7 @@ router.get("/", async (req: any, res) => {
         globalArticles,
         and(
           eq(globalArticles.id, articleHardware.articleId),
-          eq(globalArticles.isCybersecurity, true),
-          // REQUIRE threat indicators (matches article filtering logic)
-          sql`(
-            ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.threatMetadata} IS NOT NULL
-            OR ${globalArticles.threatSeverityScore} >= 40
-          )`
+          eq(globalArticles.isCybersecurity, true)
         ),
       )
       .where(eq(usersHardware.userId, userId))
@@ -342,14 +328,7 @@ router.get("/", async (req: any, res) => {
         globalArticles,
         and(
           eq(globalArticles.id, articleCompanies.articleId),
-          eq(globalArticles.isCybersecurity, true),
-          // REQUIRE threat indicators (matches article filtering logic)
-          sql`(
-            ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.threatMetadata} IS NOT NULL
-            OR ${globalArticles.threatSeverityScore} >= 40
-          )`
+          eq(globalArticles.isCybersecurity, true)
         ),
       )
       .where(
@@ -393,14 +372,7 @@ router.get("/", async (req: any, res) => {
         globalArticles,
         and(
           eq(globalArticles.id, articleCompanies.articleId),
-          eq(globalArticles.isCybersecurity, true),
-          // REQUIRE threat indicators (matches article filtering logic)
-          sql`(
-            ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-            OR ${globalArticles.threatMetadata} IS NOT NULL
-            OR ${globalArticles.threatSeverityScore} >= 40
-          )`
+          eq(globalArticles.isCybersecurity, true)
         ),
       )
       .where(

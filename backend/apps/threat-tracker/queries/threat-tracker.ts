@@ -895,7 +895,8 @@ export const storage: IStorage = {
             .where(and(
               sql`LOWER(${companies.name}) = LOWER(${trimmedName})`,
               eq(usersCompanies.userId, userId),
-              eq(usersCompanies.isActive, true)
+              eq(usersCompanies.isActive, true),
+              eq(usersCompanies.relationshipType, type) // FIX: Must match the relationship type!
             ))
             .limit(1);
           
@@ -965,32 +966,9 @@ export const storage: IStorage = {
         conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
       }
 
-      // REQUIRE threat indicators to be present in articles
-      // Check for CVEs, threat actors, or threat keywords
-      const threatIndicatorCondition = sql`(
-        -- Check for CVE patterns (CVE-YYYY-NNNNN)
-        ${globalArticles.content} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-        OR ${globalArticles.title} ~* 'CVE-[0-9]{4}-[0-9]{4,}'
-        
-        -- Check for threat metadata (populated by AI analysis)
-        OR ${globalArticles.threatMetadata} IS NOT NULL
-        
-        -- Check for high threat severity score
-        OR ${globalArticles.threatSeverityScore} >= 40
-        
-        -- Check for explicit threat keywords if configured
-        ${threatTerms.length > 0 ? sql`
-          OR (${sql.join(
-            threatTerms.map((term) => sql`
-              ${globalArticles.title} ILIKE ${"%" + term + "%"} 
-              OR ${globalArticles.content} ILIKE ${"%" + term + "%"}
-            `),
-            sql` OR `
-          )})
-        ` : sql``}
-      )`;
-      
-      conditions.push(threatIndicatorCondition);
+      // Optional: Add threat indicator filter only if specifically requested
+      // For now, we show ALL articles matching tech stack, not just those with threat indicators
+      // This ensures the count matches the displayed articles
 
       // Add date range filters - use publishDate for filtering
       if (startDate) {
