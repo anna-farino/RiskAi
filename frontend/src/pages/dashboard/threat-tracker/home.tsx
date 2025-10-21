@@ -36,13 +36,27 @@ export default function ThreatHome() {
   const urlParams = new URLSearchParams(location.search);
   const entityFilterParam = urlParams.get("entityFilter");
   
-  // Parse entity filter if present
-  const [entityFilter, setEntityFilter] = useState<{ type: string; name: string } | null>(() => {
+  // Parse entity filter if present (now supports severity level)
+  const [entityFilter, setEntityFilter] = useState<{ type: string; name: string; severity?: string } | null>(() => {
     if (entityFilterParam) {
       const decoded = decodeURIComponent(entityFilterParam);
-      const [type, ...nameParts] = decoded.split(":");
-      if (type && nameParts.length > 0) {
-        return { type, name: nameParts.join(":") };
+      const parts = decoded.split(":");
+      
+      if (parts.length >= 2) {
+        const type = parts[0];
+        // Check if last part is a severity level
+        const lastPart = parts[parts.length - 1];
+        const severityLevels = ['critical', 'high', 'medium', 'low'];
+        
+        if (severityLevels.includes(lastPart) && parts.length >= 3) {
+          // Format: type:name:severity
+          const name = parts.slice(1, -1).join(":");
+          return { type, name, severity: lastPart };
+        } else {
+          // Format: type:name
+          const name = parts.slice(1).join(":");
+          return { type, name };
+        }
       }
     }
     return null;
@@ -51,9 +65,9 @@ export default function ThreatHome() {
   // Trigger relevance score calculation when user enters the page
   useRelevanceTrigger();
 
-  // Filter state - initialize searchTerm with entity name if filtered
+  // Filter state - initialize searchTerm with entity name and threat level with severity if filtered
   const [searchTerm, setSearchTerm] = useState<string>(entityFilter?.name || "");
-  const [threatLevel, setThreatLevel] = useState<string>("All");
+  const [threatLevel, setThreatLevel] = useState<string>(entityFilter?.severity || "All");
   // If entity filter is present, show all dates, otherwise default to Today
   const [dateRange, setDateRange] = useState<string>(entityFilter ? "All Time" : "Today");
   const [sortOrder, setSortOrder] = useState<string>("Relevance");

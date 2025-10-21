@@ -216,7 +216,7 @@ router.get("/", async (req: any, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Fetch software with threat counts and company info
+    // Fetch software with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const softwareResults = await db
       .select({
@@ -226,17 +226,10 @@ router.get("/", async (req: any, res) => {
         priority: usersSoftware.priority,
         company: companies.name,
         isActive: usersSoftware.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersSoftware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersSoftware.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersSoftware)
       .innerJoin(software, eq(usersSoftware.softwareId, software.id))
@@ -259,7 +252,7 @@ router.get("/", async (req: any, res) => {
         companies.name,
       );
 
-    // Fetch hardware with threat counts
+    // Fetch hardware with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const hardwareResults = await db
       .select({
@@ -270,17 +263,10 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersHardware.priority,
         isActive: usersHardware.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersHardware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersHardware.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersHardware)
       .innerJoin(hardware, eq(usersHardware.hardwareId, hardware.id))
@@ -302,7 +288,7 @@ router.get("/", async (req: any, res) => {
         usersHardware.isActive,
       );
 
-    // Fetch vendors with threat counts
+    // Fetch vendors with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const vendorResults = await db
       .select({
@@ -312,17 +298,10 @@ router.get("/", async (req: any, res) => {
         priority: usersCompanies.priority,
         metadata: usersCompanies.metadata,
         isActive: usersCompanies.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersCompanies.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersCompanies)
       .innerJoin(companies, eq(usersCompanies.companyId, companies.id))
@@ -348,7 +327,7 @@ router.get("/", async (req: any, res) => {
         usersCompanies.isActive,
       );
 
-    // Fetch clients with threat counts
+    // Fetch clients with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const clientResults = await db
       .select({
@@ -357,17 +336,10 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
         isActive: usersCompanies.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersCompanies.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersCompanies)
       .innerJoin(companies, eq(usersCompanies.companyId, companies.id))
@@ -387,7 +359,7 @@ router.get("/", async (req: any, res) => {
       )
       .groupBy(companies.id, companies.name, usersCompanies.priority, usersCompanies.isActive);
 
-    // Format response
+    // Format response with severity level counts
     const response = {
       software: softwareResults.map((s) => ({
         id: s.id,
@@ -396,13 +368,10 @@ router.get("/", async (req: any, res) => {
         version: s.version,
         priority: s.priority,
         isActive: s.isActive,
-        threats:
-          parseInt(s.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(s.threatCount?.toString() || "0"),
-                highestLevel: s.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(s.criticalCount?.toString() || "0"),
+        highCount: parseInt(s.highCount?.toString() || "0"),
+        mediumCount: parseInt(s.mediumCount?.toString() || "0"),
+        lowCount: parseInt(s.lowCount?.toString() || "0"),
       })),
       hardware: hardwareResults.map((h) => ({
         id: h.id,
@@ -412,13 +381,10 @@ router.get("/", async (req: any, res) => {
         version: h.version,
         priority: h.priority,
         isActive: h.isActive,
-        threats:
-          parseInt(h.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(h.threatCount?.toString() || "0"),
-                highestLevel: h.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(h.criticalCount?.toString() || "0"),
+        highCount: parseInt(h.highCount?.toString() || "0"),
+        mediumCount: parseInt(h.mediumCount?.toString() || "0"),
+        lowCount: parseInt(h.lowCount?.toString() || "0"),
       })),
       vendors: vendorResults.map((v) => ({
         id: v.id,
@@ -427,13 +393,10 @@ router.get("/", async (req: any, res) => {
         priority: v.priority,
         isActive: v.isActive,
         source: (v.metadata as any)?.source || "manual", // Extract source from metadata
-        threats:
-          parseInt(v.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(v.threatCount?.toString() || "0"),
-                highestLevel: v.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(v.criticalCount?.toString() || "0"),
+        highCount: parseInt(v.highCount?.toString() || "0"),
+        mediumCount: parseInt(v.mediumCount?.toString() || "0"),
+        lowCount: parseInt(v.lowCount?.toString() || "0"),
       })),
       clients: clientResults.map((c) => ({
         id: c.id,
@@ -441,13 +404,10 @@ router.get("/", async (req: any, res) => {
         version: c.version,
         priority: c.priority,
         isActive: c.isActive,
-        threats:
-          parseInt(c.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(c.threatCount?.toString() || "0"),
-                highestLevel: c.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(c.criticalCount?.toString() || "0"),
+        highCount: parseInt(c.highCount?.toString() || "0"),
+        mediumCount: parseInt(c.mediumCount?.toString() || "0"),
+        lowCount: parseInt(c.lowCount?.toString() || "0"),
       })),
     };
 

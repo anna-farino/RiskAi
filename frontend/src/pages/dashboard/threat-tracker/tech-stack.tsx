@@ -40,6 +40,11 @@ interface TechStackItem {
   manufacturer?: string | null; // For hardware items
   model?: string | null; // For hardware items
   source?: string | null; // For tracking auto-added vendors
+  criticalCount?: number;
+  highCount?: number;
+  mediumCount?: number;
+  lowCount?: number;
+  // Legacy fields - kept for backwards compatibility
   threats?: {
     count: number;
     highestLevel: 'critical' | 'high' | 'medium' | 'low';
@@ -544,29 +549,77 @@ export default function TechStackPage() {
           </div>
         </div>
 
-        {/* Threat indicator - shows if threats exist */}
-        {item.threats && item.threats.count > 0 && (
-          <button
-            onClick={() => {
-              // Navigate to threats page with filter for this specific entity
-              const filterParam = encodeURIComponent(`${type}:${item.name}`);
-              navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
-            }}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity mr-4 px-2 py-1 rounded-md hover:bg-muted/50"
-            data-testid={`button-threat-indicator-${item.id}`}
-          >
-            <span 
-              className={cn(
-                "w-2 h-2 rounded-full",
-                getThreatColor(item.threats.highestLevel)
-              )}
-              data-testid={`indicator-threat-${item.id}`}
-            />
-            <span className="text-sm text-muted-foreground" data-testid={`text-threat-count-${item.id}`}>
-              {item.threats.count} {getThreatLabel(item.threats.highestLevel)} threats
-            </span>
-          </button>
-        )}
+        {/* Threat severity buttons - show individual buttons for each severity level */}
+        <div className="flex items-center gap-2 mr-4">
+          {item.criticalCount && item.criticalCount > 0 && (
+            <button
+              onClick={() => {
+                const filterParam = encodeURIComponent(`${type}:${item.name}:critical`);
+                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+              }}
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
+              data-testid={`button-threat-critical-${item.id}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+              <span className="text-muted-foreground">Critical</span>
+            </button>
+          )}
+          {item.highCount && item.highCount > 0 && (
+            <button
+              onClick={() => {
+                const filterParam = encodeURIComponent(`${type}:${item.name}:high`);
+                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+              }}
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
+              data-testid={`button-threat-high-${item.id}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+              <span className="text-muted-foreground">High</span>
+            </button>
+          )}
+          {item.mediumCount && item.mediumCount > 0 && (
+            <button
+              onClick={() => {
+                const filterParam = encodeURIComponent(`${type}:${item.name}:medium`);
+                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+              }}
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
+              data-testid={`button-threat-medium-${item.id}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+              <span className="text-muted-foreground">Medium</span>
+            </button>
+          )}
+          {item.lowCount && item.lowCount > 0 && (
+            <button
+              onClick={() => {
+                const filterParam = encodeURIComponent(`${type}:${item.name}:low`);
+                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+              }}
+              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
+              data-testid={`button-threat-low-${item.id}`}
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+              <span className="text-muted-foreground">Low</span>
+            </button>
+          )}
+          {/* Show "See Active Threats" if any threats exist */}
+          {((item.criticalCount && item.criticalCount > 0) || 
+            (item.highCount && item.highCount > 0) || 
+            (item.mediumCount && item.mediumCount > 0) || 
+            (item.lowCount && item.lowCount > 0)) && (
+            <button
+              onClick={() => {
+                const filterParam = encodeURIComponent(`${type}:${item.name}`);
+                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+              }}
+              className="text-xs text-primary hover:underline ml-2"
+              data-testid={`button-see-all-threats-${item.id}`}
+            >
+              See All
+            </button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           {/* Enable/Disable Toggle */}
