@@ -70,6 +70,4 @@ httpServer.listen(port, async () => {
   // DEPRECATED: Individual app schedulers are no longer used for global scraping
   // The unified global scheduler handles both News Radar and Threat Tracker
   // Keeping scheduler files for potential future per-user scheduling features
-  //
-  // delete this
 });

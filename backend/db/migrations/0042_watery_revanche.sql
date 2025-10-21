@@ -1,0 +1,1 @@
+ALTER TABLE "users_companies" ADD COLUMN "source" text DEFAULT 'manual';

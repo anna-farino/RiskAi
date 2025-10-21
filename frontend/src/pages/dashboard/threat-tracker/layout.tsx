@@ -8,6 +8,10 @@ const buttons = [
     url: "/dashboard/threat/home",
   },
   {
+    label: "Technology Stack",
+    url: "/dashboard/threat/tech-stack",
+  },
+  {
     label: "Keywords",
     url: "/dashboard/threat/keywords",
   },

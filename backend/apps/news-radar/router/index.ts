@@ -2,7 +2,7 @@ import { articles, insertKeywordSchema, insertSourceSchema } from "@shared/db/sc
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/news-tracker";
 import { unifiedStorage } from "backend/services/unified-storage";
-import { isGlobalJobRunning, runGlobalScrapeJob, scrapeSource, sendNewArticlesEmail, stopGlobalScrapeJob } from "../services/background-jobs";
+import { isGlobalJobRunning, sendNewArticlesEmail } from "../services/background-jobs";
 // Using global scheduler from backend/services/global-scheduler.ts
 import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
 import { log } from "backend/utils/log";
@@ -467,8 +467,10 @@ newsRouter.delete("/admin/sources/:id", async (req, res) => {
 });
 
 // Keywords
-newsRouter.get("/keywords", async (req, res) => {
-  console.log("Getting keywords...")
+
+// POST endpoint for fetching keywords - handles potential future filtering
+newsRouter.post("/keywords/list", async (req, res) => {
+  console.log("POST /keywords/list - Getting keywords...")
   const userId = (req.user as User).id as string;
   const keywords = await storage.getKeywords(userId);
   res.json(keywords);
@@ -519,6 +521,25 @@ newsRouter.delete("/keywords/:id", async (req, res) => {
 });
 
 // Articles - Phase 5: Using unified storage to read from global_articles
+
+// POST endpoint for article count - handles large keyword lists in body
+newsRouter.post("/articles/count", async (req, res) => {
+  const userId = (req.user as User).id as string;
+  
+  try {
+    // Extract filters from request body
+    const { keywordIds } = req.body;
+    
+    // For now, just get the total count (filtering by keywords happens at query time)
+    const count = await unifiedStorage.getUserArticleCount(userId, 'news-radar');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
+// Keep GET endpoint for backward compatibility
 newsRouter.get("/articles/count", async (req, res) => {
   const userId = (req.user as User).id as string;
   
@@ -532,11 +553,21 @@ newsRouter.get("/articles/count", async (req, res) => {
   }
 });
 
-newsRouter.get("/articles", async (req, res) => {
+// POST endpoint for articles - handles large keyword lists in body
+newsRouter.post("/articles/query", async (req, res) => {
   const userId = (req.user as User).id as string;
   
-  // Parse query parameters for filtering and pagination
-  const { search, keywordIds, startDate, endDate, page, limit } = req.query;
+  // Extract filters from request body instead of query params
+  const { 
+    search, 
+    keywordIds, 
+    startDate: startDateString, 
+    endDate: endDateString, 
+    page = 1, 
+    limit = 50,
+    sort,
+    relevanceFilter 
+  } = req.body;
   
   // Prepare filter object for unified storage
   const filter: {
@@ -563,28 +594,25 @@ newsRouter.get("/articles", async (req, res) => {
   }
   
   // Parse date range filters
-  if (startDate && typeof startDate === 'string') {
+  if (startDateString) {
     try {
-      filter.startDate = new Date(startDate);
+      filter.startDate = new Date(startDateString);
     } catch (error) {
       console.error("Invalid startDate format:", error);
     }
   }
   
-  if (endDate && typeof endDate === 'string') {
+  if (endDateString) {
     try {
-      filter.endDate = new Date(endDate);
+      filter.endDate = new Date(endDateString);
     } catch (error) {
       console.error("Invalid endDate format:", error);
     }
   }
   
   // Parse pagination parameters
-  const pageNum = page && typeof page === 'string' ? parseInt(page, 10) : 1;
-  const limitNum = limit && typeof limit === 'string' ? parseInt(limit, 10) : 50;
-  
-  filter.limit = limitNum;
-  filter.offset = (pageNum - 1) * limitNum;
+  filter.limit = limit;
+  filter.offset = (page - 1) * limit;
   
   console.log("Filter parameters:", filter);
   console.log("[NEWS-RADAR-DEBUG] userId being passed:", userId);
@@ -597,9 +625,10 @@ newsRouter.get("/articles", async (req, res) => {
     res.json(articles);
   } catch (error: any) {
     console.error("Error fetching articles:", error);
-    res.status(500).json({ error: error.message || "Failed to fetch articles" });
+    res.status(500).json({ error: error.message || 'Failed to fetch articles' });
   }
 });
+
 
 newsRouter.delete("/articles/:id", async (req, res) => {
   const userId = (req.user as User).id as string;
@@ -650,71 +679,9 @@ newsRouter.post("/sources/:id/stop", async (req, res) => {
   res.json({ message: "Scraping stop signal sent" });
 });
 
-// Scraping
-newsRouter.post("/sources/:id/scrape", async (req, res) => {
-  console.log("Scrape route hit")
-  const userId = (req.user as User).id as string;
-  console.log("User id", userId)
-  const sourceId = req.params.id;
-  console.log("Source id", sourceId)
-  const source = await storage.getSource(sourceId);
-  console.log("source", source)
-  
-  if (!source || source.userId !== userId) {
-    return res.status(404).json({ message: "Source not found" });
-  }
+// Scraping endpoints removed - all scraping handled by global scheduler
 
-  try {
-    // Use the updated scrapeSource function that handles all the scraping logic
-    const { processedCount, savedCount, newArticles } = await scrapeSource(sourceId);
-
-    // If there are new articles, send an email notification
-    if (newArticles.length > 0) {
-      try {
-        await sendNewArticlesEmail(userId, newArticles, source.name);
-        log(`[Email] Sent notification email for ${newArticles.length} new articles from ${source.name}`, 'scraper');
-      } catch (emailError) {
-        log(`[Email] Error sending notification: ${emailError}`, 'scraper');
-        // Continue processing - don't fail the request if email sending fails
-      }
-    }
-
-    log(`[Scraping] Scraping completed. Processed ${processedCount} articles, saved ${savedCount}`, 'scraper');
-    res.json({
-      message: "Scraping completed successfully",
-      stats: {
-        totalProcessed: processedCount,
-        totalSaved: savedCount,
-        newArticlesFound: newArticles.length
-      }
-    });
-  } catch (error: unknown) {
-    // Clear active flag on error
-    activeScraping.delete(sourceId);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    log(`[Scraping] Fatal error: ${errorMessage}`, 'scraper');
-    res.status(500).json({ message: errorMessage });
-  }
-});
-
-// Background Jobs and Auto-Scraping
-newsRouter.post("/jobs/scrape", async (req, res) => {
-  try {
-    // Global scrape no longer needs userId
-    if (isGlobalJobRunning()) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "A global scraping job is already running" 
-      });
-    }
-    
-    const result = await runGlobalScrapeJob(); // No userId - runs globally
-    res.json(result);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    res.status(500).json({ success: false, message: errorMessage });
-  }
-});
+// Background Jobs and Auto-Scraping - removed (handled by global scheduler)
 
 newsRouter.get("/jobs/status", async (_req, res) => {
   try {
@@ -729,33 +696,7 @@ newsRouter.get("/jobs/status", async (_req, res) => {
   }
 });
 
-newsRouter.post("/jobs/stop", async (req, res) => {
-  try {
-    const userId = (req.user as User).id as string;
-    log(`[API] Stopping global scrape job requested by user ${userId}`, 'scraper');
-    
-    // Check if a job is actually running
-    const isRunning = isGlobalJobRunning();
-    log(`[API] Current job running status: ${isRunning}`, 'scraper');
-    
-    // Call the stop function - this might be undefined causing the error
-    if (typeof stopGlobalScrapeJob !== 'function') {
-      log(`[API] stopGlobalScrapeJob is not a function: ${typeof stopGlobalScrapeJob}`, 'scraper');
-      return res.status(500).json({ 
-        success: false, 
-        message: "Internal server error: stop function not available" 
-      });
-    }
-    
-    const result = await stopGlobalScrapeJob();
-    log(`[API] Stop job result: ${JSON.stringify(result)}`, 'scraper');
-    res.json(result);
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-    log(`[API] Error stopping global scrape job: ${errorMessage}`, 'scraper');
-    res.status(500).json({ success: false, message: errorMessage });
-  }
-});
+// Job stop endpoint removed - global scheduler cannot be stopped by users
 
 // Source Auto-Scrape Inclusion
 newsRouter.patch("/sources/:id/auto-scrape", async (req, res) => {

@@ -83,7 +83,6 @@ ARTICLE CONTENT: ${articleContent.substring(0, 8000)}
           content: prompt,
         },
       ],
-      temperature: 0.3,
       response_format: { type: "json_object" },
     });
 

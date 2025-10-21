@@ -123,9 +123,7 @@ export default function Keywords() {
     Record<string, boolean>
   >({
     threat: true,
-    vendor: true,
-    client: true,
-    hardware: true,
+    threatActors: true,
   });
 
   // Toolbar state management - matching News Radar design
@@ -156,14 +154,18 @@ export default function Keywords() {
     },
   });
 
-  // Fetch keywords
+  // Fetch keywords (using POST for consistency)
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: ["/api/threat-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithAuth("/api/threat-tracker/keywords", {
-            method: "GET",
-          });
+        const response = await fetchWithAuth("/api/threat-tracker/keywords/list", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
+        });
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
         return data || [];
@@ -175,6 +177,27 @@ export default function Keywords() {
     staleTime: 0, // Always refetch on component mount
     refetchOnMount: true, // Force refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window regains focus
+  });
+
+  // Fetch threat actors
+  const threatActors = useQuery<any[]>({
+    queryKey: ["/api/threat-tracker/threat-actors"],
+    queryFn: async () => {
+      try {
+        const response = await fetchWithAuth("/api/threat-tracker/threat-actors", {
+            method: "GET",
+          });
+        if (!response.ok) throw new Error("Failed to fetch threat actors");
+        const data = await response.json();
+        return data || [];
+      } catch (error) {
+        console.error(error);
+        return [];
+      }
+    },
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   // Update local state whenever query data changes
@@ -702,9 +725,6 @@ export default function Keywords() {
   // Group keywords by category for counts
   const categoryCounts = {
     threat: localKeywords.filter((k) => k.category === "threat").length,
-    vendor: localKeywords.filter((k) => k.category === "vendor").length,
-    client: localKeywords.filter((k) => k.category === "client").length,
-    hardware: localKeywords.filter((k) => k.category === "hardware").length,
   };
 
   // Helper function to render compact default keywords
@@ -777,12 +797,6 @@ export default function Keywords() {
           <p className="text-sm text-muted-foreground mb-4 text-center px-4">
             {selectedCategory === "threat" &&
               "Add custom threat keywords to monitor for specific security issues."}
-            {selectedCategory === "vendor" &&
-              "Add custom vendors to monitor for security vulnerabilities."}
-            {selectedCategory === "client" &&
-              "Add custom clients to track security issues affecting them."}
-            {selectedCategory === "hardware" &&
-              "Add custom hardware/software to monitor for security issues."}
           </p>
           <Button onClick={handleNewKeyword} className="border border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500">
             <Plus className="mr-2 h-4 w-4" />
@@ -862,10 +876,7 @@ export default function Keywords() {
                           {keyword.term}
                         </p>
                         <p className="text-xs text-slate-400 capitalize">
-                          {selectedCategory === "threat" ? "Custom Threat" : 
-                           selectedCategory === "vendor" ? "Custom Vendor" : 
-                           selectedCategory === "client" ? "Custom Client" : 
-                           "Custom Hardware/Software"}
+                          Custom Threat
                         </p>
                       </div>
                       
@@ -967,10 +978,7 @@ export default function Keywords() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-400">
                     <span className="capitalize">
-                      {selectedCategory === "threat" && "Security Threats"}
-                      {selectedCategory === "vendor" && "Technology Vendors"}
-                      {selectedCategory === "client" && "Client Organizations"}
-                      {selectedCategory === "hardware" && "Hardware & Software"}
+                      Security Threats
                     </span>
                     <ChevronDown className={cn(
                       "h-3 w-3 transition-transform duration-200",
@@ -983,14 +991,7 @@ export default function Keywords() {
                 <div className="p-4 bg-slate-900/40 rounded-md border border-blue-500/10">
                   <div className="mb-3">
                     <p className="text-xs text-slate-400 leading-relaxed">
-                      {selectedCategory === "threat" && 
-                        "Pre-configured keywords for common cybersecurity threats, attack vectors, and security incidents."}
-                      {selectedCategory === "vendor" && 
-                        "Technology companies and vendors commonly mentioned in security advisories and threat reports."}
-                      {selectedCategory === "client" && 
-                        "Standard client organization types and sectors frequently targeted by cyber threats."}
-                      {selectedCategory === "hardware" && 
-                        "Common hardware devices, software platforms, and technologies with security implications."}
+                      Pre-configured keywords for common cybersecurity threats, attack vectors, and security incidents.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -1080,7 +1081,7 @@ export default function Keywords() {
                   <Shield className="h-4 w-4 text-purple-400" />
                   <span className="text-sm font-medium text-purple-400">Category Filters</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   <button
                     className={cn(
                       "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
@@ -1093,45 +1094,6 @@ export default function Keywords() {
                   >
                     <AlertTriangle className="h-3 w-3 mr-1" />
                     Threats ({categoryCounts.threat})
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      selectedCategory === 'vendor'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setSelectedCategory('vendor')}
-                    title="Technology Vendors"
-                  >
-                    <Building className="h-3 w-3 mr-1" />
-                    Vendors ({categoryCounts.vendor})
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      selectedCategory === 'client'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setSelectedCategory('client')}
-                    title="Client Organizations"
-                  >
-                    <Users className="h-3 w-3 mr-1" />
-                    Clients ({categoryCounts.client})
-                  </button>
-                  <button
-                    className={cn(
-                      "h-8 text-xs px-2 transition-colors duration-200 whitespace-nowrap rounded-md border inline-flex items-center justify-center",
-                      selectedCategory === 'hardware'
-                        ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                        : "border-slate-700 bg-slate-800/70 text-white hover:text-[#00FFFF] hover:bg-gradient-to-r hover:from-[#BF00FF]/10 hover:to-[#00FFFF]/5 hover:border-slate-500"
-                    )}
-                    onClick={() => setSelectedCategory('hardware')}
-                    title="Hardware/Software"
-                  >
-                    <Cpu className="h-3 w-3 mr-1" />
-                    H/W S/W ({categoryCounts.hardware})
                   </button>
                 </div>
               </div>
@@ -1227,59 +1189,102 @@ export default function Keywords() {
                 defaultKeywords.filter((k) => k.category === "threat"),
                 userKeywords.filter((k) => k.category === "threat")
               )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="vendor" className="mt-[9px]">
-          <Card className="border-0 sm:border">
-            <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">Vendors</CardTitle>
-              <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                Technology vendors to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderUnifiedKeywordGrid(
-                defaultKeywords.filter((k) => k.category === "vendor"),
-                userKeywords.filter((k) => k.category === "vendor")
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="client" className="mt-[9px]">
-          <Card className="border-0 sm:border">
-            <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">Clients</CardTitle>
-              <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                Your client organizations to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderUnifiedKeywordGrid(
-                defaultKeywords.filter((k) => k.category === "client"),
-                userKeywords.filter((k) => k.category === "client")
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="hardware" className="mt-[9px]">
-          <Card className="border-0 sm:border">
-            <CardHeader className="p-3 sm:p-4 lg:p-6">
-              <CardTitle className="text-base sm:text-lg lg:text-xl">
-                Hardware/Software
-              </CardTitle>
-              <CardDescription className="text-xs sm:text-sm leading-relaxed">
-                Specific hardware or software to monitor for security threats
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-1 sm:p-3 lg:p-6">
-              {renderUnifiedKeywordGrid(
-                defaultKeywords.filter((k) => k.category === "hardware"),
-                userKeywords.filter((k) => k.category === "hardware")
-              )}
+              
+              {/* Threat Actors Section - Collapsible dropdown matching System Keywords */}
+              <div className="mt-8 space-y-4">
+                <Collapsible
+                  open={!isDefaultKeywordsCollapsed.threatActors}
+                  onOpenChange={(open) => setIsDefaultKeywordsCollapsed(prev => ({...prev, threatActors: !open}))}
+                >
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center justify-between w-full p-3 bg-slate-800/40 hover:bg-slate-800/60 rounded-md border border-orange-500/20 hover:border-orange-500/30 transition-all duration-200">
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          {isDefaultKeywordsCollapsed.threatActors ? (
+                            <ChevronRight className="h-4 w-4 text-orange-400" />
+                          ) : (
+                            <ChevronDown className="h-4 w-4 text-orange-400" />
+                          )}
+                          <Shield className="h-4 w-4 text-orange-400" />
+                          <h3 className="text-sm font-medium text-orange-300">
+                            Threat Actors
+                          </h3>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className="text-xs bg-orange-500/10 text-orange-400 border-orange-500/30">
+                            {threatActors.data?.length || 0} total
+                          </Badge>
+                          <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/30">
+                            {threatActors.data?.filter((a: any) => a.isVerified).length || 0} verified
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs text-slate-400">
+                        <span className="capitalize">
+                          APT Groups & Ransomware
+                        </span>
+                        <ChevronDown className={cn(
+                          "h-3 w-3 transition-transform duration-200",
+                          isDefaultKeywordsCollapsed.threatActors && "rotate-180"
+                        )} />
+                      </div>
+                    </button>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="mt-3">
+                    <div className="p-4 bg-slate-900/40 rounded-md border border-orange-500/10">
+                      {threatActors.isLoading ? (
+                        <div className="flex items-center justify-center py-8">
+                          <Loader2 className="h-6 w-6 animate-spin text-orange-400" />
+                        </div>
+                      ) : threatActors.data && threatActors.data.length > 0 ? (
+                        <>
+                          <div className="mb-3">
+                            <p className="text-xs text-slate-400 leading-relaxed">
+                              Known threat actors, APT groups, and ransomware gangs discovered in articles
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {threatActors.data.map((actor: any) => (
+                              <Badge
+                                key={actor.id}
+                                variant={actor.isVerified ? "default" : "outline"}
+                                className={cn(
+                                  "text-xs whitespace-nowrap px-3 py-1.5 transition-all duration-200 cursor-pointer",
+                                  actor.isVerified
+                                    ? "bg-orange-500/20 text-orange-300 border-orange-500/40 hover:bg-orange-500/30"
+                                    : "bg-slate-800/60 text-slate-400 border-slate-600/50 hover:bg-slate-700/60"
+                                )}
+                                title={`${actor.name}${actor.type ? ` (${actor.type})` : ''}${actor.origin ? ` - Origin: ${actor.origin}` : ''}`}
+                              >
+                                <Shield className="h-3 w-3 mr-1.5" />
+                                {actor.name}
+                                {actor.type && (
+                                  <span className="text-xs ml-1.5 opacity-70">
+                                    {actor.type}
+                                  </span>
+                                )}
+                                {actor.isVerified && (
+                                  <CheckCircle className="h-3 w-3 ml-1.5 text-orange-400" />
+                                )}
+                              </Badge>
+                            ))}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex flex-col items-center justify-center py-4">
+                          <AlertCircle className="h-8 w-8 text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground text-center">
+                            No threat actors discovered yet
+                          </p>
+                          <p className="text-xs text-muted-foreground text-center mt-1">
+                            They will appear here as they're discovered from analyzed articles
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CollapsibleContent>
+                </Collapsible>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -1334,11 +1339,6 @@ export default function Keywords() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="threat">Threat</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">
-                          Hardware/Software
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>Categorize this keyword</FormDescription>
@@ -1446,11 +1446,6 @@ export default function Keywords() {
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="threat">Threat</SelectItem>
-                        <SelectItem value="vendor">Vendor</SelectItem>
-                        <SelectItem value="client">Client</SelectItem>
-                        <SelectItem value="hardware">
-                          Hardware/Software
-                        </SelectItem>
                       </SelectContent>
                     </Select>
                     <FormDescription>
