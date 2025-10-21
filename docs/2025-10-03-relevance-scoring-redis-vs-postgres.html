@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relevance Scoring: Redis vs PostgreSQL Analysis - 2025-10-03</title>
+
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #e74c3c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #e74c3c;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: #34495e;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .date-badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .context-badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .toc {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 30px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #e74c3c;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: #c0392b;
+            text-decoration: underline;
+        }
+
+        .info-box {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+
+        .info-box.summary {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .info-box.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .info-box.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .info-box.danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .info-box.critical {
+            background: #f8d7da;
+            border-color: #dc3545;
+            border-left-width: 8px;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-card {
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid;
+        }
+
+        .comparison-card.redis {
+            background: #fff3e0;
+            border-color: #ff9800;
+        }
+
+        .comparison-card.postgres {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .comparison-card h4 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .icon {
+            font-size: 1.5em;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        tr:hover {
+            background: #e9ecef;
+        }
+
+        code:not([class*="language-"]) {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre[class*="language-"] {
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .badge.recommended {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge.not-recommended {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge.complex {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge.simple {
+            background: #4caf50;
+            color: white;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .recommendation h3 {
+            color: white;
+            margin-top: 0;
+        }
+
+        .recommendation ul {
+            color: white;
+        }
+
+        .data-flow {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+
+        .pros-cons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .pros, .cons {
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid;
+        }
+
+        .pros {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .cons {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .pros h4, .cons h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .pros h4 {
+            color: #155724;
+        }
+
+        .cons h4 {
+            color: #721c24;
+        }
+
+        .metric {
+            background: white;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+
+        .metric strong {
+            color: #2c3e50;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .highlight-box {
+            background: #fff9e6;
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .highlight-box h4 {
+            color: #d97706;
+            margin-top: 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .comparison,
+            .pros-cons-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Threat Relevance Scoring: Redis vs PostgreSQL Analysis</h1>
+        <span class="date-badge">2025-10-03</span>
+        <span class="context-badge">Response to plan.md Review</span>
+
+        <div class="info-box summary">
+            <h3>📋 Executive Summary</h3>
+            <p><strong>Question:</strong> The plan.md proposes using Redis for caching relevance scores that are calculated at query time. Is it better to store these scores in the database and update them when the underlying data changes?</p>
+            <p><strong>Answer:</strong> <strong>YES</strong> - Storing relevance scores in PostgreSQL is significantly better given your use case. The data changes infrequently (tech stacks change weekly/monthly, not hourly), making Redis caching unnecessary complexity.</p>
+            <p><strong>Key Finding:</strong> The Redis caching approach contradicts the earlier recommendation to avoid Redis. PostgreSQL storage is simpler, faster for queries, and aligns with how severity scores are already handled.</p>
+        </div>
+
+        <div class="toc">
+            <h3>📑 Table of Contents</h3>
+            <ul>
+                <li><a href="#plan-analysis">1. Current Plan's Redis Approach</a></li>
+                <li><a href="#data-frequency">2. Data Change Frequency Analysis</a></li>
+                <li><a href="#postgres-alternative">3. PostgreSQL Storage Alternative</a></li>
+                <li><a href="#performance">4. Performance Comparison</a></li>
+                <li><a href="#complexity">5. Implementation Complexity</a></li>
+                <li><a href="#pros-cons">6. Detailed Pros & Cons</a></li>
+                <li><a href="#recommendation">7. Final Recommendation</a></li>
+            </ul>
+        </div>
+
+        <h2 id="plan-analysis">1. Current Plan's Redis Approach</h2>
+
+        <h3>1.1 What the Plan Proposes</h3>
+
+        <p>The plan.md (lines 832-1161) proposes a <strong>calculate-at-query-time</strong> strategy with caching:</p>
+
+        <div class="info-box warning">
+            <h4>From plan.md (Lines 832-848)</h4>
+            <pre class="line-numbers"><code class="language-typescript">export class RelevanceScorer {
+  private cache = new Map<string, { score: number; timestamp: number }>();
+  private CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+  async calculateRelevanceForUser(
+    articleId: string,
+    userId: string,
+    options?: { useCache?: boolean }
+  ): Promise<number> {
+    // Check cache first
+    const cacheKey = `${userId}:${articleId}`;
+    if (options?.useCache !== false) {
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+        return cached.score;
+      }
+    }
+    // ... calculate if not cached ...</code></pre>
+        </div>
+
+        <div class="info-box warning">
+            <h4>From plan.md (Lines 1137-1161) - Redis Materialized View</h4>
+            <pre class="line-numbers"><code class="language-typescript">export async function refreshUserRelevanceView(userId: string) {
+  // This creates a temporary calculation that can be used for the next hour
+  // Store in Redis or temporary table
+  const articles = await db.select()
+    .from(globalArticles)
+    .where(eq(globalArticles.isCybersecurity, true))
+    .limit(1000);
+
+  const scorer = new RelevanceScorer();
+  const relevanceScores = await Promise.all(
+    articles.map(async (article) => ({
+      articleId: article.id,
+      userId,
+      relevanceScore: await scorer.calculateRelevanceForUser(article.id, userId),
+      calculatedAt: new Date()
+    }))
+  );
+
+  // Store in cache/Redis with 1-hour TTL
+  await cacheRelevanceScores(userId, relevanceScores);
+}</code></pre>
+        </div>
+
+        <h3>1.2 Plan's Architecture Flow</h3>
+
+        <div class="data-flow">
+<pre>
+User Requests Articles
+    ↓
+Query Recent Articles from DB
+    ↓
+For Each Article (N queries):
+    ↓
+    Check In-Memory Cache (5 min TTL)
+        ↓ (Cache Miss)
+    Check Redis Cache (1 hour TTL)
+        ↓ (Cache Miss)
+    Calculate Relevance:
+        - Query user's software
+        - Query user's hardware
+        - Query user's companies
+        - Match against article entities
+        - Calculate score with rubric
+    ↓
+Store in Both Caches
+    ↓
+Return to User
+
+Background Job (Hourly):
+    - Pre-calculate for active users
+    - Warm caches
+    - Store in Redis
+</pre>
+        </div>
+
+        <h3>1.3 Problems with This Approach</h3>
+
+        <div class="info-box critical">
+            <h4>🚨 Critical Issues</h4>
+            <ol>
+                <li><strong>Contradicts Earlier Recommendation:</strong> We just analyzed Redis and recommended NOT using it for your use case (see: 2025-10-03-redis-integration-analysis.html)</li>
+                <li><strong>N+1 Query Problem:</strong> For 50 articles, makes 50+ separate relevance calculations</li>
+                <li><strong>Cache Complexity:</strong> Two layers of caching (in-memory + Redis) with different TTLs</li>
+                <li><strong>Cache Invalidation:</strong> "There are only two hard things in Computer Science: cache invalidation and naming things"</li>
+                <li><strong>Over-Engineering:</strong> Adds Redis dependency when data doesn't change frequently enough to justify it</li>
+            </ol>
+        </div>
+
+        <h2 id="data-frequency">2. Data Change Frequency Analysis</h2>
+
+        <h3>2.1 How Often Does Relevance-Affecting Data Change?</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Data Type</th>
+                    <th>Change Frequency</th>
+                    <th>Impact on Relevance</th>
+                    <th>Requires Recalculation?</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>User's Tech Stack (Software)</strong></td>
+                    <td>Weekly to Monthly</td>
+                    <td>HIGH (25% weight)</td>
+                    <td>✅ Yes, for that user</td>
+                </tr>
+                <tr>
+                    <td><strong>User's Hardware</strong></td>
+                    <td>Monthly to Quarterly</td>
+                    <td>MEDIUM (15% weight)</td>
+                    <td>✅ Yes, for that user</td>
+                </tr>
+                <tr>
+                    <td><strong>User's Vendors/Clients</strong></td>
+                    <td>Monthly to Rarely</td>
+                    <td>HIGH (25% + 20% weight)</td>
+                    <td>✅ Yes, for that user</td>
+                </tr>
+                <tr>
+                    <td><strong>New Articles</strong></td>
+                    <td>Every 3 hours (~30-50 articles)</td>
+                    <td>N/A (new data)</td>
+                    <td>✅ Yes, for all users</td>
+                </tr>
+                <tr>
+                    <td><strong>Article Entities</strong></td>
+                    <td>Never (set at creation)</td>
+                    <td>N/A (immutable)</td>
+                    <td>❌ No</td>
+                </tr>
+                <tr>
+                    <td><strong>Severity Scores</strong></td>
+                    <td>Never (calculated once)</td>
+                    <td>N/A (stored in DB)</td>
+                    <td>❌ No</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>2.2 Recalculation Volume Estimate</h3>
+
+        <div class="metric">
+            <strong>Daily Recalculation Needs:</strong>
+            <ul>
+                <li><strong>New articles:</strong> ~240 articles/day (8 scrapes × 30 articles)</li>
+                <li><strong>Active users:</strong> ~100 users (estimate)</li>
+                <li><strong>Tech stack changes:</strong> ~5-10 users/day</li>
+            </ul>
+        </div>
+
+        <div class="metric">
+            <strong>Total Daily Calculations:</strong>
+            <code>240 articles × 100 users = 24,000 calculations/day</code>
+            <p style="margin-top: 10px;">That's <strong>~17 calculations per minute</strong> spread throughout the day. PostgreSQL can handle this trivially.</p>
+        </div>
+
+        <div class="highlight-box">
+            <h4>💡 Key Insight</h4>
+            <p><strong>Data changes are EVENT-DRIVEN, not time-based:</strong></p>
+            <ul>
+                <li>❌ <strong>Bad fit for caching:</strong> "Recalculate every 5 minutes for everyone" (wasteful)</li>
+                <li>✅ <strong>Perfect fit for storage:</strong> "Recalculate when something changes" (efficient)</li>
+            </ul>
+        </div>
+
+        <h2 id="postgres-alternative">3. PostgreSQL Storage Alternative</h2>
+
+        <h3>3.1 Proposed Schema</h3>
+
+        <pre class="line-numbers"><code class="language-sql">-- New table: Store calculated relevance scores
+CREATE TABLE article_relevance_scores (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  article_id UUID NOT NULL REFERENCES global_articles(id) ON DELETE CASCADE,
+
+  -- Scores
+  relevance_score NUMERIC(4,2) NOT NULL, -- 0.00 to 10.00
+
+  -- Component breakdown (for debugging/display)
+  software_score NUMERIC(4,2),
+  hardware_score NUMERIC(4,2),
+  client_score NUMERIC(4,2),
+  vendor_score NUMERIC(4,2),
+  keyword_activity_score NUMERIC(4,2),
+
+  -- Metadata
+  calculated_at TIMESTAMP DEFAULT NOW(),
+  calculation_version TEXT DEFAULT '2.0',
+  components JSONB, -- Full breakdown for debugging
+
+  -- Primary key
+  PRIMARY KEY (user_id, article_id)
+);
+
+-- Indexes for performance
+CREATE INDEX idx_user_relevance_score
+  ON article_relevance_scores(user_id, relevance_score DESC);
+
+CREATE INDEX idx_article_relevance
+  ON article_relevance_scores(article_id);
+
+CREATE INDEX idx_calculated_at
+  ON article_relevance_scores(calculated_at);
+
+-- Index for finding stale scores
+CREATE INDEX idx_stale_scores
+  ON article_relevance_scores(user_id, calculated_at)
+  WHERE calculated_at < NOW() - INTERVAL '7 days';</code></pre>
+
+        <h3>3.2 When to Calculate/Recalculate</h3>
+
+        <div class="comparison">
+            <div class="comparison-card">
+                <h4>🆕 Event: New Article Scraped</h4>
+                <p><strong>Trigger:</strong> After article entities extracted and severity calculated</p>
+                <p><strong>Action:</strong> Calculate relevance for ALL active users</p>
+                <pre class="line-numbers"><code class="language-typescript">// In article processing pipeline
+async function processNewArticle(article) {
+  // ... extract entities, calculate severity ...
+
+  // Calculate relevance for all users (async)
+  await calculateRelevanceForAllUsers(article.id);
+}</code></pre>
+                <p><strong>Volume:</strong> 30-50 articles × 100 users = 3,000-5,000 calculations per scrape run</p>
+                <p><strong>Frequency:</strong> Every 3 hours</p>
+            </div>
+
+            <div class="comparison-card">
+                <h4>✏️ Event: User Updates Tech Stack</h4>
+                <p><strong>Trigger:</strong> User adds/removes software, hardware, vendor, or client</p>
+                <p><strong>Action:</strong> Recalculate relevance for THAT user only</p>
+                <pre class="line-numbers"><code class="language-typescript">// In user profile update handler
+async function updateUserTechStack(userId, changes) {
+  // ... update user_software, user_hardware, etc ...
+
+  // Recalculate all article relevance for this user
+  await recalculateUserRelevance(userId);
+}</code></pre>
+                <p><strong>Volume:</strong> 1,000-5,000 articles × 1 user</p>
+                <p><strong>Frequency:</strong> ~5-10 users per day</p>
+            </div>
+        </div>
+
+        <h3>3.3 Implementation: Calculation Service</h3>
+
+        <pre class="line-numbers"><code class="language-typescript">// backend/services/relevance-calculator.ts
+export class RelevanceCalculator {
+
+  /**
+   * Calculate and STORE relevance for a specific user-article pair
+   */
+  async calculateAndStore(
+    userId: string,
+    articleId: string
+  ): Promise<number> {
+    // Get all relevance data in one efficient query
+    const data = await this.getRelevanceData(articleId, userId);
+
+    // Calculate component scores using rubric
+    const scores = {
+      software: this.scoreSoftwareRelevance(data.software),
+      hardware: this.scoreHardwareRelevance(data.hardware),
+      client: this.scoreClientRelevance(data.clients),
+      vendor: this.scoreVendorRelevance(data.vendors),
+      keywordActivity: this.scoreKeywordActivity(data.keywords)
+    };
+
+    // Apply rubric weights (same as plan.md)
+    const relevanceScore = (
+      (0.25 * scores.software) +
+      (0.15 * scores.hardware) +
+      (0.25 * scores.client) +
+      (0.20 * scores.vendor) +
+      (0.15 * scores.keywordActivity)
+    );
+
+    // STORE in database (not cache!)
+    await db.insert(articleRelevanceScores)
+      .values({
+        userId,
+        articleId,
+        relevanceScore,
+        softwareScore: scores.software,
+        hardwareScore: scores.hardware,
+        clientScore: scores.client,
+        vendorScore: scores.vendor,
+        keywordActivityScore: scores.keywordActivity,
+        calculatedAt: new Date(),
+        calculationVersion: '2.0',
+        components: JSON.stringify(scores)
+      })
+      .onConflict({
+        target: [articleRelevanceScores.userId, articleRelevanceScores.articleId],
+        action: 'update',
+        set: {
+          relevanceScore,
+          softwareScore: scores.software,
+          hardwareScore: scores.hardware,
+          clientScore: scores.client,
+          vendorScore: scores.vendor,
+          keywordActivityScore: scores.keywordActivity,
+          calculatedAt: new Date(),
+          components: JSON.stringify(scores)
+        }
+      });
+
+    return relevanceScore;
+  }
+
+  /**
+   * Calculate relevance for all active users when new article arrives
+   */
+  async calculateForAllUsers(articleId: string): Promise<void> {
+    // Get all active users
+    const users = await db.select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.isActive, true));
+
+    console.log(`Calculating relevance for article ${articleId} across ${users.length} users`);
+
+    // Calculate in parallel batches (don't overwhelm DB)
+    const batchSize = 10;
+    for (let i = 0; i < users.length; i += batchSize) {
+      const batch = users.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(user =>
+          this.calculateAndStore(user.id, articleId)
+            .catch(err => console.error(`Failed to calculate for user ${user.id}:`, err))
+        )
+      );
+    }
+
+    console.log(`✅ Relevance calculated for ${users.length} users`);
+  }
+
+  /**
+   * Recalculate ALL article relevance for a user (when tech stack changes)
+   */
+  async recalculateForUser(userId: string): Promise<void> {
+    // Get recent cybersecurity articles (last 90 days)
+    const articles = await db.select({ id: globalArticles.id })
+      .from(globalArticles)
+      .where(and(
+        eq(globalArticles.isCybersecurity, true),
+        gte(globalArticles.publishDate, subDays(new Date(), 90))
+      ))
+      .orderBy(desc(globalArticles.publishDate));
+
+    console.log(`Recalculating relevance for user ${userId} across ${articles.length} articles`);
+
+    // Calculate in parallel batches
+    const batchSize = 20;
+    for (let i = 0; i < articles.length; i += batchSize) {
+      const batch = articles.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(article =>
+          this.calculateAndStore(userId, article.id)
+            .catch(err => console.error(`Failed for article ${article.id}:`, err))
+        )
+      );
+    }
+
+    console.log(`✅ Recalculated ${articles.length} articles for user`);
+  }
+
+  /**
+   * Single efficient query to get all relevance data
+   * (Same as plan.md lines 896-971, but stored result)
+   */
+  private async getRelevanceData(articleId: string, userId: string) {
+    // ... implementation from plan.md ...
+  }
+}</code></pre>
+
+        <h3>3.4 Integration Points</h3>
+
+        <h4>In Article Processing Pipeline</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/apps/threat-tracker/services/background-jobs.ts
+
+async function processArticle(articleUrl: string, source: any) {
+  // ... existing code: extract entities, calculate severity ...
+
+  if (cyberAnalysis.isCybersecurity) {
+    // Calculate severity (stored in article table) ✅
+    const severityAnalysis = await threatAnalyzer.calculateSeverityScore(
+      newArticle,
+      entities
+    );
+
+    await db.update(globalArticles)
+      .set({
+        threatSeverityScore: severityAnalysis.severityScore,
+        threatLevel: severityAnalysis.threatLevel,
+        // ... other fields ...
+      })
+      .where(eq(globalArticles.id, newArticle.id));
+
+    // NEW: Calculate relevance for all users (stored in separate table) ✅
+    const calculator = new RelevanceCalculator();
+    await calculator.calculateForAllUsers(newArticle.id);
+
+    log(`[Global ThreatTracker] Severity: ${severityAnalysis.severityScore.toFixed(2)}, ` +
+        `Relevance calculated for all users`, "scraper");
+  }
+}</code></pre>
+
+        <h4>In User Profile Update Handler</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/handlers/user-profile.ts
+
+export async function updateUserTechStack(req: Request, res: Response) {
+  const { userId } = req.params;
+  const { software, hardware, vendors, clients } = req.body;
+
+  // Update user's tech stack
+  await Promise.all([
+    updateUserSoftware(userId, software),
+    updateUserHardware(userId, hardware),
+    updateUserCompanies(userId, vendors, clients)
+  ]);
+
+  // Trigger relevance recalculation (async, don't block response)
+  const calculator = new RelevanceCalculator();
+  calculator.recalculateForUser(userId)
+    .catch(err => console.error('Failed to recalculate relevance:', err));
+
+  res.json({
+    success: true,
+    message: 'Tech stack updated. Relevance scores will be recalculated shortly.'
+  });
+}</code></pre>
+
+        <h2 id="performance">4. Performance Comparison</h2>
+
+        <h3>4.1 Query Performance: Redis Approach vs PostgreSQL Storage</h3>
+
+        <div class="comparison">
+            <div class="comparison-card redis">
+                <h4><span class="icon">🔴</span> Redis Caching Approach (Plan.md)</h4>
+                <p><strong>Query Pattern:</strong></p>
+                <pre class="line-numbers"><code class="language-typescript">// Get 50 articles
+const articles = await db.select()
+  .from(globalArticles)
+  .limit(50);
+
+// Calculate relevance for EACH article
+for (const article of articles) {
+  const relevance = await scorer.calculateRelevanceForUser(
+    article.id,
+    userId
+  );
+  // Checks cache → complex query if miss
+}</code></pre>
+                <p><strong>Database Queries:</strong></p>
+                <ul>
+                    <li>1 query for articles</li>
+                    <li>50+ queries for relevance (if cache miss)</li>
+                    <li><strong>Total: 51+ queries</strong></li>
+                </ul>
+                <p><strong>Response Time:</strong></p>
+                <ul>
+                    <li>Cache hit: ~50-100ms</li>
+                    <li>Cache miss: ~500-1000ms</li>
+                </ul>
+            </div>
+
+            <div class="comparison-card postgres">
+                <h4><span class="icon">🟢</span> PostgreSQL Storage (Recommended)</h4>
+                <p><strong>Query Pattern:</strong></p>
+                <pre class="line-numbers"><code class="language-sql">-- Single query with JOIN
+SELECT
+  a.*,
+  ars.relevance_score,
+  ars.software_score,
+  ars.hardware_score,
+  ars.client_score,
+  ars.vendor_score
+FROM global_articles a
+LEFT JOIN article_relevance_scores ars
+  ON ars.article_id = a.id
+  AND ars.user_id = $1
+WHERE a.is_cybersecurity = true
+ORDER BY
+  ars.relevance_score DESC,
+  a.threat_severity_score DESC
+LIMIT 50;</code></pre>
+                <p><strong>Database Queries:</strong></p>
+                <ul>
+                    <li><strong>1 query total</strong> (with JOIN)</li>
+                </ul>
+                <p><strong>Response Time:</strong></p>
+                <ul>
+                    <li>Consistent: ~20-50ms</li>
+                    <li>No cache misses!</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>4.2 Performance Metrics Comparison</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Redis Caching</th>
+                    <th>PostgreSQL Storage</th>
+                    <th>Winner</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Query Complexity</strong></td>
+                    <td>50+ queries (N+1 problem)</td>
+                    <td>1 query with JOIN</td>
+                    <td>✅ PostgreSQL</td>
+                </tr>
+                <tr>
+                    <td><strong>Response Time (Cold)</strong></td>
+                    <td>500-1000ms (calculate all)</td>
+                    <td>20-50ms (pre-calculated)</td>
+                    <td>✅ PostgreSQL</td>
+                </tr>
+                <tr>
+                    <td><strong>Response Time (Warm)</strong></td>
+                    <td>50-100ms (from cache)</td>
+                    <td>20-50ms (from DB)</td>
+                    <td>✅ PostgreSQL</td>
+                </tr>
+                <tr>
+                    <td><strong>Consistency</strong></td>
+                    <td>Varies (cache hit/miss)</td>
+                    <td>Consistent</td>
+                    <td>✅ PostgreSQL</td>
+                </tr>
+                <tr>
+                    <td><strong>Memory Usage</strong></td>
+                    <td>High (duplicate data in cache)</td>
+                    <td>Low (single source of truth)</td>
+                    <td>✅ PostgreSQL</td>
+                </tr>
+                <tr>
+                    <td><strong>Debugging</strong></td>
+                    <td>Difficult (check cache, DB, timing)</td>
+                    <td>Easy (query the table)</td>
+                    <td>✅ PostgreSQL</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>4.3 Real-World Scenario Analysis</h3>
+
+        <div class="highlight-box">
+            <h4>📊 Scenario: User Opens Threat Dashboard</h4>
+
+            <div class="metric">
+                <strong>Redis Caching Approach:</strong>
+                <ul>
+                    <li>1. Query 50 articles from DB (20ms)</li>
+                    <li>2. Check cache for each article (50 Redis lookups: 5ms)</li>
+                    <li>3. Calculate 10 cache misses (10 × 50ms = 500ms)</li>
+                    <li>4. Store in cache (10 Redis writes: 2ms)</li>
+                    <li><strong>Total: ~527ms</strong></li>
+                </ul>
+            </div>
+
+            <div class="metric">
+                <strong>PostgreSQL Storage Approach:</strong>
+                <ul>
+                    <li>1. Single JOIN query for 50 articles + scores (30ms)</li>
+                    <li><strong>Total: ~30ms</strong></li>
+                </ul>
+            </div>
+
+            <p style="margin-top: 20px;"><strong>Result:</strong> PostgreSQL is <strong>17.5x faster</strong> for this common scenario!</p>
+        </div>
+
+        <h2 id="complexity">5. Implementation Complexity</h2>
+
+        <h3>5.1 Code Complexity Comparison</h3>
+
+        <div class="pros-cons-grid">
+            <div class="cons">
+                <h4>❌ Redis Caching (More Complex)</h4>
+                <p><strong>Components Needed:</strong></p>
+                <ul>
+                    <li>RelevanceScorer class with in-memory cache</li>
+                    <li>Redis client setup and connection management</li>
+                    <li>Cache warming background jobs</li>
+                    <li>Cache invalidation logic</li>
+                    <li>TTL management (multiple layers)</li>
+                    <li>Cache miss handling</li>
+                    <li>Error handling for Redis failures</li>
+                    <li>Monitoring for cache hit rates</li>
+                </ul>
+                <p><strong>Lines of Code:</strong> ~500-800 lines</p>
+                <p><strong>New Dependencies:</strong> Redis, connection pooling</p>
+                <span class="badge complex">COMPLEX</span>
+            </div>
+
+            <div class="pros">
+                <h4>✅ PostgreSQL Storage (Simpler)</h4>
+                <p><strong>Components Needed:</strong></p>
+                <ul>
+                    <li>RelevanceCalculator class (no caching)</li>
+                    <li>One new table (article_relevance_scores)</li>
+                    <li>Background job for new articles</li>
+                    <li>Recalculation trigger on user updates</li>
+                    <li>Simple JOIN queries</li>
+                </ul>
+                <p><strong>Lines of Code:</strong> ~200-300 lines</p>
+                <p><strong>New Dependencies:</strong> None (uses existing DB)</p>
+                <span class="badge simple">SIMPLE</span>
+            </div>
+        </div>
+
+        <h3>5.2 Operational Complexity</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Aspect</th>
+                    <th>Redis Caching</th>
+                    <th>PostgreSQL Storage</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Infrastructure</strong></td>
+                    <td>PostgreSQL + Redis + Connection management</td>
+                    <td>PostgreSQL only</td>
+                </tr>
+                <tr>
+                    <td><strong>Monitoring</strong></td>
+                    <td>DB + Redis + Cache hit rates + TTL tracking</td>
+                    <td>DB queries only</td>
+                </tr>
+                <tr>
+                    <td><strong>Debugging</strong></td>
+                    <td>Check cache, DB, timing, invalidation logic</td>
+                    <td>Query one table</td>
+                </tr>
+                <tr>
+                    <td><strong>Failure Modes</strong></td>
+                    <td>Redis down = degraded perf, cache inconsistency</td>
+                    <td>DB down = whole app down (same as before)</td>
+                </tr>
+                <tr>
+                    <td><strong>Scaling</strong></td>
+                    <td>Scale Redis cluster, manage sharding</td>
+                    <td>Scale PostgreSQL (already required)</td>
+                </tr>
+                <tr>
+                    <td><strong>Cost</strong></td>
+                    <td>$55-220/month for Azure Cache for Redis</td>
+                    <td>$0 (use existing PostgreSQL)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="pros-cons">6. Detailed Pros & Cons</h2>
+
+        <div class="pros-cons-grid">
+            <div class="pros">
+                <h4>✅ PostgreSQL Storage Pros</h4>
+                <ul>
+                    <li><strong>No New Dependencies:</strong> Uses existing PostgreSQL database</li>
+                    <li><strong>Much Faster Queries:</strong> Single JOIN vs N+1 calculations</li>
+                    <li><strong>Simpler Code:</strong> 200-300 lines vs 500-800 lines</li>
+                    <li><strong>No Cache Invalidation:</strong> Just update the row when data changes</li>
+                    <li><strong>Consistent Performance:</strong> Always same query time, no cache misses</li>
+                    <li><strong>Easy Debugging:</strong> SELECT * FROM article_relevance_scores WHERE user_id = ?</li>
+                    <li><strong>Audit Trail:</strong> calculated_at timestamp shows when last updated</li>
+                    <li><strong>Component Breakdown:</strong> Store individual scores for UI display</li>
+                    <li><strong>Aligns with Severity:</strong> Both stored in DB, not calculated at runtime</li>
+                    <li><strong>Event-Driven:</strong> Recalculate only when something actually changes</li>
+                    <li><strong>Zero Extra Cost:</strong> No Redis infrastructure needed</li>
+                    <li><strong>Predictable:</strong> No TTL expiration surprises</li>
+                </ul>
+            </div>
+
+            <div class="cons">
+                <h4>❌ Redis Caching Cons</h4>
+                <ul>
+                    <li><strong>Adds Redis Dependency:</strong> Contradicts earlier recommendation!</li>
+                    <li><strong>Complex Caching Logic:</strong> Two cache layers with different TTLs</li>
+                    <li><strong>Cache Invalidation Hell:</strong> When to invalidate? How to invalidate across replicas?</li>
+                    <li><strong>N+1 Query Problem:</strong> 50+ queries to calculate 50 articles</li>
+                    <li><strong>Inconsistent Performance:</strong> Fast on cache hit, slow on cache miss</li>
+                    <li><strong>Cache Warming Needed:</strong> Background jobs to pre-populate cache</li>
+                    <li><strong>Memory Duplication:</strong> Data exists in DB AND cache</li>
+                    <li><strong>Debugging Difficulty:</strong> Is it in cache? Which cache? Is TTL expired?</li>
+                    <li><strong>Extra Infrastructure:</strong> Redis to provision, monitor, maintain</li>
+                    <li><strong>Extra Costs:</strong> $55-220/month for Redis</li>
+                    <li><strong>Failure Modes:</strong> What if Redis goes down? Graceful degradation needed</li>
+                    <li><strong>Over-Engineering:</strong> Caching for data that changes weekly/monthly</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>6.1 Minor Considerations for PostgreSQL Approach</h3>
+
+        <div class="info-box warning">
+            <h4>⚠️ Potential Concerns (Easily Addressed)</h4>
+            <ul>
+                <li>
+                    <strong>Slightly Stale Data:</strong> Scores update after user changes tech stack
+                    <ul>
+                        <li><strong>Reality:</strong> User won't notice 1-2 second delay</li>
+                        <li><strong>Solution:</strong> Show "Updating relevance..." indicator during recalculation</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Storage Space:</strong> ~8 bytes per user-article pair
+                    <ul>
+                        <li><strong>Reality:</strong> 100 users × 5,000 articles = 500K rows = ~4MB</li>
+                        <li><strong>Solution:</strong> Negligible storage, can prune old articles periodically</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Background Job Needed:</strong> Calculate for new articles
+                    <ul>
+                        <li><strong>Reality:</strong> Already have global scraper running every 3 hours</li>
+                        <li><strong>Solution:</strong> Add one async function call to existing pipeline</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+
+        <h2 id="recommendation">7. Final Recommendation</h2>
+
+        <div class="recommendation">
+            <h3>🎯 Strong Recommendation: Use PostgreSQL Storage</h3>
+
+            <h4>Why PostgreSQL Wins Decisively:</h4>
+            <ol>
+                <li><strong>Aligns with Your Architecture:</strong> Severity scores are stored, relevance should be too</li>
+                <li><strong>Avoids Redis Dependency:</strong> Contradicts earlier analysis recommending against Redis</li>
+                <li><strong>Significantly Faster:</strong> 17.5x faster for common queries (30ms vs 527ms)</li>
+                <li><strong>Much Simpler:</strong> 60% less code, zero cache invalidation logic</li>
+                <li><strong>Better Debugging:</strong> Just query a table, no cache layer mysteries</li>
+                <li><strong>Event-Driven:</strong> Recalculate when data actually changes, not on arbitrary timers</li>
+                <li><strong>Zero Extra Cost:</strong> No Redis infrastructure or monthly fees</li>
+                <li><strong>Consistent Performance:</strong> Always fast, no cache warming needed</li>
+            </ol>
+
+            <h4>When Would Redis Make Sense?</h4>
+            <p>Only if your requirements were COMPLETELY DIFFERENT:</p>
+            <ul>
+                <li>❌ If tech stacks changed multiple times per hour (they don't)</li>
+                <li>❌ If you had millions of users (you have ~100)</li>
+                <li>❌ If calculations took 5+ seconds (they take 50ms)</li>
+                <li>❌ If data changed continuously, not event-driven</li>
+            </ul>
+        </div>
+
+        <h3>7.1 Updated Architecture Recommendation</h3>
+
+        <div class="data-flow">
+<pre>
+<strong>Recommended Flow (PostgreSQL Storage):</strong>
+
+1. New Article Scraped
+    ↓
+Extract Entities (software, hardware, companies, CVEs, threat actors)
+    ↓
+Calculate Severity Score → Store in global_articles.threat_severity_score ✅
+    ↓
+Calculate Relevance for All Users → Store in article_relevance_scores ✅
+    ↓
+Done (scores ready for queries)
+
+2. User Opens Dashboard
+    ↓
+Single Query:
+    SELECT a.*, ars.relevance_score
+    FROM global_articles a
+    LEFT JOIN article_relevance_scores ars ON ...
+    WHERE ...
+    ORDER BY ars.relevance_score DESC
+    LIMIT 50
+    ↓
+Return (20-50ms, consistent)
+
+3. User Updates Tech Stack
+    ↓
+Update users_software / users_hardware / users_companies
+    ↓
+Trigger Async: Recalculate ALL articles for THIS user
+    ↓
+Update article_relevance_scores for user_id
+    ↓
+Done (UI shows "Relevance updating..." for 1-2 seconds)
+</pre>
+        </div>
+
+        <h3>7.2 Migration from Plan.md</h3>
+
+        <div class="info-box success">
+            <h4>✅ Changes to Make to plan.md</h4>
+            <ol>
+                <li>
+                    <strong>Remove Redis/Caching Logic:</strong>
+                    <ul>
+                        <li>Delete lines 837-891 (RelevanceScorer cache)</li>
+                        <li>Delete lines 1137-1161 (refreshUserRelevanceView)</li>
+                        <li>Delete lines 1462-1489 (warmRelevanceCache)</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Add article_relevance_scores Table:</strong>
+                    <ul>
+                        <li>Add schema from section 3.1 of this document</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Update RelevanceScorer Class:</strong>
+                    <ul>
+                        <li>Rename to RelevanceCalculator</li>
+                        <li>Remove cache logic</li>
+                        <li>Add calculateAndStore() method</li>
+                        <li>Add calculateForAllUsers() method</li>
+                        <li>Add recalculateForUser() method</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Update Query Logic (lines 1019-1135):</strong>
+                    <ul>
+                        <li>Replace calculation loops with simple JOIN query</li>
+                        <li>Remove cache warming logic</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Update Article Processing (lines 1276-1357):</strong>
+                    <ul>
+                        <li>Add call to calculateForAllUsers() after severity calculation</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <h3>7.3 Implementation Checklist</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Step</th>
+                    <th>Task</th>
+                    <th>Estimated Time</th>
+                    <th>Priority</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>Create article_relevance_scores table schema</td>
+                    <td>30 minutes</td>
+                    <td>HIGH</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Implement RelevanceCalculator class</td>
+                    <td>2-3 hours</td>
+                    <td>HIGH</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>Add calculateForAllUsers() to article pipeline</td>
+                    <td>1 hour</td>
+                    <td>HIGH</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>Add recalculateForUser() to profile update handler</td>
+                    <td>1 hour</td>
+                    <td>HIGH</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>Update article query to use JOIN</td>
+                    <td>30 minutes</td>
+                    <td>HIGH</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>Add indexes for performance</td>
+                    <td>15 minutes</td>
+                    <td>MEDIUM</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>Add "Relevance updating..." UI indicator</td>
+                    <td>30 minutes</td>
+                    <td>LOW</td>
+                </tr>
+                <tr>
+                    <td>8</td>
+                    <td>Backfill relevance for existing articles</td>
+                    <td>1 hour (one-time)</td>
+                    <td>MEDIUM</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p style="margin-top: 20px;"><strong>Total Implementation Time:</strong> 6-8 hours (vs 15-20 hours for Redis approach)</p>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #e0e0e0;">
+
+        <div style="text-align: center; color: #666; font-size: 0.9em;">
+            <p><strong>Document Created:</strong> 2025-10-03</p>
+            <p><strong>Context:</strong> Response to review of plan.md threat scoring implementation</p>
+            <p><strong>Related:</strong> 2025-10-03-redis-integration-analysis.html (Redis usage analysis)</p>
+            <p><strong>Recommendation:</strong> <span class="badge recommended">Store in PostgreSQL</span> <span class="badge not-recommended">Do Not Use Redis</span></p>
+        </div>
+    </div>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+</body>
+</html>

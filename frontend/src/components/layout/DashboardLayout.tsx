@@ -34,8 +34,8 @@ export default function DashboardLayout() {
         return;
       }
 
-      // 2. Check for missing tokens when authenticated (only after userData fails)
-      if (!tokenHealth.hasTokens && isAuthenticated && !userData && !userDataLoading) {
+      // 2. Check for missing tokens when authenticated (only after userData fails multiple times)
+      if (!tokenHealth.hasTokens && isAuthenticated && !userData && !userDataLoading && userDataFailureCount.current >= 3) {
         console.error("LOGOUT: No Auth0 tokens found but still authenticated via cookies. Triggering logout...");
         logout('corrupted_tokens');
         return;
@@ -58,8 +58,8 @@ export default function DashboardLayout() {
       console.log(`UserData failure count: ${userDataFailureCount.current}`);
 
       // If userData consistently fails to load, likely invalid token situation
-      // Reduced threshold to 1 for faster detection of corrupted tokens
-      if (userDataFailureCount.current >= 1) {
+      // Increased threshold to 3 to allow for initial login flow delays
+      if (userDataFailureCount.current >= 3) {
         console.error("UserData failed to load despite authenticated state. Session appears broken. Triggering logout...");
         logout('session_expired');
       }

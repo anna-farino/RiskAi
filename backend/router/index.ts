@@ -1,5 +1,5 @@
-import { Request, Router, Response, NextFunction } from "express";
 import { verifyPermissions } from "../middleware/verify-permissions";
+import { Request, Response, Router } from "express";
 import { handleTest } from "../handlers/test";
 import { handleGetRoles } from "../handlers/roles";
 import { authRouter } from "./routes/auth";
@@ -18,12 +18,19 @@ import { auth0CheckJwt, jwtErrorHandler } from "backend/middleware/auth0";
 import { testDatadomeBypass } from "backend/handlers/test-datadome";
 import { auth0middleware } from "backend/middleware/auth0middleware";
 import { handleChangePassword } from "backend/handlers/auth0/change-password";
-// import { handleMigrateUserPreferences } from 'backend/handlers/migrate-preferences';
 import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
 import { handleTestScraping, handleTestScrapingHealth, handleTestAllSources } from "backend/test-scraping";
 import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
 import liveLogsRouter from "backend/api/live-logs-management";
 import { adminRouter } from "./routes/admin";
+import { subsRouter } from "./routes/subscriptions";
+import handleCreateCheckoutSession from "backend/handlers/stripe/checkout-session";
+import handleSessionStatus from "backend/handlers/stripe/session-status";
+import handleCreateSetupIntent from "backend/handlers/stripe/create-setup-intent";
+import handleSubscribeToPro from "backend/handlers/stripe/subscribe-to-pro";
+import handleUpgradeSubscription from "backend/handlers/stripe/upgrade-subscription";
+import handleDowngradeSubscription from "backend/handlers/stripe/downgrade-subscription";
+import handleValidatePromoCode from "backend/handlers/stripe/validate-promo-code";
 
 const limiter = rateLimit(rateLimitConfig as Partial<Options>);
 const router = Router();
@@ -86,16 +93,26 @@ router.use(auth0middleware);
 
 // PROTECTED ROUTES
 
-router.use('/admin', adminRouter)
+router.post("/create-checkout-session", handleCreateCheckoutSession)
+router.get("/session-status", handleSessionStatus)
+router.post("/create-setup-intent", handleCreateSetupIntent)
+router.post("/subscribe-to-pro", handleSubscribeToPro)
+router.post("/upgrade-subscription", handleUpgradeSubscription)
+router.post("/downgrade-subscription", handleDowngradeSubscription)
+router.post("/validate-promo-code", handleValidatePromoCode)
 
+router.use('/admin', adminRouter)
 router.use("/users", usersRouter);
+
+router.use("/subscriptions", subsRouter)
+
+
 router.post("/change-password", handleChangePassword);
 
 router.use("/news-tracker", newsRouter);
 router.use("/threat-tracker", threatRouter);
 router.use("/news-capsule", newsCapsuleRouter);
 
-// DEV only
 router.get("/roles", verifyPermissions("roles:view"), handleGetRoles);
 
 // Sample Data Population API endpoints

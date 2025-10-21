@@ -43,6 +43,8 @@ jobs:
           containerAppName: app-risqai-backend-prod
           resourceGroup: group-risqai-production
           imageToBuild: risqaiprod.azurecr.io/app-risqai-backend-prod:${{ github.sha }}
+          minReplicas: 1
+          maxReplicas: 10
           _buildArgumentsKey_: |
             _buildArgumentsValues_
 

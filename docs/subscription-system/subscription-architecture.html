@@ -1,0 +1,1719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription System Architecture - Production Ready</title>
+
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #3498db;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: #34495e;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .date-badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .info-box {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+
+        .info-box.summary {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .info-box.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .info-box.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .info-box.performance {
+            background: #f0e6ff;
+            border-color: #9b59b6;
+        }
+
+        .info-box h3, .info-box h4 {
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        tr:hover {
+            background: #e9ecef;
+        }
+
+        code:not([class*="language-"]) {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre[class*="language-"] {
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .badge.critical {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge.high {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge.medium {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge.low {
+            background: #28a745;
+            color: white;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .toc {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .feature-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.2);
+        }
+
+        .feature-card h4 {
+            color: #3498db;
+            margin-top: 0;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 40px 0;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .feature-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Subscription System Architecture</h1>
+        <span class="date-badge">October 2025</span>
+        <span class="status-badge">Production Ready Design</span>
+
+        <div class="info-box summary">
+            <h3>📋 Overview</h3>
+            <p>A complete, production-ready subscription system architecture for the Altair News Platform. This document covers database schema design, Stripe integration, subscription lifecycle management, usage tracking, and security best practices. Built with simplicity in mind while maintaining full scalability for future growth.</p>
+        </div>
+
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><a href="#executive-summary">Executive Summary</a></li>
+                <li><a href="#current-state">Current State Analysis</a></li>
+                <li><a href="#database-schema">Database Schema Design</a></li>
+                <li><a href="#stripe-setup">Stripe Setup Guide</a></li>
+                <li><a href="#stripe-integration">Stripe Integration</a></li>
+                <li><a href="#lifecycle-flows">Subscription Lifecycle Flows</a></li>
+                <li><a href="#usage-tracking">Usage Tracking & Enforcement</a></li>
+                <li><a href="#security">Security Considerations</a></li>
+                <li><a href="#roadmap">Implementation Roadmap</a></li>
+                <li><a href="#testing">Testing Strategy</a></li>
+            </ul>
+        </div>
+
+        <section id="executive-summary">
+            <h2>Executive Summary</h2>
+
+            <h3>The Challenge</h3>
+            <p>We need a production-ready subscription system that handles:</p>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Individual Users</h4>
+                    <p>Free & Pro tiers for solo users without the overhead of organization management.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Payment Processing</h4>
+                    <p>Secure Stripe integration with webhooks, trials, and automatic billing management.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Usage Enforcement</h4>
+                    <p>Track and enforce source limits, keyword quotas, and API call restrictions per tier.</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Future Scalability</h4>
+                    <p>Ready to expand to team subscriptions and organization features when needed.</p>
+                </div>
+            </div>
+
+            <h3>The Solution: Simple Start, Easy Scale</h3>
+
+            <div class="info-box success">
+                <strong>Your proposed approach is architecturally sound!</strong> Starting with individual subscriptions and leaving room to expand to organizations later is the correct pattern.
+            </div>
+
+            <div class="flow-diagram">User Signs Up (Free)
+    ↓
+Individual Subscription Created (user_subscriptions table)
+    ↓
+User Upgrades to Pro (Stripe subscription created)
+    ↓
+Future: Organization Features (when ready)
+            </div>
+
+            <p><strong>Why This Works:</strong></p>
+            <ul>
+                <li>Avoids premature complexity for individual users</li>
+                <li>Clean, simple data model that's easy to understand</li>
+                <li>Proper separation of billing and user data</li>
+                <li>Production-ready with full Stripe integration</li>
+                <li>Easy to extend when you need multi-user features</li>
+            </ul>
+        </section>
+
+        <section id="current-state">
+            <h2>Current State Analysis</h2>
+
+            <h3>Existing Schema (Strong Foundation)</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Purpose</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>subscription_tiers</code></td>
+                        <td>Master tier configuration (Free, Pro)</td>
+                        <td><span class="badge low">Complete</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>subscriptions</code></td>
+                        <td>Organization-level subscription instances</td>
+                        <td><span class="badge low">Ready</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>organizations</code></td>
+                        <td>Team/company entities (future use)</td>
+                        <td><span class="badge low">Ready</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>users</code></td>
+                        <td>User accounts with organizationId field</td>
+                        <td><span class="badge low">Ready</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>What's Missing (Needs Implementation)</h3>
+
+            <div class="info-box warning">
+                <strong>Critical Components Required for Production:</strong>
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Component</th>
+                        <th>Purpose</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>user_subscriptions</code></td>
+                        <td>Individual Free/Pro subscriptions</td>
+                        <td><span class="badge critical">CRITICAL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>stripe_customers</code></td>
+                        <td>Map users to Stripe customer IDs</td>
+                        <td><span class="badge critical">CRITICAL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>stripe_webhook_events</code></td>
+                        <td>Log and process Stripe webhooks (idempotency)</td>
+                        <td><span class="badge critical">CRITICAL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>payment_methods</code></td>
+                        <td>Store payment method references</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>subscription_usage</code></td>
+                        <td>Track usage (sources, keywords, API calls)</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="database-schema">
+            <h2>Database Schema Design</h2>
+
+            <div class="info-box summary">
+                <strong>Design Philosophy:</strong> Simple tables with clear responsibilities. Start with individual subscriptions, expand later when needed.
+            </div>
+
+            <h3>1. User Subscriptions (NEW - Critical)</h3>
+            <p>For Free and Pro individual users.</p>
+
+            <pre class="line-numbers"><code class="language-typescript">// shared/db/schema/user-subscriptions.ts
+import { pgTable, uuid, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { users } from "./user";
+import { subscriptionTiers } from "./organizations";
+import { createInsertSchema } from "drizzle-zod";
+
+export const userSubscriptions = pgTable("user_subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tierId: uuid("tier_id")
+    .notNull()
+    .references(() => subscriptionTiers.id),
+
+  // Status & Lifecycle
+  status: text("status").notNull().default("active"),
+  // Possible values: 'active', 'trialing', 'cancelled', 'expired', 'past_due'
+
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"), // null = ongoing
+  trialEndDate: timestamp("trial_end_date"), // For Pro trial tracking
+  cancelAtPeriodEnd: boolean("cancel_at_period_end").default(false),
+
+  // Billing
+  billingCycle: text("billing_cycle"), // 'monthly', 'yearly'
+  currentPeriodStart: timestamp("current_period_start"),
+  currentPeriodEnd: timestamp("current_period_end"),
+
+  // Stripe Integration
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripePaymentMethodId: text("stripe_payment_method_id"),
+
+  // Metadata
+  metadata: jsonb("metadata"), // Custom data, promo codes, etc.
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Indexes
+export const userSubscriptionsIndexes = {
+  userIdx: pgIndex("idx_user_subscriptions_user").on(userSubscriptions.userId),
+  statusIdx: pgIndex("idx_user_subscriptions_status").on(userSubscriptions.status),
+  stripeCustomerIdx: pgIndex("idx_user_subscriptions_stripe_customer")
+    .on(userSubscriptions.stripeCustomerId),
+};
+
+// Relations
+export const userSubscriptionsRelations = relations(userSubscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [userSubscriptions.userId],
+    references: [users.id],
+  }),
+  tier: one(subscriptionTiers, {
+    fields: [userSubscriptions.tierId],
+    references: [subscriptionTiers.id],
+  }),
+}));
+
+// Zod Schemas
+export const insertUserSubscriptionSchema = createInsertSchema(userSubscriptions).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+// TypeScript Types
+export type UserSubscription = typeof userSubscriptions.$inferSelect;
+export type NewUserSubscription = typeof userSubscriptions.$inferInsert;</code></pre>
+
+            <p><strong>Key Design Decisions:</strong></p>
+            <ul>
+                <li><strong>One Active Subscription Per User:</strong> Application logic ensures users can't have multiple active subscriptions</li>
+                <li><strong>Trial Tracking:</strong> Separate <code>trialEndDate</code> for easy trial management</li>
+                <li><strong>Stripe IDs at Subscription Level:</strong> Keeps payment data with subscription</li>
+                <li><strong>Soft Cancellation:</strong> <code>cancelAtPeriodEnd</code> lets users finish their billing period</li>
+            </ul>
+
+            <h3>2. Stripe Customers (NEW)</h3>
+            <p>Maps users to Stripe customer records.</p>
+
+            <pre class="line-numbers"><code class="language-typescript">// shared/db/schema/stripe.ts
+import { pgTable, uuid, text, timestamp, boolean, jsonb } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { users } from "./user";
+import { organizations } from "./organizations";
+
+export const stripeCustomers = pgTable("stripe_customers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id")
+    .references(() => users.id, { onDelete: "cascade" }),
+  organizationId: uuid("organization_id")
+    .references(() => organizations.id, { onDelete: "cascade" }),
+
+  // Stripe Data
+  stripeCustomerId: text("stripe_customer_id").notNull().unique(),
+  email: text("email").notNull(),
+
+  // Payment Methods
+  defaultPaymentMethodId: text("default_payment_method_id"),
+
+  // Billing Details
+  billingAddress: jsonb("billing_address"),
+  // { line1, city, state, postal_code, country }
+
+  taxIds: jsonb("tax_ids"),
+  // Array of tax IDs for invoicing
+
+  // Status
+  isDeleted: boolean("is_deleted").default(false),
+  deletedAt: timestamp("deleted_at"),
+
+  // Metadata
+  metadata: jsonb("metadata"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Relations
+export const stripeCustomersRelations = relations(stripeCustomers, ({ one }) => ({
+  user: one(users, {
+    fields: [stripeCustomers.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [stripeCustomers.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+// TypeScript Types
+export type StripeCustomer = typeof stripeCustomers.$inferSelect;
+export type NewStripeCustomer = typeof stripeCustomers.$inferInsert;</code></pre>
+
+            <div class="info-box warning">
+                <strong>Note:</strong> The schema supports both <code>userId</code> and <code>organizationId</code> to allow future expansion to team billing. For now, you'll only use <code>userId</code>.
+            </div>
+
+            <h3>3. Stripe Webhook Events (NEW - Critical)</h3>
+            <p>Logs all Stripe webhooks for idempotency and debugging.</p>
+
+            <pre class="line-numbers"><code class="language-typescript">// shared/db/schema/stripe.ts (continued)
+
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  stripeEventId: text("stripe_event_id").notNull().unique(),
+
+  // Event Details
+  eventType: text("event_type").notNull(),
+  eventData: jsonb("event_data").notNull(),
+
+  // Processing
+  processed: boolean("processed").default(false),
+  processedAt: timestamp("processed_at"),
+  processingError: text("processing_error"),
+  retryCount: integer("retry_count").default(0),
+
+  // Metadata
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Indexes
+export const stripeWebhookIndexes = {
+  typeIdx: pgIndex("idx_webhook_events_type")
+    .on(stripeWebhookEvents.eventType),
+  processedIdx: pgIndex("idx_webhook_events_processed")
+    .on(stripeWebhookEvents.processed, stripeWebhookEvents.receivedAt),
+  stripeIdIdx: pgIndex("idx_webhook_events_stripe_id")
+    .on(stripeWebhookEvents.stripeEventId),
+};
+
+export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
+export type NewStripeWebhookEvent = typeof stripeWebhookEvents.$inferInsert;</code></pre>
+
+            <div class="info-box performance">
+                <strong>Why This is Critical:</strong>
+                <ul style="margin-top: 0.5rem;">
+                    <li><strong>Idempotency:</strong> Prevents duplicate event processing via unique constraint</li>
+                    <li><strong>Retry Logic:</strong> Track failed webhooks for manual intervention</li>
+                    <li><strong>Audit Trail:</strong> Full event payload for debugging payment issues</li>
+                    <li><strong>Processing Queue:</strong> Unprocessed events can be reprocessed</li>
+                </ul>
+            </div>
+
+            <h3>4. Payment Methods (NEW)</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// shared/db/schema/stripe.ts (continued)
+
+export const paymentMethods = pgTable("payment_methods", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  stripeCustomerId: text("stripe_customer_id")
+    .notNull()
+    .references(() => stripeCustomers.stripeCustomerId),
+  stripePaymentMethodId: text("stripe_payment_method_id").notNull().unique(),
+
+  // Card Details (for display only - NEVER store full card numbers!)
+  type: text("type").notNull(), // "card", "bank_account", "paypal"
+  cardBrand: text("card_brand"), // "visa", "mastercard", "amex"
+  cardLast4: text("card_last4"),
+  cardExpMonth: integer("card_exp_month"),
+  cardExpYear: integer("card_exp_year"),
+
+  // Status
+  isDefault: boolean("is_default").default(false),
+  isExpired: boolean("is_expired").default(false),
+
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type NewPaymentMethod = typeof paymentMethods.$inferInsert;</code></pre>
+
+            <h3>5. Subscription Usage Tracking (NEW)</h3>
+            <p>Enforce tier limits on sources, keywords, and API calls.</p>
+
+            <pre class="line-numbers"><code class="language-typescript">// shared/db/schema/subscription-usage.ts
+import { pgTable, uuid, timestamp, integer, jsonb } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
+import { userSubscriptions } from "./user-subscriptions";
+import { subscriptions } from "./organizations";
+
+export const subscriptionUsage = pgTable("subscription_usage", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  // Reference (either user subscription OR organization subscription)
+  userSubscriptionId: uuid("user_subscription_id")
+    .references(() => userSubscriptions.id, { onDelete: "cascade" }),
+  organizationSubscriptionId: uuid("organization_subscription_id")
+    .references(() => subscriptions.id, { onDelete: "cascade" }),
+
+  // Usage Period
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+
+  // Usage Metrics
+  sourcesUsed: integer("sources_used").default(0),
+  keywordsUsed: integer("keywords_used").default(0),
+  apiCallsUsed: integer("api_calls_used").default(0),
+
+  // Detailed Tracking (optional, for analytics)
+  usageDetails: jsonb("usage_details"),
+
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Relations
+export const subscriptionUsageRelations = relations(subscriptionUsage, ({ one }) => ({
+  userSubscription: one(userSubscriptions, {
+    fields: [subscriptionUsage.userSubscriptionId],
+    references: [userSubscriptions.id],
+  }),
+  organizationSubscription: one(subscriptions, {
+    fields: [subscriptionUsage.organizationSubscriptionId],
+    references: [subscriptions.id],
+  }),
+}));
+
+export type SubscriptionUsage = typeof subscriptionUsage.$inferSelect;
+export type NewSubscriptionUsage = typeof subscriptionUsage.$inferInsert;</code></pre>
+        </section>
+
+        <section id="stripe-setup">
+            <h2>Stripe Setup Guide</h2>
+
+            <div class="info-box warning">
+                <strong>Important:</strong> Stripe is not yet installed. Follow this section carefully to set everything up correctly.
+            </div>
+
+            <h3>Step 1: Install Stripe SDK</h3>
+
+            <pre class="line-numbers"><code class="language-bash"># Install Stripe Node.js library
+npm install stripe
+
+# Install TypeScript types (if not included)
+npm install --save-dev @types/stripe</code></pre>
+
+            <h3>Step 2: Create Stripe Account</h3>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>1. Sign Up</h4>
+                    <p>Go to <a href="https://stripe.com" target="_blank">stripe.com</a> and create an account</p>
+                </div>
+                <div class="feature-card">
+                    <h4>2. Test Mode</h4>
+                    <p>Start in <strong>Test Mode</strong> (toggle in top-right corner of dashboard)</p>
+                </div>
+                <div class="feature-card">
+                    <h4>3. Get API Keys</h4>
+                    <p>Dashboard → Developers → API keys</p>
+                </div>
+                <div class="feature-card">
+                    <h4>4. Save Keys</h4>
+                    <p>Copy both Publishable and Secret keys</p>
+                </div>
+            </div>
+
+            <h3>Step 3: Create Products & Prices</h3>
+
+            <p>In your Stripe Dashboard:</p>
+
+            <div class="info-box summary">
+                <strong>Navigation:</strong> Dashboard → Products → Add product
+            </div>
+
+            <h4>Create Free Tier Product</h4>
+            <pre class="line-numbers"><code class="language-plaintext">Name: Free Plan
+Description: 5 sources, 10 keywords, basic features
+Price: $0 / month (Recurring)
+Save the Price ID (e.g., price_1ABC...)</code></pre>
+
+            <h4>Create Pro Tier Product</h4>
+            <pre class="line-numbers"><code class="language-plaintext">Name: Pro Plan
+Description: 15 sources, 50 keywords, all features
+Price: Set your monthly price (e.g., $29) (Recurring)
+Enable trial: 7 days
+Save the Price ID (e.g., price_1XYZ...)</code></pre>
+
+            <h3>Step 4: Configure Webhook Endpoint</h3>
+
+            <div class="info-box warning">
+                <strong>Important:</strong> Webhooks are critical for production. Don't skip this!
+            </div>
+
+            <p><strong>During Development (Local Testing):</strong></p>
+
+            <pre class="line-numbers"><code class="language-bash"># Install Stripe CLI
+# Mac:
+brew install stripe/stripe-cli/stripe
+
+# Windows:
+scoop install stripe
+
+# Login to Stripe
+stripe login
+
+# Forward webhooks to your local server
+stripe listen --forward-to localhost:3000/api/webhooks/stripe</code></pre>
+
+            <p>This will output a webhook signing secret starting with <code>whsec_...</code> - save this!</p>
+
+            <p><strong>For Production:</strong></p>
+
+            <ol>
+                <li>Deploy your webhook handler endpoint (e.g., <code>https://yourdomain.com/api/webhooks/stripe</code>)</li>
+                <li>In Stripe Dashboard → Developers → Webhooks → Add endpoint</li>
+                <li>Enter your production webhook URL</li>
+                <li>Select events to listen to:
+                    <ul>
+                        <li><code>customer.subscription.created</code></li>
+                        <li><code>customer.subscription.updated</code></li>
+                        <li><code>customer.subscription.deleted</code></li>
+                        <li><code>customer.subscription.trial_will_end</code></li>
+                        <li><code>invoice.payment_succeeded</code></li>
+                        <li><code>invoice.payment_failed</code></li>
+                    </ul>
+                </li>
+                <li>Copy the Webhook Signing Secret</li>
+            </ol>
+
+            <h3>Step 5: Environment Variables</h3>
+
+            <p>Add to your <code>.env</code> file:</p>
+
+            <pre class="line-numbers"><code class="language-bash"># Stripe Keys (Test Mode)
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_PUBLISHABLE_KEY=pk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+
+# Stripe Product IDs (from Step 3)
+STRIPE_FREE_PRICE_ID=price_1ABC...
+STRIPE_PRO_MONTHLY_PRICE_ID=price_1XYZ...
+STRIPE_PRO_YEARLY_PRICE_ID=price_1DEF...  # Optional: if you offer annual billing
+
+# Your application URL
+APP_URL=http://localhost:3000  # or your production URL</code></pre>
+
+            <div class="info-box performance">
+                <strong>Pro Tip:</strong> Create separate Stripe accounts for test and production. This keeps data completely isolated and prevents accidental production charges during testing.
+            </div>
+
+            <h3>Step 6: Initialize Stripe in Your App</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/services/stripe/stripe-client.ts
+import Stripe from 'stripe';
+
+if (!process.env.STRIPE_SECRET_KEY) {
+  throw new Error('STRIPE_SECRET_KEY is not defined');
+}
+
+export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: '2024-11-20.acacia', // Use latest API version
+  typescript: true,
+});
+
+// Export price IDs for easy access
+export const STRIPE_PRICE_IDS = {
+  FREE: process.env.STRIPE_FREE_PRICE_ID!,
+  PRO_MONTHLY: process.env.STRIPE_PRO_MONTHLY_PRICE_ID!,
+  PRO_YEARLY: process.env.STRIPE_PRO_YEARLY_PRICE_ID,
+};</code></pre>
+
+            <h3>Step 7: Test Your Setup</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/test-stripe-setup.ts
+import { stripe, STRIPE_PRICE_IDS } from './services/stripe/stripe-client';
+
+async function testStripeSetup() {
+  try {
+    // Test 1: Can we connect to Stripe?
+    const balance = await stripe.balance.retrieve();
+    console.log('✅ Successfully connected to Stripe');
+    console.log('  Available balance:', balance.available);
+
+    // Test 2: Can we retrieve our products?
+    const prices = await stripe.prices.list({ limit: 10 });
+    console.log('✅ Retrieved prices from Stripe');
+
+    // Test 3: Verify our price IDs exist
+    for (const [tierName, priceId] of Object.entries(STRIPE_PRICE_IDS)) {
+      if (!priceId) continue;
+      const price = await stripe.prices.retrieve(priceId);
+      console.log(`✅ ${tierName} tier price verified:`, price.unit_amount! / 100, price.currency);
+    }
+
+    console.log('\n🎉 Stripe setup is complete and working!');
+  } catch (error) {
+    console.error('❌ Stripe setup error:', error);
+    process.exit(1);
+  }
+}
+
+testStripeSetup();</code></pre>
+
+            <p>Run the test:</p>
+
+            <pre class="line-numbers"><code class="language-bash">npx ts-node backend/test-stripe-setup.ts</code></pre>
+
+            <div class="info-box success">
+                <strong>If all checks pass, you're ready to proceed with the implementation!</strong>
+            </div>
+        </section>
+
+        <section id="stripe-integration">
+            <h2>Stripe Integration</h2>
+
+            <h3>Core Stripe Service</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/services/stripe/stripe-service.ts
+import { stripe, STRIPE_PRICE_IDS } from './stripe-client';
+import { db } from 'backend/db/db';
+import { stripeCustomers, userSubscriptions } from '@shared/db/schema';
+import { eq } from 'drizzle-orm';
+import Stripe from 'stripe';
+
+export class StripeService {
+  /**
+   * Get or create a Stripe customer for a user
+   */
+  async getOrCreateCustomer(
+    userId: string,
+    email: string,
+    name: string
+  ): Promise<Stripe.Customer> {
+    // Check if customer already exists
+    const existingCustomer = await db.query.stripeCustomers.findFirst({
+      where: eq(stripeCustomers.userId, userId),
+    });
+
+    if (existingCustomer && !existingCustomer.isDeleted) {
+      return await stripe.customers.retrieve(existingCustomer.stripeCustomerId) as Stripe.Customer;
+    }
+
+    // Create new Stripe customer
+    const customer = await stripe.customers.create({
+      email,
+      name,
+      metadata: { userId }
+    });
+
+    // Save to database
+    await db.insert(stripeCustomers).values({
+      userId,
+      stripeCustomerId: customer.id,
+      email,
+    });
+
+    return customer;
+  }
+
+  /**
+   * Create a subscription with optional trial
+   */
+  async createSubscription({
+    customerId,
+    priceId,
+    trialDays = 0,
+    metadata = {}
+  }: {
+    customerId: string;
+    priceId: string;
+    trialDays?: number;
+    metadata?: Record<string, string>;
+  }): Promise<Stripe.Subscription> {
+    const subscription = await stripe.subscriptions.create({
+      customer: customerId,
+      items: [{ price: priceId }],
+      trial_period_days: trialDays > 0 ? trialDays : undefined,
+      payment_behavior: trialDays > 0 ? 'default_incomplete' : 'error_if_incomplete',
+      metadata,
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    return subscription;
+  }
+
+  /**
+   * Cancel subscription at period end
+   */
+  async cancelSubscription(
+    subscriptionId: string
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    });
+  }
+
+  /**
+   * Resume a cancelled subscription
+   */
+  async resumeSubscription(
+    subscriptionId: string
+  ): Promise<Stripe.Subscription> {
+    return await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: false,
+    });
+  }
+
+  /**
+   * Create a portal session for customer to manage subscription
+   */
+  async createPortalSession(
+    customerId: string,
+    returnUrl: string
+  ): Promise<Stripe.BillingPortal.Session> {
+    return await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: returnUrl,
+    });
+  }
+}
+
+export const stripeService = new StripeService();</code></pre>
+
+            <h3>Webhook Handler (Critical)</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/handlers/stripe/webhooks.ts
+import { Request, Response } from 'express';
+import { stripe } from 'backend/services/stripe/stripe-client';
+import { db } from 'backend/db/db';
+import { stripeWebhookEvents, userSubscriptions } from '@shared/db/schema';
+import { eq } from 'drizzle-orm';
+import Stripe from 'stripe';
+
+const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET!;
+
+export async function handleStripeWebhook(req: Request, res: Response) {
+  const sig = req.headers['stripe-signature'] as string;
+
+  if (!sig) {
+    return res.status(400).send('Missing stripe-signature header');
+  }
+
+  let event: Stripe.Event;
+
+  try {
+    // CRITICAL: Verify webhook signature
+    event = stripe.webhooks.constructEvent(req.body, sig, WEBHOOK_SECRET);
+  } catch (err: any) {
+    console.error('Webhook signature verification failed:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Check if already processed (idempotency)
+  const existing = await db.query.stripeWebhookEvents.findFirst({
+    where: eq(stripeWebhookEvents.stripeEventId, event.id),
+  });
+
+  if (existing) {
+    console.log('Webhook already processed:', event.id);
+    return res.json({ received: true, duplicate: true });
+  }
+
+  // Log webhook event
+  await db.insert(stripeWebhookEvents).values({
+    stripeEventId: event.id,
+    eventType: event.type,
+    eventData: event as any,
+    processed: false,
+  });
+
+  try {
+    // Handle different event types
+    switch (event.type) {
+      case 'customer.subscription.created':
+        await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'customer.subscription.updated':
+        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'customer.subscription.trial_will_end':
+        await handleTrialWillEnd(event.data.object as Stripe.Subscription);
+        break;
+
+      case 'invoice.payment_succeeded':
+        await handlePaymentSucceeded(event.data.object as Stripe.Invoice);
+        break;
+
+      case 'invoice.payment_failed':
+        await handlePaymentFailed(event.data.object as Stripe.Invoice);
+        break;
+
+      default:
+        console.log('Unhandled event type:', event.type);
+    }
+
+    // Mark as processed
+    await db
+      .update(stripeWebhookEvents)
+      .set({ processed: true, processedAt: new Date() })
+      .where(eq(stripeWebhookEvents.stripeEventId, event.id));
+
+  } catch (error: any) {
+    console.error('Error processing webhook:', error);
+
+    // Log error for retry
+    await db
+      .update(stripeWebhookEvents)
+      .set({
+        processingError: error.message,
+        retryCount: sql`retry_count + 1`,
+      })
+      .where(eq(stripeWebhookEvents.stripeEventId, event.id));
+
+    // Return 500 so Stripe retries
+    return res.status(500).json({ error: 'Processing failed' });
+  }
+
+  res.json({ received: true });
+}
+
+async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  // Sync with database
+  await db
+    .update(userSubscriptions)
+    .set({
+      status: subscription.status,
+      currentPeriodStart: new Date(subscription.current_period_start * 1000),
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      trialEndDate: subscription.trial_end
+        ? new Date(subscription.trial_end * 1000)
+        : null,
+    })
+    .where(eq(userSubscriptions.stripeSubscriptionId, subscription.id));
+}
+
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  await db
+    .update(userSubscriptions)
+    .set({
+      status: subscription.status,
+      currentPeriodStart: new Date(subscription.current_period_start * 1000),
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+      updatedAt: new Date(),
+    })
+    .where(eq(userSubscriptions.stripeSubscriptionId, subscription.id));
+}
+
+async function handlePaymentFailed(invoice: Stripe.Invoice) {
+  const subscription = await stripe.subscriptions.retrieve(invoice.subscription as string);
+
+  await db
+    .update(userSubscriptions)
+    .set({ status: 'past_due' })
+    .where(eq(userSubscriptions.stripeSubscriptionId, subscription.id));
+
+  // TODO: Send email warning to user
+}
+
+// ... more handler functions</code></pre>
+        </section>
+
+        <section id="lifecycle-flows">
+            <h2>Subscription Lifecycle Flows</h2>
+
+            <h3>Flow 1: User Signs Up (Free Tier)</h3>
+
+            <div class="flow-diagram">1. User completes registration
+   ↓
+2. Create user record in database
+   ↓
+3. Automatically create FREE tier subscription
+
+   await db.insert(userSubscriptions).values({
+     userId,
+     tierId: freeTierId,
+     status: 'active',
+     startDate: new Date()
+   });
+
+   ↓
+4. No Stripe customer needed yet (it's free!)
+   ↓
+5. User has immediate access with Free limits:
+   ✓ 5 sources
+   ✓ 10 keywords
+   ✓ All applets available
+            </div>
+
+            <h3>Flow 2: Upgrade to Pro (With Trial)</h3>
+
+            <div class="flow-diagram">1. User clicks "Upgrade to Pro"
+   ↓
+2. Show payment form (Stripe Elements)
+   ↓
+3. User adds payment method
+   ↓
+4. Backend: Create/Get Stripe customer
+   ↓
+5. Create Stripe subscription with 7-day trial
+
+   const subscription = await stripe.subscriptions.create({
+     customer: customerId,
+     items: [{ price: PRO_MONTHLY_PRICE_ID }],
+     trial_period_days: 7
+   });
+
+   ↓
+6. Update database:
+   - Set tier_id = Pro tier
+   - Set status = 'trialing'
+   - Set trial_end_date = NOW() + 7 days
+   ↓
+7. User IMMEDIATELY gets Pro features
+   ✓ 15 sources (increased from 5)
+   ✓ 50 keywords (increased from 10)
+   ↓
+8. After 7 days, Stripe auto-charges
+
+   SUCCESS → status = 'active', continue with Pro
+   FAILURE → status = 'past_due', retry payments
+             After retries fail → downgrade to Free
+            </div>
+
+            <h3>Implementation Example</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/services/subscription/subscription-flows.ts
+import { db } from 'backend/db/db';
+import { stripeService } from 'backend/services/stripe/stripe-service';
+import { userSubscriptions, subscriptionTiers } from '@shared/db/schema';
+import { eq } from 'drizzle-orm';
+import { STRIPE_PRICE_IDS } from 'backend/services/stripe/stripe-client';
+
+export async function upgradeToProWithTrial(
+  userId: string,
+  paymentMethodId: string,
+  userEmail: string,
+  userName: string
+) {
+  // 1. Get current subscription
+  const currentSub = await db.query.userSubscriptions.findFirst({
+    where: eq(userSubscriptions.userId, userId),
+  });
+
+  if (!currentSub) {
+    throw new Error('No active subscription found');
+  }
+
+  // 2. Get Pro tier
+  const proTier = await db.query.subscriptionTiers.findFirst({
+    where: eq(subscriptionTiers.name, 'pro'),
+  });
+
+  if (!proTier) {
+    throw new Error('Pro tier not configured');
+  }
+
+  // 3. Get or create Stripe customer
+  const customer = await stripeService.getOrCreateCustomer(
+    userId,
+    userEmail,
+    userName
+  );
+
+  // 4. Attach payment method
+  await stripe.paymentMethods.attach(paymentMethodId, {
+    customer: customer.id,
+  });
+
+  // 5. Set as default payment method
+  await stripe.customers.update(customer.id, {
+    invoice_settings: {
+      default_payment_method: paymentMethodId,
+    },
+  });
+
+  // 6. Create Stripe subscription with trial
+  const stripeSubscription = await stripeService.createSubscription({
+    customerId: customer.id,
+    priceId: STRIPE_PRICE_IDS.PRO_MONTHLY,
+    trialDays: 7,
+    metadata: {
+      userId,
+      userSubscriptionId: currentSub.id,
+    },
+  });
+
+  const trialEnd = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  // 7. Update our database
+  await db
+    .update(userSubscriptions)
+    .set({
+      tierId: proTier.id,
+      status: 'trialing',
+      trialEndDate: trialEnd,
+      stripeCustomerId: customer.id,
+      stripeSubscriptionId: stripeSubscription.id,
+      stripePaymentMethodId: paymentMethodId,
+      currentPeriodStart: new Date(),
+      currentPeriodEnd: new Date(stripeSubscription.current_period_end * 1000),
+      billingCycle: 'monthly',
+      updatedAt: new Date(),
+    })
+    .where(eq(userSubscriptions.id, currentSub.id));
+
+  return { success: true, trialEndDate: trialEnd };
+}</code></pre>
+        </section>
+
+        <section id="usage-tracking">
+            <h2>Usage Tracking & Enforcement</h2>
+
+            <h3>Access Control Service</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/services/subscription/access-control.ts
+import { db } from 'backend/db/db';
+import { users, userSubscriptions, subscriptionTiers, subscriptionUsage } from '@shared/db/schema';
+import { eq, and, gte, lte } from 'drizzle-orm';
+
+export interface UserAccess {
+  tier: 'free' | 'pro';
+  status: string;
+  limits: {
+    maxSources: number;
+    maxKeywords: number;
+    maxApiCalls: number;
+  };
+  usage: {
+    sourcesUsed: number;
+    keywordsUsed: number;
+    apiCallsUsed: number;
+  };
+  features: Record<string, boolean>;
+}
+
+export async function getUserAccess(userId: string): Promise<UserAccess> {
+  // Get user subscription with tier and usage
+  const result = await db
+    .select({
+      subscription: userSubscriptions,
+      tier: subscriptionTiers,
+      usage: subscriptionUsage,
+    })
+    .from(userSubscriptions)
+    .innerJoin(subscriptionTiers, eq(userSubscriptions.tierId, subscriptionTiers.id))
+    .leftJoin(
+      subscriptionUsage,
+      and(
+        eq(subscriptionUsage.userSubscriptionId, userSubscriptions.id),
+        gte(subscriptionUsage.periodEnd, new Date())
+      )
+    )
+    .where(eq(userSubscriptions.userId, userId))
+    .limit(1);
+
+  if (result.length === 0) {
+    throw new Error('User subscription not found');
+  }
+
+  const { subscription, tier, usage } = result[0];
+
+  return {
+    tier: tier.name as any,
+    status: subscription.status,
+    limits: {
+      maxSources: tier.maxSources,
+      maxKeywords: tier.maxApiCalls,
+      maxApiCalls: tier.maxApiCalls,
+    },
+    usage: {
+      sourcesUsed: usage?.sourcesUsed ?? 0,
+      keywordsUsed: usage?.keywordsUsed ?? 0,
+      apiCallsUsed: usage?.apiCallsUsed ?? 0,
+    },
+    features: tier.features as any,
+  };
+}
+
+export async function checkLimit(
+  userId: string,
+  limitType: 'sources' | 'keywords' | 'apiCalls'
+): Promise<{ allowed: boolean; message?: string }> {
+  const access = await getUserAccess(userId);
+
+  const limitKey = `max${limitType.charAt(0).toUpperCase() + limitType.slice(1)}` as keyof typeof access.limits;
+  const usageKey = `${limitType}Used` as keyof typeof access.usage;
+
+  const maxAllowed = access.limits[limitKey];
+  const currentUsage = access.usage[usageKey];
+
+  if (currentUsage >= maxAllowed) {
+    return {
+      allowed: false,
+      message: `You've reached your ${limitType} limit (${maxAllowed}). Upgrade to Pro for more!`,
+    };
+  }
+
+  return { allowed: true };
+}</code></pre>
+
+            <h3>Express Middleware</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/middleware/subscription-guard.ts
+import { Request, Response, NextFunction } from 'express';
+import { getUserAccess, checkLimit } from 'backend/services/subscription/access-control';
+
+export function requireSubscription(minTier: 'free' | 'pro') {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user.id;
+
+    try {
+      const access = await getUserAccess(userId);
+
+      // Check if subscription is active
+      if (access.status !== 'active' && access.status !== 'trialing') {
+        return res.status(402).json({
+          error: 'Subscription required',
+          message: 'Your subscription is not active',
+        });
+      }
+
+      // Check tier
+      const tierOrder = { free: 0, pro: 1 };
+      if (tierOrder[access.tier] < tierOrder[minTier]) {
+        return res.status(403).json({
+          error: 'Upgrade required',
+          message: `This feature requires ${minTier} tier`,
+          currentTier: access.tier,
+          requiredTier: minTier,
+        });
+      }
+
+      // Attach to request
+      req.userAccess = access;
+      next();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to check subscription' });
+    }
+  };
+}
+
+export function checkLimitMiddleware(limitType: 'sources' | 'keywords' | 'apiCalls') {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    const userId = req.user.id;
+
+    try {
+      const result = await checkLimit(userId, limitType);
+
+      if (!result.allowed) {
+        return res.status(429).json({
+          error: 'Limit exceeded',
+          message: result.message,
+        });
+      }
+
+      next();
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to check limit' });
+    }
+  };
+}</code></pre>
+
+            <h3>Usage Example</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">// backend/apps/news-radar/router.ts
+import { requireSubscription, checkLimitMiddleware } from 'backend/middleware/subscription-guard';
+
+router.post('/sources',
+  requireSubscription('free'), // All tiers can add sources
+  checkLimitMiddleware('sources'), // But respect limits
+  async (req, res) => {
+    // Add source logic
+    const { url, name } = req.body;
+
+    // ... create source ...
+
+    // Increment usage counter
+    await incrementUsage(req.user.id, 'sources');
+
+    res.json({ success: true });
+  }
+);</code></pre>
+        </section>
+
+        <section id="security">
+            <h2>Security Considerations</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>1. Webhook Signature Verification</h4>
+                    <p><span class="badge critical">CRITICAL</span></p>
+                    <p>Always verify webhook signatures. Unverified webhooks can be spoofed!</p>
+                    <pre class="line-numbers"><code class="language-typescript">const event = stripe.webhooks
+  .constructEvent(
+    body,
+    signature,
+    webhookSecret
+  );</code></pre>
+                </div>
+
+                <div class="feature-card">
+                    <h4>2. Idempotency</h4>
+                    <p><span class="badge critical">CRITICAL</span></p>
+                    <p>Check if webhook already processed before handling.</p>
+                    <pre class="line-numbers"><code class="language-typescript">const exists = await db
+  .select()
+  .from(webhooks)
+  .where(eq(
+    webhooks.stripeEventId,
+    event.id
+  ));</code></pre>
+                </div>
+
+                <div class="feature-card">
+                    <h4>3. PCI Compliance</h4>
+                    <p><span class="badge critical">CRITICAL</span></p>
+                    <p><strong>NEVER</strong> store full card numbers, CVV, or raw card data. Only store Stripe tokens.</p>
+                    <ul style="font-size: 0.85rem; margin-left: 1rem;">
+                        <li>✅ Store: payment_method_id</li>
+                        <li>✅ Store: last 4 digits</li>
+                        <li>❌ Never: full card number</li>
+                        <li>❌ Never: CVV code</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h4>4. Ownership Verification</h4>
+                    <p><span class="badge high">HIGH</span></p>
+                    <p>Never trust subscription IDs from client. Always verify ownership.</p>
+                    <pre class="line-numbers"><code class="language-typescript">// Verify user owns subscription
+const sub = await db
+  .select()
+  .from(userSubscriptions)
+  .where(and(
+    eq(subs.userId, userId),
+    eq(subs.id, subId)
+  ));</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="roadmap">
+            <h2>Implementation Roadmap</h2>
+
+            <h3>Phase 1: Database Foundation (Week 1)</h3>
+            <p><span class="badge critical">CRITICAL</span></p>
+
+            <ul>
+                <li>Create migrations for new tables (user_subscriptions, stripe_customers, etc.)</li>
+                <li>Seed subscription_tiers with Free/Pro config</li>
+                <li>Write core query functions</li>
+                <li>Test migrations on dev database</li>
+            </ul>
+
+            <h3>Phase 2: Stripe Integration (Week 2)</h3>
+            <p><span class="badge critical">CRITICAL</span></p>
+
+            <ul>
+                <li>Install Stripe SDK</li>
+                <li>Set up Stripe test account</li>
+                <li>Create products & prices</li>
+                <li>Implement StripeService class</li>
+                <li>Build webhook handler</li>
+                <li>Test with Stripe CLI</li>
+            </ul>
+
+            <h3>Phase 3: Subscription Flows (Week 3)</h3>
+            <p><span class="badge high">HIGH</span></p>
+
+            <ul>
+                <li>User registration → Auto-create Free subscription</li>
+                <li>Upgrade flow: Free → Pro with trial</li>
+                <li>Downgrade flow: Pro → Free</li>
+                <li>Email notifications</li>
+            </ul>
+
+            <h3>Phase 4: Usage Tracking (Week 3-4)</h3>
+            <p><span class="badge high">HIGH</span></p>
+
+            <ul>
+                <li>Implement subscription guard middleware</li>
+                <li>Apply middleware to protected routes</li>
+                <li>Build usage tracking</li>
+                <li>Frontend: Usage dashboard</li>
+            </ul>
+
+            <h3>Phase 5: Testing & Launch (Week 5-6)</h3>
+            <p><span class="badge high">HIGH</span></p>
+
+            <ul>
+                <li>Unit tests</li>
+                <li>Integration tests with Stripe test mode</li>
+                <li>User acceptance testing</li>
+                <li>Switch to Stripe live mode</li>
+                <li>Launch!</li>
+            </ul>
+        </section>
+
+        <section id="testing">
+            <h2>Testing Strategy</h2>
+
+            <h3>Stripe Test Cards</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Card Number</th>
+                        <th>Behavior</th>
+                        <th>Use Case</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>4242 4242 4242 4242</code></td>
+                        <td>✅ Always succeeds</td>
+                        <td>Test successful payments</td>
+                    </tr>
+                    <tr>
+                        <td><code>4000 0000 0000 0002</code></td>
+                        <td>❌ Always fails</td>
+                        <td>Test payment failures</td>
+                    </tr>
+                    <tr>
+                        <td><code>4000 0000 0000 9995</code></td>
+                        <td>⚠️ Requires authentication</td>
+                        <td>Test 3D Secure</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Test Scenarios</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Scenario</th>
+                        <th>Expected Result</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>User signs up</td>
+                        <td>Free subscription created automatically</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                    <tr>
+                        <td>Upgrade to Pro</td>
+                        <td>Trial starts, Pro limits immediately active</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                    <tr>
+                        <td>Trial ends, payment succeeds</td>
+                        <td>Status changes to 'active', Pro continues</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                    <tr>
+                        <td>Trial ends, payment fails</td>
+                        <td>Downgrade to Free after retries</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                    <tr>
+                        <td>Add source at limit</td>
+                        <td>429 error with upgrade prompt</td>
+                        <td><span class="badge medium">MEDIUM</span></td>
+                    </tr>
+                    <tr>
+                        <td>Webhook sent twice</td>
+                        <td>Second one ignored (idempotent)</td>
+                        <td><span class="badge high">HIGH</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section>
+            <h2>Summary & Next Steps</h2>
+
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>What You Have ✅</h4>
+                    <ul style="margin-left: 1rem; font-size: 0.9rem;">
+                        <li>Solid foundation tables</li>
+                        <li>Clear tier structure</li>
+                        <li>Sound architecture</li>
+                    </ul>
+                </div>
+
+                <div class="feature-card">
+                    <h4>What You Need ❌</h4>
+                    <ul style="margin-left: 1rem; font-size: 0.9rem;">
+                        <li>user_subscriptions table</li>
+                        <li>Stripe integration tables</li>
+                        <li>Usage tracking</li>
+                        <li>Webhook handler</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h3>Immediate Next Steps</h3>
+            <ol>
+                <li><strong>Generate migrations:</strong> Use Drizzle Kit to create migrations from the schemas</li>
+                <li><strong>Set up Stripe:</strong> Follow the Stripe Setup Guide section</li>
+                <li><strong>Install Stripe SDK:</strong> <code>npm install stripe</code></li>
+                <li><strong>Implement services:</strong> StripeService, webhook handler</li>
+                <li><strong>Test thoroughly:</strong> Use Stripe test mode and test cards</li>
+            </ol>
+
+            <div class="info-box success" style="margin-top: 2rem;">
+                <h4>You're Ready to Build!</h4>
+                <p>This document provides everything you need for a production-ready subscription system. The architecture is simple, the code is clean, and the path forward is clear.</p>
+                <p><strong>Estimated timeline:</strong> 5-6 weeks for full implementation including testing.</p>
+            </div>
+        </section>
+
+        <hr>
+
+        <div style="text-align: center; color: #666; font-size: 0.9em;">
+            <p><strong>Document Version:</strong> 2.0</p>
+            <p><strong>Last Updated:</strong> October 2025</p>
+            <p><strong>Status:</strong> <span class="status-badge">Production Ready Design</span></p>
+        </div>
+    </div>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+</body>
+</html>

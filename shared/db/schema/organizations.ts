@@ -25,12 +25,13 @@ export const subscriptionTiers = pgTable("subscription_tiers", {
 
   // Limits & Features
   maxUsers: integer("max_users").notNull(),
-  maxApiCalls: integer("max_api_calls").notNull(),
-  features: jsonb("features"), // Feature flags
+  features: jsonb("metadata"), // Feature flags
+
+  //Stripe price idth
+  stripePriceId: text("stripe_price_id"),
 
   // Status
   isActive: boolean("is_active").default(true),
-  sortOrder: integer("sort_order").default(0),
 
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -47,7 +48,7 @@ export const organizations = pgTable("organizations", {
   description: text("description"),
 
   // Current subscription reference
-  currentSubscriptionId: uuid("current_subscription_id").references(() => subscriptions.id),
+  currentSubscriptionId: uuid("current_subscription_id").references(() => subsOrganization.id),
 
   // Settings
   isActive: boolean("is_active").default(true),
@@ -58,10 +59,10 @@ export const organizations = pgTable("organizations", {
   updatedAt: timestamp("updated_at").defaultNow().notNull()
 });
 
-// Subscriptions Table - Instance Data
-export const subscriptions = pgTable("subscriptions", {
+// Organization Subscriptions Table (Enterprise tier)
+export const subsOrganization = pgTable("subs_organization", {
   id: uuid("id").defaultRandom().primaryKey(),
-  organizationId: uuid("organization_id").notNull().references(() => organizations.id),
+  organizationId: uuid("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
   tierId: uuid("tier_id").notNull().references(() => subscriptionTiers.id),
 
   // Instance details
@@ -80,25 +81,25 @@ export const subscriptions = pgTable("subscriptions", {
 
 // Relations
 export const subscriptionTiersRelations = relations(subscriptionTiers, ({ many }) => ({
-  subscriptions: many(subscriptions)
+  organizationSubscriptions: many(subsOrganization)
 }));
 
 export const organizationsRelations = relations(organizations, ({ one, many }) => ({
-  currentSubscription: one(subscriptions, {
+  currentSubscription: one(subsOrganization, {
     fields: [organizations.currentSubscriptionId],
-    references: [subscriptions.id]
+    references: [subsOrganization.id]
   }),
-  subscriptions: many(subscriptions),
+  subscriptions: many(subsOrganization),
   users: many(/* users - imported from user.ts if needed */)
 }));
 
-export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+export const subsOrganizationRelations = relations(subsOrganization, ({ one }) => ({
   organization: one(organizations, {
-    fields: [subscriptions.organizationId],
+    fields: [subsOrganization.organizationId],
     references: [organizations.id]
   }),
   tier: one(subscriptionTiers, {
-    fields: [subscriptions.tierId],
+    fields: [subsOrganization.tierId],
     references: [subscriptionTiers.id]
   })
 }));
@@ -114,7 +115,7 @@ export const insertOrganizationSchema = createInsertSchema(organizations).omit({
   updatedAt: true
 });
 
-export const insertSubscriptionSchema = createInsertSchema(subscriptions).omit({
+export const insertSubsOrganizationSchema = createInsertSchema(subsOrganization).omit({
   createdAt: true,
   updatedAt: true
 });
@@ -124,5 +125,5 @@ export type SubscriptionTier = typeof subscriptionTiers.$inferSelect;
 export type NewSubscriptionTier = typeof subscriptionTiers.$inferInsert;
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
-export type Subscription = typeof subscriptions.$inferSelect;
-export type NewSubscription = typeof subscriptions.$inferInsert;
+export type SubsOrganization = typeof subsOrganization.$inferSelect;
+export type NewSubsOrganization = typeof subsOrganization.$inferInsert;

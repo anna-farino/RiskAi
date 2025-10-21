@@ -17,9 +17,9 @@ export function useFetch() {
   const getTokenWithRetry = async (retryCount = 0): Promise<string> => {
     const maxRetries = 2;
 
-    // Only check for corrupted tokens if we've already had failures
+    // Only check for corrupted tokens if we've already had multiple failures
     // This prevents checking during initial login flow
-    if (tokenFailureCount.current > 0) {
+    if (tokenFailureCount.current > 2) {
       const tokenHealth = checkStoredTokenHealth();
       if (tokenHealth.hasTokens && tokenHealth.accessTokenHealth?.isCorrupted) {
         console.error("Corrupted tokens detected in localStorage after failures:", tokenHealth.accessTokenHealth.error);
@@ -125,15 +125,16 @@ export function useFetch() {
         }, 100); // Small delay to allow current request to complete
       }
 
-      // For invalid/corrupted tokens, trigger immediate logout after first failure
-      // This handles cases where localStorage tokens are manually modified
-      if ((error as any).message?.includes('invalid') ||
-          (error as any).message?.includes('malformed') ||
-          (error as any).message?.includes('expired')) {
-        console.error("Invalid or corrupted token detected. Triggering immediate logout...");
-        setTimeout(() => {
-          logout('corrupted_tokens');
-        }, 100);
+      // For invalid/corrupted tokens, trigger logout only after multiple failures
+      // This prevents premature logout during initial login flow
+      if (tokenFailureCount.current >= 2) {
+        if ((error as any).message?.includes('invalid') ||
+            (error as any).message?.includes('malformed')) {
+          console.error("Invalid or corrupted token detected after multiple failures. Triggering logout...");
+          setTimeout(() => {
+            logout('corrupted_tokens');
+          }, 100);
+        }
       }
 
       // Return a mock 401 response instead of throwing to prevent unhandled rejection

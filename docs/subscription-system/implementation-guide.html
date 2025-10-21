@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Implementation Guide - Database Tables & Upgrade Flow</title>
+
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #e74c3c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #e74c3c;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: #34495e;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .date-badge {
+            display: inline-block;
+            background: #e74c3c;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            background: #27ae60;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-left: 10px;
+        }
+
+        .info-box {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+
+        .info-box.summary {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .info-box.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .info-box.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .info-box.critical {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .info-box.answer {
+            background: #e7f3ff;
+            border-color: #2196f3;
+            font-size: 1.05em;
+        }
+
+        .info-box h3, .info-box h4 {
+            margin-top: 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-size: 0.95em;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: #e74c3c;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        tr:hover {
+            background: #e9ecef;
+        }
+
+        code:not([class*="language-"]) {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre[class*="language-"] {
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .badge.critical {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge.high {
+            background: #ff9800;
+            color: white;
+        }
+
+        .badge.medium {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge.low {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge.optional {
+            background: #6c757d;
+            color: white;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            font-size: 0.9em;
+        }
+
+        .state-diagram {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-card {
+            padding: 20px;
+            border-radius: 8px;
+            border: 2px solid;
+        }
+
+        .comparison-card.before {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+
+        .comparison-card.after {
+            background: #e8f5e9;
+            border-color: #4caf50;
+        }
+
+        .comparison-card h4 {
+            margin-top: 0;
+        }
+
+        .field-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+
+        .field-card .field-name {
+            font-family: 'Courier New', monospace;
+            color: #e74c3c;
+            font-weight: bold;
+            font-size: 1.05em;
+        }
+
+        .field-card .field-type {
+            color: #666;
+            font-size: 0.9em;
+            font-family: 'Courier New', monospace;
+        }
+
+        .field-card .field-purpose {
+            margin-top: 0.5rem;
+            color: #333;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e0e0e0;
+            margin: 40px 0;
+        }
+
+        .toc {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin-bottom: 30px;
+        }
+
+        .toc ul {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #e74c3c;
+            text-decoration: none;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Subscription Implementation Guide</h1>
+        <span class="date-badge">October 2025</span>
+        <span class="status-badge">Implementation Ready</span>
+
+        <div class="info-box summary">
+            <h3>📋 Overview</h3>
+            <p>This guide explains exactly how subscriptions are stored in your database, what happens during upgrades from Free → Pro → Enterprise, and which Stripe tables you actually need for a production-ready system. Includes detailed field-by-field explanations and the complete upgrade flow.</p>
+        </div>
+
+        <div class="toc">
+            <h3>📋 Table of Contents</h3>
+            <ul>
+                <li><a href="#the-big-questions">The Big Questions (Answered First)</a></li>
+                <li><a href="#two-subscription-tables">Why Two Subscription Tables?</a></li>
+                <li><a href="#table-deep-dive">Database Tables Deep Dive</a></li>
+                <li><a href="#upgrade-journey">The Upgrade Journey: Free → Pro → Enterprise</a></li>
+                <li><a href="#stripe-tables">Stripe Tables: What's Actually Needed?</a></li>
+                <li><a href="#minimum-viable">Minimum Viable Production Setup</a></li>
+                <li><a href="#implementation-checklist">Implementation Checklist</a></li>
+            </ul>
+        </div>
+
+        <section id="the-big-questions">
+            <h2>The Big Questions (Answered First)</h2>
+
+            <h3>Question 1: How are subscriptions stored during upgrades?</h3>
+
+            <div class="info-box answer">
+                <h4>Answer: It depends on the upgrade type</h4>
+                <ul>
+                    <li><strong>Free → Pro (Individual):</strong> The SAME subscription record is updated. Status changes, tier changes, but it's the same row in <code>user_subscriptions</code></li>
+                    <li><strong>Pro → Enterprise (Organization):</strong> OLD subscription is ended, NEW subscription is created in the <code>subscriptions</code> table (different table!)</li>
+                </ul>
+            </div>
+
+            <h3>Question 2: Do old subscriptions end when upgrading?</h3>
+
+            <div class="info-box answer">
+                <h4>Answer: Yes, but differently for each upgrade type</h4>
+                <ul>
+                    <li><strong>Free → Pro:</strong> No new record. The existing record is updated in-place. Old tier is replaced with new tier. This is an UPDATE operation.</li>
+                    <li><strong>Pro → Enterprise:</strong> Yes, old subscription record gets <code>status = 'cancelled'</code> and <code>end_date = NOW()</code>. Then a NEW subscription is created in the organization subscriptions table. This preserves history.</li>
+                </ul>
+            </div>
+
+            <h3>Question 3: How important are Stripe tables?</h3>
+
+            <div class="info-box answer">
+                <h4>Answer: Critical importance ranking</h4>
+                <ol>
+                    <li><span class="badge critical">CRITICAL</span> <code>stripe_webhook_events</code> - Without this, you'll process webhooks multiple times and corrupt data</li>
+                    <li><span class="badge critical">CRITICAL</span> <code>stripe_customers</code> - Maps your users to Stripe's customer IDs (required for billing)</li>
+                    <li><span class="badge high">HIGH</span> <code>payment_methods</code> - Store last 4 digits and expiry (good UX, helps with failed payments)</li>
+                    <li><span class="badge low">LOW</span> Everything else can live in Stripe initially</li>
+                </ol>
+            </div>
+
+            <h3>Question 4: Minimum data needed for production?</h3>
+
+            <div class="info-box answer">
+                <h4>Answer: 4 tables are absolutely required</h4>
+                <ol>
+                    <li><code>subscription_tiers</code> - What plans you offer (already have this)</li>
+                    <li><code>user_subscriptions</code> - Individual Free/Pro users (NEW - need to create)</li>
+                    <li><code>stripe_customers</code> - User → Stripe customer mapping (NEW - need to create)</li>
+                    <li><code>stripe_webhook_events</code> - Idempotency and audit trail (NEW - need to create)</li>
+                </ol>
+                <p style="margin-top: 1rem;"><strong>Everything else can be added later as you scale!</strong></p>
+            </div>
+        </section>
+
+        <section id="two-subscription-tables">
+            <h2>Why Two Subscription Tables?</h2>
+
+            <div class="info-box warning">
+                <h4>The Key Insight: Two Different Billing Entities</h4>
+                <p>You're billing <strong>individuals</strong> (Free/Pro) OR <strong>organizations</strong> (Enterprise), never both at once. These need separate tables because they have fundamentally different relationships and lifecycles.</p>
+            </div>
+
+            <div class="comparison-grid">
+                <div class="comparison-card before">
+                    <h4>user_subscriptions (NEW)</h4>
+                    <p><strong>For:</strong> Individual Free & Pro users</p>
+                    <p><strong>Links to:</strong> <code>users.id</code></p>
+                    <p><strong>Billing:</strong> Per user</p>
+                    <p><strong>Lifecycle:</strong> Simple - upgrade tier in-place</p>
+                    <p><strong>Stripe:</strong> One subscription per user</p>
+                </div>
+
+                <div class="comparison-card after">
+                    <h4>subscriptions (EXISTING)</h4>
+                    <p><strong>For:</strong> Enterprise organizations</p>
+                    <p><strong>Links to:</strong> <code>organizations.id</code></p>
+                    <p><strong>Billing:</strong> Per organization (many users)</p>
+                    <p><strong>Lifecycle:</strong> Complex - seats, invoices, team management</p>
+                    <p><strong>Stripe:</strong> One subscription, multiple seats</p>
+                </div>
+            </div>
+
+            <h3>The Critical Distinction</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Individual Subscription</th>
+                        <th>Organization Subscription</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Table</strong></td>
+                        <td><code>user_subscriptions</code></td>
+                        <td><code>subscriptions</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>When used</strong></td>
+                        <td>User has NO organizationId</td>
+                        <td>User HAS organizationId</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Billed to</strong></td>
+                        <td>Individual person</td>
+                        <td>Organization/company</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Number of users</strong></td>
+                        <td>Always 1</td>
+                        <td>1 to unlimited</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Upgrade path</strong></td>
+                        <td>Free → Pro (same row updated)</td>
+                        <td>Pro → Enterprise (new row created)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Features</strong></td>
+                        <td>Personal usage, no sharing</td>
+                        <td>Team features, role management</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="table-deep-dive">
+            <h2>Database Tables Deep Dive</h2>
+
+            <h3>Table 1: subscription_tiers (EXISTING - Already Have This)</h3>
+
+            <p><strong>Purpose:</strong> Master configuration for what subscription plans you offer. Think of this as your "product catalog".</p>
+
+            <div class="field-card">
+                <div class="field-name">id</div>
+                <div class="field-type">UUID (Primary Key)</div>
+                <div class="field-purpose">Unique identifier for this tier</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">name</div>
+                <div class="field-type">TEXT (Unique)</div>
+                <div class="field-purpose">Machine-readable name: "free", "pro", "enterprise". Used in code to check tiers.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">display_name</div>
+                <div class="field-type">TEXT</div>
+                <div class="field-purpose">Human-readable name: "Free Plan", "Pro Plan". Shown in UI.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">description</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Marketing description: "Perfect for individuals getting started"</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">price</div>
+                <div class="field-type">INTEGER (cents)</div>
+                <div class="field-purpose">Monthly price in cents. Free = 0, Pro = 2900 ($29), etc.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">yearly_price</div>
+                <div class="field-type">INTEGER (cents, Nullable)</div>
+                <div class="field-purpose">Annual price in cents if offering yearly billing (usually discounted)</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">max_users</div>
+                <div class="field-type">INTEGER</div>
+                <div class="field-purpose">Max team members. Free/Pro = 1, Enterprise = -1 (unlimited)</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">max_api_calls</div>
+                <div class="field-type">INTEGER</div>
+                <div class="field-purpose">Monthly API quota. Free = 1000, Pro = 10000, Enterprise = -1 (unlimited)</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">features</div>
+                <div class="field-type">JSONB</div>
+                <div class="field-purpose">
+                    Feature flags for this tier. Example:
+                    <pre style="margin-top: 0.5rem; font-size: 0.85em;">{
+  "threatTracker": true,
+  "newsRadar": true,
+  "maxSources": 5,
+  "maxKeywords": 10,
+  "advancedAnalytics": false
+}</pre>
+                </div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">is_active</div>
+                <div class="field-type">BOOLEAN</div>
+                <div class="field-purpose">Can hide tiers without deleting them. Set to false to disable.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">sort_order</div>
+                <div class="field-type">INTEGER</div>
+                <div class="field-purpose">Display order in pricing page: Free=0, Pro=1, Enterprise=2</div>
+            </div>
+
+            <hr>
+
+            <h3>Table 2: user_subscriptions (NEW - Need to Create)</h3>
+
+            <p><strong>Purpose:</strong> Tracks individual user subscriptions (Free & Pro). One row per user. This is where most users live.</p>
+
+            <div class="info-box success">
+                <strong>Key Insight:</strong> This table represents "personal subscriptions". When a user upgrades from Free to Pro, you UPDATE this row, not create a new one.
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">id</div>
+                <div class="field-type">UUID (Primary Key)</div>
+                <div class="field-purpose">Unique identifier for this subscription instance</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">user_id</div>
+                <div class="field-type">UUID (Foreign Key → users.id)</div>
+                <div class="field-purpose">Which user owns this subscription. CASCADE delete: if user deleted, subscription deleted.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">tier_id</div>
+                <div class="field-type">UUID (Foreign Key → subscription_tiers.id)</div>
+                <div class="field-purpose">Which tier (Free/Pro) the user is currently on. Changes during upgrades.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">status</div>
+                <div class="field-type">TEXT (Default: 'active')</div>
+                <div class="field-purpose">
+                    Current state of subscription. Possible values:
+                    <ul style="margin-top: 0.5rem;">
+                        <li><code>active</code> - User has access, everything working</li>
+                        <li><code>trialing</code> - In trial period (Pro trial)</li>
+                        <li><code>past_due</code> - Payment failed, grace period</li>
+                        <li><code>cancelled</code> - User cancelled but may have access until period ends</li>
+                        <li><code>expired</code> - Subscription ended, no access</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">start_date</div>
+                <div class="field-type">TIMESTAMP</div>
+                <div class="field-purpose">When this subscription began. Never changes (even during upgrades).</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">end_date</div>
+                <div class="field-type">TIMESTAMP (Nullable)</div>
+                <div class="field-purpose">When subscription ends/ended. NULL = ongoing. Set when cancelled/expired.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">trial_end_date</div>
+                <div class="field-type">TIMESTAMP (Nullable)</div>
+                <div class="field-purpose">When Pro trial ends. Used to show "X days left in trial" and trigger downgrade.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">cancel_at_period_end</div>
+                <div class="field-type">BOOLEAN (Default: false)</div>
+                <div class="field-purpose">"Soft cancel" - user cancelled but keeps access until billing period ends. Good UX.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">billing_cycle</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">How often billed: "monthly" or "yearly". NULL for Free tier.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">current_period_start</div>
+                <div class="field-type">TIMESTAMP (Nullable)</div>
+                <div class="field-purpose">When current billing period started. Used to track monthly usage.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">current_period_end</div>
+                <div class="field-type">TIMESTAMP (Nullable)</div>
+                <div class="field-purpose">When current billing period ends. Shows "Next bill date" to user.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">stripe_customer_id</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Stripe's ID for this customer (starts with "cus_"). NULL for Free users.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">stripe_subscription_id</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Stripe's ID for this subscription (starts with "sub_"). NULL for Free users.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">stripe_payment_method_id</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Stripe's ID for payment method (starts with "pm_"). Used to retry failed payments.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">metadata</div>
+                <div class="field-type">JSONB (Nullable)</div>
+                <div class="field-purpose">
+                    Flexible storage for extra data:
+                    <pre style="margin-top: 0.5rem; font-size: 0.85em;">{
+  "promo_code": "LAUNCH2024",
+  "referral_source": "friend",
+  "cancellation_reason": "too expensive",
+  "custom_note": "VIP customer"
+}</pre>
+                </div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">created_at</div>
+                <div class="field-type">TIMESTAMP (Auto)</div>
+                <div class="field-purpose">When this subscription was first created</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">updated_at</div>
+                <div class="field-type">TIMESTAMP (Auto)</div>
+                <div class="field-purpose">Last modification time. Updates on every change.</div>
+            </div>
+
+            <hr>
+
+            <h3>Table 3: subscriptions (EXISTING - Already Have This)</h3>
+
+            <p><strong>Purpose:</strong> Organization-level subscriptions for Enterprise tier. Multiple users share one subscription.</p>
+
+            <div class="info-box warning">
+                <strong>Important:</strong> This table is ONLY used when users upgrade to Enterprise and create an organization. For Free/Pro, use <code>user_subscriptions</code> instead.
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">id</div>
+                <div class="field-type">UUID (Primary Key)</div>
+                <div class="field-purpose">Unique identifier for this organization subscription</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">organization_id</div>
+                <div class="field-type">UUID (Foreign Key → organizations.id)</div>
+                <div class="field-purpose">Which organization owns this subscription. One subscription per organization.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">tier_id</div>
+                <div class="field-type">UUID (Foreign Key → subscription_tiers.id)</div>
+                <div class="field-purpose">Which tier this organization is on (typically "enterprise")</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">status</div>
+                <div class="field-type">TEXT (Default: 'active')</div>
+                <div class="field-purpose">Same as user_subscriptions: active, cancelled, expired, past_due</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">start_date</div>
+                <div class="field-type">TIMESTAMP</div>
+                <div class="field-purpose">When organization subscription began</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">end_date</div>
+                <div class="field-type">TIMESTAMP (Nullable)</div>
+                <div class="field-purpose">When subscription ends. NULL = ongoing</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">billing_cycle</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">"monthly" or "yearly" billing for organization</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">stripe_subscription_id</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Stripe's subscription ID for this organization</div>
+            </div>
+
+            <div class="info-box summary">
+                <strong>Note:</strong> This table doesn't have <code>current_period_start/end</code> or <code>trial_end_date</code> fields. You can add them if needed, or keep organization billing simpler. Since this is future functionality, keep it minimal for now.
+            </div>
+
+            <hr>
+
+            <h3>Table 4: organizations (EXISTING - Already Have This)</h3>
+
+            <p><strong>Purpose:</strong> Represents a company/team entity. Only created when upgrading to Enterprise.</p>
+
+            <div class="field-card">
+                <div class="field-name">id</div>
+                <div class="field-type">UUID (Primary Key)</div>
+                <div class="field-purpose">Unique identifier for this organization</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">name</div>
+                <div class="field-type">TEXT</div>
+                <div class="field-purpose">Organization name: "Acme Corp", "Bob's Security Team"</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">slug</div>
+                <div class="field-type">TEXT (Unique)</div>
+                <div class="field-purpose">URL-friendly identifier: "acme-corp". Used in URLs like /org/acme-corp</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">description</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Optional description of organization</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">current_subscription_id</div>
+                <div class="field-type">UUID (Foreign Key → subscriptions.id)</div>
+                <div class="field-purpose">Points to active subscription. Makes it fast to check "is this org paid?"</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">is_active</div>
+                <div class="field-type">BOOLEAN (Default: true)</div>
+                <div class="field-purpose">Can disable organizations without deleting them</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">settings</div>
+                <div class="field-type">JSONB (Nullable)</div>
+                <div class="field-purpose">Organization-specific configuration, branding, etc.</div>
+            </div>
+
+            <hr>
+
+            <h3>Table 5: stripe_customers (NEW - Need to Create)</h3>
+
+            <p><strong>Purpose:</strong> Maps your users/organizations to Stripe's customer records.</p>
+
+            <div class="info-box critical">
+                <strong>Critical:</strong> You MUST have this table. Without it, you can't bill users or organizations. This is the bridge between your database and Stripe's database.
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">id</div>
+                <div class="field-type">UUID (Primary Key)</div>
+                <div class="field-purpose">Your internal ID for this customer mapping</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">user_id</div>
+                <div class="field-type">UUID (Foreign Key → users.id, Nullable)</div>
+                <div class="field-purpose">If this is an individual customer, points to user. NULL for organization customers.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">organization_id</div>
+                <div class="field-type">UUID (Foreign Key → organizations.id, Nullable)</div>
+                <div class="field-purpose">If this is an organization customer, points to org. NULL for individual customers.</div>
+            </div>
+
+            <div class="info-box warning">
+                <strong>Important Constraint:</strong> Either <code>user_id</code> OR <code>organization_id</code> must be set, never both. This ensures each Stripe customer maps to exactly one billing entity.
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">stripe_customer_id</div>
+                <div class="field-type">TEXT (Unique)</div>
+                <div class="field-purpose">Stripe's customer ID (starts with "cus_"). This is THE critical field - used in all Stripe API calls.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">email</div>
+                <div class="field-type">TEXT</div>
+                <div class="field-purpose">Email for invoices and receipts. Synced with Stripe.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">default_payment_method_id</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Stripe payment method ID that will be charged. User can change this.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">billing_address</div>
+                <div class="field-type">JSONB (Nullable)</div>
+                <div class="field-purpose">
+                    Address for invoices (required for some countries):
+                    <pre style="margin-top: 0.5rem; font-size: 0.85em;">{
+  "line1": "123 Main St",
+  "city": "San Francisco",
+  "state": "CA",
+  "postal_code": "94102",
+  "country": "US"
+}</pre>
+                </div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">tax_ids</div>
+                <div class="field-type">JSONB (Nullable)</div>
+                <div class="field-purpose">VAT numbers, tax IDs for business invoices</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">is_deleted</div>
+                <div class="field-type">BOOLEAN (Default: false)</div>
+                <div class="field-purpose">Soft delete. Don't actually delete Stripe customers (breaks invoice history).</div>
+            </div>
+
+            <hr>
+
+            <h3>Table 6: stripe_webhook_events (NEW - Need to Create)</h3>
+
+            <p><strong>Purpose:</strong> Logs every webhook Stripe sends. Critical for idempotency and debugging.</p>
+
+            <div class="info-box critical">
+                <strong>Critical:</strong> Without this table, you'll process the same webhook multiple times, causing duplicate charges, double subscriptions, and data corruption. This is NOT optional.
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">id</div>
+                <div class="field-type">UUID (Primary Key)</div>
+                <div class="field-purpose">Your internal ID for this event log</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">stripe_event_id</div>
+                <div class="field-type">TEXT (Unique)</div>
+                <div class="field-purpose">
+                    Stripe's event ID (starts with "evt_"). The UNIQUE constraint ensures idempotency:
+                    <pre style="margin-top: 0.5rem; font-size: 0.85em;">if (eventAlreadyInDatabase) {
+  return "already processed";
+}</pre>
+                </div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">event_type</div>
+                <div class="field-type">TEXT</div>
+                <div class="field-purpose">
+                    What happened: "customer.subscription.created", "invoice.payment_succeeded", etc. Used for filtering and monitoring.
+                </div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">event_data</div>
+                <div class="field-type">JSONB</div>
+                <div class="field-purpose">Full webhook payload from Stripe. Store EVERYTHING - invaluable for debugging.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">processed</div>
+                <div class="field-type">BOOLEAN (Default: false)</div>
+                <div class="field-purpose">Did we successfully handle this event? Used to find unprocessed events.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">processed_at</div>
+                <div class="field-type">TIMESTAMP (Nullable)</div>
+                <div class="field-purpose">When we successfully processed this event</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">processing_error</div>
+                <div class="field-type">TEXT (Nullable)</div>
+                <div class="field-purpose">Error message if processing failed. Helps debug issues.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">retry_count</div>
+                <div class="field-type">INTEGER (Default: 0)</div>
+                <div class="field-purpose">How many times we tried to process this. Alert if > 3.</div>
+            </div>
+
+            <div class="field-card">
+                <div class="field-name">received_at</div>
+                <div class="field-type">TIMESTAMP (Auto)</div>
+                <div class="field-purpose">When webhook arrived at your server</div>
+            </div>
+        </section>
+
+        <section id="upgrade-journey">
+            <h2>The Upgrade Journey: Free → Pro → Enterprise</h2>
+
+            <p>Let's walk through exactly what happens in the database at each step of a user's subscription journey.</p>
+
+            <h3>Stage 1: User Signs Up (Free)</h3>
+
+            <div class="state-diagram">USER REGISTRATION
+   ↓
+Create record in `users` table
+   user_id: abc-123
+   email: john@example.com
+   organization_id: NULL
+   ↓
+Create record in `user_subscriptions` table
+   id: sub-1
+   user_id: abc-123
+   tier_id: <FREE_TIER_ID>
+   status: 'active'
+   start_date: 2025-10-15
+   end_date: NULL
+   stripe_customer_id: NULL       ← No Stripe yet!
+   stripe_subscription_id: NULL   ← It's free!
+            </div>
+
+            <h4>Database State After Free Signup</h4>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Records</th>
+                        <th>Key Fields</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>users</code></td>
+                        <td>1 row</td>
+                        <td>id=abc-123, organizationId=NULL</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_subscriptions</code></td>
+                        <td>1 row</td>
+                        <td>userId=abc-123, tier=free, status=active</td>
+                    </tr>
+                    <tr>
+                        <td><code>stripe_customers</code></td>
+                        <td>0 rows</td>
+                        <td>No Stripe customer yet</td>
+                    </tr>
+                    <tr>
+                        <td><code>subscriptions</code></td>
+                        <td>0 rows</td>
+                        <td>Not using organization table</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h3>Stage 2: User Upgrades to Pro</h3>
+
+            <div class="state-diagram">USER CLICKS "UPGRADE TO PRO"
+   ↓
+User enters payment details (Stripe Checkout/Elements)
+   ↓
+Backend: Create Stripe customer
+   POST https://api.stripe.com/v1/customers
+   → Returns customer ID: "cus_ABC123"
+   ↓
+Insert into `stripe_customers` table
+   id: cust-1
+   user_id: abc-123
+   stripe_customer_id: "cus_ABC123"
+   email: john@example.com
+   ↓
+Create Stripe subscription with 7-day trial
+   POST https://api.stripe.com/v1/subscriptions
+   → Returns subscription ID: "sub_XYZ789"
+   ↓
+UPDATE EXISTING RECORD in `user_subscriptions`  ← IMPORTANT!
+   WHERE id = sub-1
+   SET
+     tier_id: <PRO_TIER_ID>         ← Changed from free to pro
+     status: 'trialing'             ← New status
+     trial_end_date: 2025-10-22     ← 7 days from now
+     stripe_customer_id: "cus_ABC123"
+     stripe_subscription_id: "sub_XYZ789"
+     billing_cycle: 'monthly'
+     current_period_start: 2025-10-15
+     current_period_end: 2025-11-15
+     updated_at: NOW()
+            </div>
+
+            <div class="info-box answer">
+                <h4>Key Point: It's an UPDATE, Not an INSERT!</h4>
+                <p>When upgrading from Free to Pro, we UPDATE the existing <code>user_subscriptions</code> row. We don't create a new row. This keeps history simple and links to the user's original signup date.</p>
+            </div>
+
+            <h4>Database State After Pro Upgrade</h4>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Records</th>
+                        <th>Key Changes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>users</code></td>
+                        <td>1 row (same)</td>
+                        <td>No changes</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_subscriptions</code></td>
+                        <td>1 row (same)</td>
+                        <td>tier=pro, status=trialing, stripe IDs added</td>
+                    </tr>
+                    <tr>
+                        <td><code>stripe_customers</code></td>
+                        <td>1 row (NEW)</td>
+                        <td>userId=abc-123, stripeCustomerId=cus_ABC123</td>
+                    </tr>
+                    <tr>
+                        <td><code>subscriptions</code></td>
+                        <td>0 rows</td>
+                        <td>Still not using organization table</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <hr>
+
+            <h3>Stage 3: User Upgrades to Enterprise</h3>
+
+            <p>This is where it gets interesting! The user transitions from individual to organization billing.</p>
+
+            <div class="state-diagram">USER CLICKS "UPGRADE TO ENTERPRISE"
+   ↓
+Show "Create Organization" form
+   ↓
+User enters: organization name, slug, invites team members
+   ↓
+Backend: Create organization record
+   INSERT INTO organizations
+     id: org-1
+     name: "Acme Corp"
+     slug: "acme-corp"
+   ↓
+Create Stripe customer for organization
+   POST https://api.stripe.com/v1/customers
+   → Returns customer ID: "cus_ORG456"
+   ↓
+Insert into `stripe_customers` table
+   id: cust-2
+   user_id: NULL                   ← Note: NULL!
+   organization_id: org-1          ← Organization customer
+   stripe_customer_id: "cus_ORG456"
+   ↓
+Create Stripe subscription for organization
+   POST https://api.stripe.com/v1/subscriptions
+   → Returns subscription ID: "sub_ENT999"
+   ↓
+INSERT NEW RECORD into `subscriptions` table  ← Different table!
+   id: org-sub-1
+   organization_id: org-1
+   tier_id: <ENTERPRISE_TIER_ID>
+   status: 'active'
+   start_date: 2025-10-20
+   stripe_subscription_id: "sub_ENT999"
+   ↓
+Update organization to point to new subscription
+   UPDATE organizations
+   SET current_subscription_id = org-sub-1
+   WHERE id = org-1
+   ↓
+Move user to organization
+   UPDATE users
+   SET organization_id = org-1
+   WHERE id = abc-123
+   ↓
+END OLD INDIVIDUAL SUBSCRIPTION  ← Old subscription terminated
+   UPDATE user_subscriptions
+   SET
+     status: 'cancelled'
+     end_date: NOW()
+     cancel_at_period_end: false
+   WHERE id = sub-1
+   ↓
+Cancel old Stripe subscription
+   POST https://api.stripe.com/v1/subscriptions/sub_XYZ789/cancel
+            </div>
+
+            <div class="info-box answer">
+                <h4>Key Point: Old Subscription is Ended, New One is Created!</h4>
+                <p>When upgrading to Enterprise, the old <code>user_subscriptions</code> row is marked as cancelled (preserving history), and a NEW row is created in the <code>subscriptions</code> table (organization table). This is a fundamentally different billing entity.</p>
+            </div>
+
+            <h4>Database State After Enterprise Upgrade</h4>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Records</th>
+                        <th>Key Changes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>users</code></td>
+                        <td>1 row</td>
+                        <td>organizationId=org-1 (was NULL)</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_subscriptions</code></td>
+                        <td>1 row</td>
+                        <td>status=cancelled, end_date=2025-10-20 (ENDED)</td>
+                    </tr>
+                    <tr>
+                        <td><code>stripe_customers</code></td>
+                        <td>2 rows</td>
+                        <td>
+                            1) User customer (userId=abc-123)<br>
+                            2) Org customer (organizationId=org-1)
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><code>organizations</code></td>
+                        <td>1 row (NEW)</td>
+                        <td>id=org-1, currentSubscriptionId=org-sub-1</td>
+                    </tr>
+                    <tr>
+                        <td><code>subscriptions</code></td>
+                        <td>1 row (NEW)</td>
+                        <td>organizationId=org-1, tier=enterprise, status=active</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Visual Summary: Where Subscription Data Lives</h3>
+
+            <div class="comparison-grid">
+                <div class="comparison-card before">
+                    <h4>Before Enterprise (Free/Pro)</h4>
+                    <pre style="font-size: 0.85em;">users table:
+  organization_id: NULL
+
+user_subscriptions table:
+  user_id: abc-123
+  tier: free → pro
+  status: active
+
+subscriptions table:
+  (empty)
+
+Check access via:
+  userSubscriptions.userId</pre>
+                </div>
+
+                <div class="comparison-card after">
+                    <h4>After Enterprise</h4>
+                    <pre style="font-size: 0.85em;">users table:
+  organization_id: org-1
+
+user_subscriptions table:
+  user_id: abc-123
+  status: cancelled ← ENDED
+
+subscriptions table:
+  organization_id: org-1
+  tier: enterprise
+  status: active ← NEW
+
+Check access via:
+  user.orgId → org.currentSubId</pre>
+                </div>
+            </div>
+        </section>
+
+        <section id="stripe-tables">
+            <h2>Stripe Tables: What's Actually Needed?</h2>
+
+            <h3>Priority Rankings</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Priority</th>
+                        <th>Why</th>
+                        <th>Can Skip?</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>stripe_webhook_events</code></td>
+                        <td><span class="badge critical">CRITICAL</span></td>
+                        <td>Prevents duplicate processing. Without this, you'll corrupt data.</td>
+                        <td>❌ Never</td>
+                    </tr>
+                    <tr>
+                        <td><code>stripe_customers</code></td>
+                        <td><span class="badge critical">CRITICAL</span></td>
+                        <td>Maps users to Stripe. Can't bill without this.</td>
+                        <td>❌ Never</td>
+                    </tr>
+                    <tr>
+                        <td><code>payment_methods</code></td>
+                        <td><span class="badge high">HIGH</span></td>
+                        <td>Store last 4 digits, expiry. Good UX, helps with failed payments.</td>
+                        <td>✅ Initially</td>
+                    </tr>
+                    <tr>
+                        <td><code>subscription_usage</code></td>
+                        <td><span class="badge high">HIGH</span></td>
+                        <td>Enforce limits. Can start simple with counters in <code>user_subscriptions.metadata</code></td>
+                        <td>✅ Initially</td>
+                    </tr>
+                    <tr>
+                        <td><code>invoices</code></td>
+                        <td><span class="badge medium">MEDIUM</span></td>
+                        <td>Stripe stores these. Query Stripe API when needed.</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td><code>charges</code></td>
+                        <td><span class="badge medium">MEDIUM</span></td>
+                        <td>Stripe stores these. Query Stripe API when needed.</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td><code>refunds</code></td>
+                        <td><span class="badge low">LOW</span></td>
+                        <td>Rare. Query Stripe API when needed.</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                    <tr>
+                        <td><code>usage_records</code></td>
+                        <td><span class="badge low">LOW</span></td>
+                        <td>Only if metered billing. You're not doing that yet.</td>
+                        <td>✅ Yes</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Can You Simplify payment_methods?</h3>
+
+            <div class="info-box success">
+                <h4>Yes! Store in subscription metadata initially</h4>
+                <p>Instead of a separate table, you can store payment method details in <code>user_subscriptions.metadata</code>:</p>
+                <pre class="line-numbers"><code class="language-json">{
+  "payment_method": {
+    "id": "pm_1ABC123",
+    "brand": "visa",
+    "last4": "4242",
+    "exp_month": 12,
+    "exp_year": 2025
+  }
+}</code></pre>
+                <p>Upgrade to a separate table when you need:</p>
+                <ul>
+                    <li>Multiple payment methods per user</li>
+                    <li>Complex queries on payment methods</li>
+                    <li>Analytics on card brands, expiry rates, etc.</li>
+                </ul>
+            </div>
+
+            <h3>Can You Simplify subscription_usage?</h3>
+
+            <div class="info-box success">
+                <h4>Yes! Start with simple counters</h4>
+                <p>Instead of a separate table, track in <code>user_subscriptions.metadata</code>:</p>
+                <pre class="line-numbers"><code class="language-json">{
+  "current_usage": {
+    "period_start": "2025-10-01",
+    "period_end": "2025-11-01",
+    "sources_used": 3,
+    "keywords_used": 7,
+    "api_calls_used": 245
+  }
+}</code></pre>
+                <p>Upgrade to a separate table when you need:</p>
+                <ul>
+                    <li>Historical usage tracking (past months)</li>
+                    <li>Usage analytics and trends</li>
+                    <li>Per-feature usage breakdown</li>
+                </ul>
+            </div>
+        </section>
+
+        <section id="minimum-viable">
+            <h2>Minimum Viable Production Setup</h2>
+
+            <h3>The Absolute Minimum</h3>
+
+            <div class="info-box critical">
+                <h4>4 Tables Get You to Production</h4>
+                <ol>
+                    <li><code>subscription_tiers</code> - Already have ✅</li>
+                    <li><code>user_subscriptions</code> - Need to create ❌</li>
+                    <li><code>stripe_customers</code> - Need to create ❌</li>
+                    <li><code>stripe_webhook_events</code> - Need to create ❌</li>
+                </ol>
+            </div>
+
+            <h3>Simplified user_subscriptions Schema</h3>
+
+            <p>Start with this minimal version:</p>
+
+            <pre class="line-numbers"><code class="language-typescript">export const userSubscriptions = pgTable("user_subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tierId: uuid("tier_id").notNull().references(() => subscriptionTiers.id),
+
+  // Core fields
+  status: text("status").notNull().default("active"),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date"),
+
+  // Stripe (only needed for paid tiers)
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+
+  // Flexible storage for everything else
+  metadata: jsonb("metadata"),
+  // {
+  //   trial_end_date, billing_cycle, current_period_start/end,
+  //   payment_method, usage_counters, promo_codes, etc.
+  // }
+
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});</code></pre>
+
+            <h3>What Goes in Metadata (Initially)</h3>
+
+            <pre class="line-numbers"><code class="language-json">{
+  "trial_end_date": "2025-10-22T00:00:00Z",
+  "billing_cycle": "monthly",
+  "current_period": {
+    "start": "2025-10-15T00:00:00Z",
+    "end": "2025-11-15T00:00:00Z"
+  },
+  "payment_method": {
+    "id": "pm_ABC123",
+    "brand": "visa",
+    "last4": "4242",
+    "exp_month": 12,
+    "exp_year": 2025
+  },
+  "usage": {
+    "period_start": "2025-10-01",
+    "sources_used": 3,
+    "keywords_used": 7,
+    "api_calls_used": 245
+  },
+  "cancellation": {
+    "cancel_at_period_end": false,
+    "cancelled_at": null,
+    "reason": null
+  },
+  "promo_code": "LAUNCH2024"
+}</code></pre>
+
+            <h3>When to Promote Fields from Metadata</h3>
+
+            <p>Move fields out of <code>metadata</code> into real columns when:</p>
+
+            <ul>
+                <li><strong>You query on them:</strong> "Find all subscriptions ending this week"</li>
+                <li><strong>You need indexes:</strong> "Find all trialing subscriptions"</li>
+                <li><strong>They're accessed frequently:</strong> Checked on every request</li>
+                <li><strong>They need constraints:</strong> Required fields, foreign keys</li>
+            </ul>
+
+            <div class="info-box success">
+                <strong>Start Simple, Expand Later:</strong> Begin with the 4 critical tables and metadata. Promote fields to columns as you discover which ones matter most. This keeps your initial implementation simple and fast.
+            </div>
+        </section>
+
+        <section id="implementation-checklist">
+            <h2>Implementation Checklist</h2>
+
+            <h3>Phase 1: Database Setup</h3>
+
+            <ul>
+                <li><input type="checkbox"> Create <code>user_subscriptions</code> table with minimal fields</li>
+                <li><input type="checkbox"> Create <code>stripe_customers</code> table</li>
+                <li><input type="checkbox"> Create <code>stripe_webhook_events</code> table</li>
+                <li><input type="checkbox"> Add indexes for performance</li>
+                <li><input type="checkbox"> Seed <code>subscription_tiers</code> with Free/Pro tiers</li>
+            </ul>
+
+            <h3>Phase 2: User Registration</h3>
+
+            <ul>
+                <li><input type="checkbox"> On signup, auto-create Free subscription in <code>user_subscriptions</code></li>
+                <li><input type="checkbox"> Test: New user has access to Free features</li>
+                <li><input type="checkbox"> Test: User cannot exceed Free limits</li>
+            </ul>
+
+            <h3>Phase 3: Pro Upgrade</h3>
+
+            <ul>
+                <li><input type="checkbox"> Create Stripe customer on first upgrade</li>
+                <li><input type="checkbox"> Insert into <code>stripe_customers</code> table</li>
+                <li><input type="checkbox"> Create Stripe subscription with trial</li>
+                <li><input type="checkbox"> UPDATE existing <code>user_subscriptions</code> row to Pro tier</li>
+                <li><input type="checkbox"> Test: User immediately gets Pro features</li>
+            </ul>
+
+            <h3>Phase 4: Webhook Handling</h3>
+
+            <ul>
+                <li><input type="checkbox"> Build webhook endpoint</li>
+                <li><input type="checkbox"> Verify webhook signature</li>
+                <li><input type="checkbox"> Check <code>stripe_webhook_events</code> for duplicates</li>
+                <li><input type="checkbox"> Handle: <code>subscription.created</code></li>
+                <li><input type="checkbox"> Handle: <code>subscription.updated</code></li>
+                <li><input type="checkbox"> Handle: <code>subscription.deleted</code></li>
+                <li><input type="checkbox"> Handle: <code>invoice.payment_succeeded</code></li>
+                <li><input type="checkbox"> Handle: <code>invoice.payment_failed</code></li>
+                <li><input type="checkbox"> Test: Trial ends → payment succeeds → status updates</li>
+                <li><input type="checkbox"> Test: Trial ends → payment fails → downgrade to Free</li>
+            </ul>
+
+            <h3>Phase 5: Enterprise (Later)</h3>
+
+            <ul>
+                <li><input type="checkbox"> Create organization creation flow</li>
+                <li><input type="checkbox"> Create new row in <code>subscriptions</code> table</li>
+                <li><input type="checkbox"> End old <code>user_subscriptions</code> row</li>
+                <li><input type="checkbox"> Create organization Stripe customer</li>
+                <li><input type="checkbox"> Move user to organization</li>
+                <li><input type="checkbox"> Test: User accesses via organization subscription</li>
+            </ul>
+
+            <h3>Quick Reference: How to Check Subscription</h3>
+
+            <pre class="line-numbers"><code class="language-typescript">async function getUserSubscription(userId: string) {
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+  });
+
+  if (!user) throw new Error('User not found');
+
+  // Check if user is in an organization
+  if (user.organizationId) {
+    // Enterprise user - check organization subscription
+    const org = await db.query.organizations.findFirst({
+      where: eq(organizations.id, user.organizationId),
+      with: {
+        currentSubscription: {
+          with: { tier: true }
+        }
+      }
+    });
+
+    if (!org?.currentSubscription) {
+      throw new Error('Organization subscription not found');
+    }
+
+    return {
+      tier: org.currentSubscription.tier,
+      status: org.currentSubscription.status,
+      type: 'organization'
+    };
+  } else {
+    // Individual user - check user subscription
+    const subscription = await db.query.userSubscriptions.findFirst({
+      where: eq(userSubscriptions.userId, userId),
+      with: { tier: true }
+    });
+
+    if (!subscription) {
+      throw new Error('User subscription not found');
+    }
+
+    return {
+      tier: subscription.tier,
+      status: subscription.status,
+      type: 'individual'
+    };
+  }
+}</code></pre>
+        </section>
+
+        <hr>
+
+        <div style="text-align: center; color: #666; font-size: 0.9em;">
+            <p><strong>Document Version:</strong> 1.0</p>
+            <p><strong>Last Updated:</strong> October 2025</p>
+            <p><strong>Status:</strong> <span class="status-badge">Ready to Implement</span></p>
+        </div>
+    </div>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+</body>
+</html>
