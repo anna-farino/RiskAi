@@ -54,7 +54,8 @@ export default function ThreatHome() {
   // Filter state - initialize searchTerm with entity name if filtered
   const [searchTerm, setSearchTerm] = useState<string>(entityFilter?.name || "");
   const [threatLevel, setThreatLevel] = useState<string>("All");
-  const [dateRange, setDateRange] = useState<string>("Today");
+  // If entity filter is present, show all dates, otherwise default to Today
+  const [dateRange, setDateRange] = useState<string>(entityFilter ? "All Time" : "Today");
   const [sortOrder, setSortOrder] = useState<string>("Relevance");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
@@ -125,6 +126,11 @@ export default function ThreatHome() {
     startDate?: string;
     endDate?: string;
   }>(() => {
+    // If entity filter is present, don't apply date restrictions
+    if (entityFilter) {
+      return { startDate: undefined, endDate: undefined };
+    }
+    // Otherwise default to today
     const now = new Date();
     return {
       startDate: now.toISOString().split('T')[0],
@@ -437,18 +443,20 @@ export default function ThreatHome() {
     setSearchTerm("");
     setSelectedKeywordIds([]);
     setThreatLevel("All");
-    const newDateRange = "Today";
-    setDateRange(newDateRange);
-    setOriginalDateRange(getDateRangeFromLabel(newDateRange));
+    // If entity filter exists, keep showing all time, otherwise reset to Today
+    if (!entityFilter) {
+      const newDateRange = "Today";
+      setDateRange(newDateRange);
+      setOriginalDateRange(getDateRangeFromLabel(newDateRange));
+    } else {
+      setDateRange("All Time");
+      setOriginalDateRange({ startDate: undefined, endDate: undefined });
+    }
     setSortOrder("Newest First");
     setFromDate("");
     setToDate("");
-    setEntityFilter(null);
-    // Clear URL parameter if present
-    if (entityFilterParam) {
-      const newUrl = window.location.pathname;
-      window.history.pushState({}, '', newUrl);
-    }
+    // Don't clear entity filter when using Clear All button - only clear other filters
+    // Entity filter should only be cleared using the dedicated Clear Filter button
   };
 
   // Function to handle marking for capsule
@@ -702,6 +710,13 @@ export default function ThreatHome() {
                   onClick={() => {
                     setEntityFilter(null);
                     setSearchTerm("");
+                    // Reset date range to Today when clearing entity filter
+                    const now = new Date();
+                    setDateRange("Today");
+                    setOriginalDateRange({
+                      startDate: now.toISOString().split('T')[0],
+                      endDate: now.toISOString().split('T')[0]
+                    });
                     // Clear URL parameter
                     const newUrl = window.location.pathname;
                     window.history.pushState({}, '', newUrl);
@@ -774,46 +789,58 @@ export default function ThreatHome() {
               </div>
               
               <div className="space-y-2">
-                    {/* Horizontal buttons for Today/24hrs/48hrs/YTD */}
-                    <div className="grid grid-cols-4 gap-1">
-                      {["Today", "24hrs", "48hrs", "YTD"].map((range) => (
-                        <Button
-                          key={range}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const actualRange = range === "YTD" ? "Year to Date" : range;
-                            setDateRange(actualRange);
-                            setOriginalDateRange(getDateRangeFromLabel(actualRange));
-                          }}
-                          className={cn(
-                            "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                            (range === "YTD" && dateRange === "Year to Date") || (range !== "YTD" && dateRange === range)
-                              ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                              : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                          )}
-                        >
-                          {range}
-                        </Button>
-                      ))}
-                    </div>
-                    {/* Custom date range inputs */}
-                    <div className="grid grid-cols-2 gap-1">
-                      <Input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        placeholder="From Date"
-                        className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                      <Input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        placeholder="To Date"
-                        className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                    </div>
+                    {/* Show All Time indicator when entity filter is active */}
+                    {entityFilter ? (
+                      <div className="bg-[#9333EA]/20 border border-[#9333EA] rounded-md px-2 py-2 text-center">
+                        <span className="text-xs font-medium text-[#A855F7]">All Time</span>
+                        <p className="text-xs text-purple-300 mt-1">Showing all threats for filtered entity</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Horizontal buttons for Today/24hrs/48hrs/YTD */}
+                        <div className="grid grid-cols-4 gap-1">
+                          {["Today", "24hrs", "48hrs", "YTD"].map((range) => (
+                            <Button
+                              key={range}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const actualRange = range === "YTD" ? "Year to Date" : range;
+                                setDateRange(actualRange);
+                                setOriginalDateRange(getDateRangeFromLabel(actualRange));
+                              }}
+                              className={cn(
+                                "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
+                                (range === "YTD" && dateRange === "Year to Date") || (range !== "YTD" && dateRange === range)
+                                  ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
+                                  : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
+                              )}
+                            >
+                              {range}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {/* Custom date range inputs - hide when entity filter is active */}
+                    {!entityFilter && (
+                      <div className="grid grid-cols-2 gap-1">
+                        <Input
+                          type="date"
+                          value={fromDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                          placeholder="From Date"
+                          className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
+                        />
+                        <Input
+                          type="date"
+                          value={toDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                          placeholder="To Date"
+                          className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
+                        />
+                      </div>
+                    )}
               </div>
             </div>
 
