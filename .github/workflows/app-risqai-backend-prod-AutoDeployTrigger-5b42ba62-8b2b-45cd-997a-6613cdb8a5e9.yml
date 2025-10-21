@@ -1,35 +1,38 @@
-name: Trigger auto deployment for app-risqai-backend-prod
+name: Backend – Build & Deploy (Production)
 
-# When this action will be executed
 on:
-  # Automatically trigger it when detected changes in repo
   push:
-    branches: 
-      [ master ]
+    branches:
+      - master
     paths:
     - '**'
     - '.github/workflows/app-risqai-backend-prod-AutoDeployTrigger-5b42ba62-8b2b-45cd-997a-6613cdb8a5e9.yml'
-
-  # Allow manual trigger 
-  workflow_dispatch:      
+  workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
-    permissions: 
-      id-token: write #This is required for requesting the OIDC JWT Token
-      contents: read #Required when GH token is used to authenticate with private repo
+    permissions:
+      id-token: write
+      contents: read
+    environment: production
+    concurrency:
+      group: backend-production
+      cancel-in-progress: false
+    env:
+      REGISTRY_LOGIN_SERVER: ${{ vars.REGISTRY_LOGIN_SERVER }}
+      IMAGE_NAME:            ${{ vars.IMAGE_NAME }}
+      RESOURCE_GROUP:        ${{ vars.RESOURCE_GROUP }}
+      CONTAINER_APP_NAME:    ${{ vars.CONTAINER_APP_NAME }}
 
     steps:
-      - name: Checkout to the branch
-        uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-      - name: Azure Login
-        uses: azure/login@v2
+      - uses: azure/login@v2
         with:
-          client-id: ${{ secrets.APPRISQAIBACKENDPROD_AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.APPRISQAIBACKENDPROD_AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.APPRISQAIBACKENDPROD_AZURE_SUBSCRIPTION_ID }}
+          client-id:       ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:       ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Build and push container image to registry
         uses: azure/container-apps-deploy-action@v2
