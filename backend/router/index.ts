@@ -42,9 +42,13 @@ router.get("/test/crypto/decrypt", handleTestDecrypt);
 router.post("/test/crypto/encrypt-decrypt", limiter, handleTestEncryptDecrypt);
 
 // TEST SCRAPING (unprotected but password-secured)
+console.log('[ROUTER] Registering test-scraping routes BEFORE auth0 middleware');
 router.post("/test-scraping", limiter, handleTestScraping);
 router.post("/test-scraping/all-sources", limiter, handleTestAllSources);
-router.post("/test-scraping/test-article", limiter, handleTestArticle);
+router.post("/test-scraping/test-article", limiter, (req, res, next) => {
+  console.log('[ROUTER] test-article route hit BEFORE auth0');
+  handleTestArticle(req, res);
+});
 router.get("/test-scraping/health", handleTestScrapingHealth);
 
 // LIVE LOGS MANAGEMENT (staging only)

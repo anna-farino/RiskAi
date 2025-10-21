@@ -368,6 +368,7 @@ async function processAllSourcesTestInBackground(
  * Test single article handler
  */
 export async function handleTestArticle(req: Request, res: Response): Promise<void> {
+  console.log('[TEST-ARTICLE] Handler reached');
   const requestId = req.headers['x-call-id'] || 'unknown';
   const startTime = Date.now();
 
