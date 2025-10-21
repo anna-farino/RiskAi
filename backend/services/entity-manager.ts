@@ -279,6 +279,7 @@ export class EntityManager {
     createdBy?: string;
     discoveredFrom?: string;
     isVerified?: boolean;
+    isMalware?: boolean;
     metadata?: any;
   }): Promise<string> {
     // Reject overly generic software names
@@ -389,6 +390,7 @@ export class EntityManager {
         createdBy: data.createdBy,
         discoveredFrom: data.discoveredFrom,
         isVerified: data.isVerified || false,
+        isMalware: data.isMalware || false,
         metadata: data.metadata
       })
       .returning();
@@ -786,6 +788,7 @@ export class EntityManager {
         name: sw.name,
         companyId,
         category: sw.category,
+        isMalware: sw.isMalware || false,
         discoveredFrom: articleId
       });
       
