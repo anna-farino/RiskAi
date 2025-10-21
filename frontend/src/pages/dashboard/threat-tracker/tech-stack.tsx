@@ -549,7 +549,11 @@ export default function TechStackPage() {
           </div>
         </div>
 
-        {/* Threat severity buttons - show individual buttons for each severity level */}
+        {/* Threat severity buttons - only render div if there are threats */}
+        {((item.criticalCount && item.criticalCount > 0) || 
+          (item.highCount && item.highCount > 0) || 
+          (item.mediumCount && item.mediumCount > 0) || 
+          (item.lowCount && item.lowCount > 0)) && (
         <div className="flex items-center gap-2 mr-4">
           {item.criticalCount && item.criticalCount > 0 && (
             <button
@@ -620,6 +624,7 @@ export default function TechStackPage() {
             </button>
           )}
         </div>
+        )}
 
         <div className="flex items-center gap-2">
           {/* Enable/Disable Toggle */}
