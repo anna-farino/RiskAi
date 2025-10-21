@@ -245,6 +245,7 @@ export async function extractArticleEntities(article: {
     versionTo?: string; // End of version range
     vendor?: string;
     category?: string;
+    isMalware?: boolean; // Flag for malicious software
     specificity: 'partial' | 'specific'; // How specific is this mention?
     confidence: number;
     context: string;
@@ -342,6 +343,11 @@ export async function extractArticleEntities(article: {
     - For ranges, extract versionFrom (start) and versionTo (end)
     - Vendor/company that makes it (extract parent company, not the product division)
     - Category (os, application, library, framework, service, platform, etc.)
+    - **CRITICAL MALWARE DETECTION**: Identify if the software is malicious:
+      * isMalware: true for malware, ransomware, trojans, viruses, backdoors, stealers, etc.
+      * Common malware types: BeaverTail, OtterCookie, Lumma, Vidar, Rhadamanthys, LockBit, WannaCry, Emotet, etc.
+      * Malware indicators: "malware", "ransomware", "trojan", "virus", "backdoor", "stealer", "infostealer", "RAT", "botnet", "cryptominer"
+      * For malware, vendor should be "Unknown" or the threat actor if attributed
     - Specificity level (NO MORE 'generic' option):
       * "partial" - Has vendor + product line (e.g., "Apache web server", "Cisco IOS")
       * "specific" - Full product details (e.g., "Apache HTTP Server 2.4.49", "Cisco IOS 15.2")
@@ -444,6 +450,7 @@ export async function extractArticleEntities(article: {
           "versionTo": "end of range (e.g., 2.17.0)",
           "vendor": "company that makes it",
           "category": "category type",
+          "isMalware": false,
           "specificity": "partial|specific",
           "confidence": 0.95,
           "context": "sentence where mentioned"
