@@ -651,6 +651,80 @@ export default function TechStackPage() {
 
       <Card>
         <CardContent className="pt-6 space-y-6">
+          {/* Global Bulk Actions */}
+          <div className="flex items-center justify-between pb-4 border-b">
+            <div className="text-sm text-muted-foreground">
+              Total items: {(techStack?.software?.length || 0) + (techStack?.hardware?.length || 0) + (techStack?.vendors?.length || 0) + (techStack?.clients?.length || 0)}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Enable all items across all categories
+                  const allItems = [
+                    ...(techStack?.software || []).map(item => ({ id: item.id, type: 'software' })),
+                    ...(techStack?.hardware || []).map(item => ({ id: item.id, type: 'hardware' })),
+                    ...(techStack?.vendors || []).map(item => ({ id: item.id, type: 'vendor' })),
+                    ...(techStack?.clients || []).map(item => ({ id: item.id, type: 'client' }))
+                  ];
+                  
+                  allItems.forEach(item => {
+                    toggleItem.mutate({ itemId: item.id, type: item.type, isActive: true });
+                  });
+                }}
+                className="h-8 px-3 text-xs"
+                data-testid="button-enable-all"
+              >
+                Enable All
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  // Disable all items across all categories
+                  const allItems = [
+                    ...(techStack?.software || []).map(item => ({ id: item.id, type: 'software' })),
+                    ...(techStack?.hardware || []).map(item => ({ id: item.id, type: 'hardware' })),
+                    ...(techStack?.vendors || []).map(item => ({ id: item.id, type: 'vendor' })),
+                    ...(techStack?.clients || []).map(item => ({ id: item.id, type: 'client' }))
+                  ];
+                  
+                  allItems.forEach(item => {
+                    toggleItem.mutate({ itemId: item.id, type: item.type, isActive: false });
+                  });
+                }}
+                className="h-8 px-3 text-xs"
+                data-testid="button-disable-all"
+              >
+                Disable All
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => {
+                  if (confirm('Are you sure you want to delete ALL items from your technology stack? This cannot be undone.')) {
+                    // Delete all items across all categories
+                    const allItems = [
+                      ...(techStack?.software || []).map(item => ({ id: item.id, type: 'software' })),
+                      ...(techStack?.hardware || []).map(item => ({ id: item.id, type: 'hardware' })),
+                      ...(techStack?.vendors || []).map(item => ({ id: item.id, type: 'vendor' })),
+                      ...(techStack?.clients || []).map(item => ({ id: item.id, type: 'client' }))
+                    ];
+                    
+                    allItems.forEach(item => {
+                      removeItem.mutate({ itemId: item.id, type: item.type });
+                    });
+                  }
+                }}
+                className="h-8 px-3 text-xs"
+                data-testid="button-delete-all"
+              >
+                Delete All
+              </Button>
+            </div>
+          </div>
+
           {/* Software Section */}
           <Collapsible open={softwareOpen} onOpenChange={setSoftwareOpen}>
             <div className="space-y-4">
@@ -666,37 +740,83 @@ export default function TechStackPage() {
               </CollapsibleTrigger>
               
               <CollapsibleContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Autocomplete
-                    placeholder="Add software (e.g., Apache, nginx, Redis)..."
-                    value={softwareSearch}
-                    onValueChange={setSoftwareSearch}
-                    onSelect={(option) => {
-                      addItem.mutate({ 
-                        type: 'software', 
-                        name: option.name,
-                        // Use the existing entity ID for linking
-                        priority: 1
-                      });
-                    }}
-                    fetchOptions={fetchSoftwareOptions}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => {
-                      if (softwareSearch.trim()) {
-                        // Allow manual entry for software not in database
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      placeholder="Add software (e.g., Apache, nginx, Redis)..."
+                      value={softwareSearch}
+                      onValueChange={setSoftwareSearch}
+                      onSelect={(option) => {
                         addItem.mutate({ 
                           type: 'software', 
-                          name: softwareSearch.trim() 
+                          name: option.name,
+                          // Use the existing entity ID for linking
+                          priority: 1
                         });
-                        setSoftwareSearch("");
-                      }
-                    }}
-                    data-testid="button-add-software"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add
-                  </Button>
+                      }}
+                      fetchOptions={fetchSoftwareOptions}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={() => {
+                        if (softwareSearch.trim()) {
+                          // Allow manual entry for software not in database
+                          addItem.mutate({ 
+                            type: 'software', 
+                            name: softwareSearch.trim() 
+                          });
+                          setSoftwareSearch("");
+                        }
+                      }}
+                      data-testid="button-add-software"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  
+                  {/* Category bulk actions */}
+                  {techStack?.software && techStack.software.length > 0 && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.software.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'software', isActive: true });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Enable All Software
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.software.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'software', isActive: false });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Disable All Software
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete all software items? This cannot be undone.')) {
+                            techStack.software.forEach(item => {
+                              removeItem.mutate({ itemId: item.id, type: 'software' });
+                            });
+                          }
+                        }}
+                        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      >
+                        Delete All Software
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-1">
@@ -734,36 +854,82 @@ export default function TechStackPage() {
               </CollapsibleTrigger>
               
               <CollapsibleContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Autocomplete
-                    placeholder="Add hardware (e.g., Cisco ASA, Dell PowerEdge)..."
-                    value={hardwareSearch}
-                    onValueChange={setHardwareSearch}
-                    onSelect={(option) => {
-                      addItem.mutate({ 
-                        type: 'hardware', 
-                        name: option.name,
-                        priority: 1
-                      });
-                    }}
-                    fetchOptions={fetchHardwareOptions}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => {
-                      if (hardwareSearch.trim()) {
-                        // Allow manual entry for hardware not in database
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      placeholder="Add hardware (e.g., Cisco ASA, Dell PowerEdge)..."
+                      value={hardwareSearch}
+                      onValueChange={setHardwareSearch}
+                      onSelect={(option) => {
                         addItem.mutate({ 
                           type: 'hardware', 
-                          name: hardwareSearch.trim() 
+                          name: option.name,
+                          priority: 1
                         });
-                        setHardwareSearch("");
-                      }
-                    }}
-                    data-testid="button-add-hardware"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add
-                  </Button>
+                      }}
+                      fetchOptions={fetchHardwareOptions}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={() => {
+                        if (hardwareSearch.trim()) {
+                          // Allow manual entry for hardware not in database
+                          addItem.mutate({ 
+                            type: 'hardware', 
+                            name: hardwareSearch.trim() 
+                          });
+                          setHardwareSearch("");
+                        }
+                      }}
+                      data-testid="button-add-hardware"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  
+                  {/* Category bulk actions */}
+                  {techStack?.hardware && techStack.hardware.length > 0 && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.hardware.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'hardware', isActive: true });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Enable All Hardware
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.hardware.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'hardware', isActive: false });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Disable All Hardware
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete all hardware items? This cannot be undone.')) {
+                            techStack.hardware.forEach(item => {
+                              removeItem.mutate({ itemId: item.id, type: 'hardware' });
+                            });
+                          }
+                        }}
+                        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      >
+                        Delete All Hardware
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-1">
@@ -801,36 +967,82 @@ export default function TechStackPage() {
               </CollapsibleTrigger>
               
               <CollapsibleContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Autocomplete
-                    placeholder="Add vendor (e.g., Microsoft, Amazon, Oracle)..."
-                    value={vendorSearch}
-                    onValueChange={setVendorSearch}
-                    onSelect={(option) => {
-                      addItem.mutate({ 
-                        type: 'vendor', 
-                        name: option.name,
-                        priority: 1
-                      });
-                    }}
-                    fetchOptions={fetchVendorOptions}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => {
-                      if (vendorSearch.trim()) {
-                        // Allow manual entry for vendors not in database
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      placeholder="Add vendor (e.g., Microsoft, Amazon, Oracle)..."
+                      value={vendorSearch}
+                      onValueChange={setVendorSearch}
+                      onSelect={(option) => {
                         addItem.mutate({ 
                           type: 'vendor', 
-                          name: vendorSearch.trim() 
+                          name: option.name,
+                          priority: 1
                         });
-                        setVendorSearch("");
-                      }
-                    }}
-                    data-testid="button-add-vendor"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add
-                  </Button>
+                      }}
+                      fetchOptions={fetchVendorOptions}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={() => {
+                        if (vendorSearch.trim()) {
+                          // Allow manual entry for vendors not in database
+                          addItem.mutate({ 
+                            type: 'vendor', 
+                            name: vendorSearch.trim() 
+                          });
+                          setVendorSearch("");
+                        }
+                      }}
+                      data-testid="button-add-vendor"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  
+                  {/* Category bulk actions */}
+                  {techStack?.vendors && techStack.vendors.length > 0 && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.vendors.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'vendor', isActive: true });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Enable All Vendors
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.vendors.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'vendor', isActive: false });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Disable All Vendors
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete all vendor items? This cannot be undone.')) {
+                            techStack.vendors.forEach(item => {
+                              removeItem.mutate({ itemId: item.id, type: 'vendor' });
+                            });
+                          }
+                        }}
+                        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      >
+                        Delete All Vendors
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-1">
@@ -868,36 +1080,82 @@ export default function TechStackPage() {
               </CollapsibleTrigger>
               
               <CollapsibleContent className="space-y-4">
-                <div className="flex gap-2">
-                  <Autocomplete
-                    placeholder="Add client (e.g., Bank of America, Acme Corp)..."
-                    value={clientSearch}
-                    onValueChange={setClientSearch}
-                    onSelect={(option) => {
-                      addItem.mutate({ 
-                        type: 'client', 
-                        name: option.name,
-                        priority: 1
-                      });
-                    }}
-                    fetchOptions={fetchClientOptions}
-                    className="flex-1"
-                  />
-                  <Button 
-                    onClick={() => {
-                      if (clientSearch.trim()) {
-                        // Allow manual entry for clients not in database
+                <div className="space-y-2">
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      placeholder="Add client (e.g., Bank of America, Acme Corp)..."
+                      value={clientSearch}
+                      onValueChange={setClientSearch}
+                      onSelect={(option) => {
                         addItem.mutate({ 
                           type: 'client', 
-                          name: clientSearch.trim() 
+                          name: option.name,
+                          priority: 1
                         });
-                        setClientSearch("");
-                      }
-                    }}
-                    data-testid="button-add-client"
-                  >
-                    <Plus className="h-4 w-4 mr-1" /> Add
-                  </Button>
+                      }}
+                      fetchOptions={fetchClientOptions}
+                      className="flex-1"
+                    />
+                    <Button 
+                      onClick={() => {
+                        if (clientSearch.trim()) {
+                          // Allow manual entry for clients not in database
+                          addItem.mutate({ 
+                            type: 'client', 
+                            name: clientSearch.trim() 
+                          });
+                          setClientSearch("");
+                        }
+                      }}
+                      data-testid="button-add-client"
+                    >
+                      <Plus className="h-4 w-4 mr-1" /> Add
+                    </Button>
+                  </div>
+                  
+                  {/* Category bulk actions */}
+                  {techStack?.clients && techStack.clients.length > 0 && (
+                    <div className="flex gap-2 justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.clients.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'client', isActive: true });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Enable All Clients
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          techStack.clients.forEach(item => {
+                            toggleItem.mutate({ itemId: item.id, type: 'client', isActive: false });
+                          });
+                        }}
+                        className="h-7 px-2 text-xs"
+                      >
+                        Disable All Clients
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          if (confirm('Are you sure you want to delete all client items? This cannot be undone.')) {
+                            techStack.clients.forEach(item => {
+                              removeItem.mutate({ itemId: item.id, type: 'client' });
+                            });
+                          }
+                        }}
+                        className="h-7 px-2 text-xs text-destructive hover:text-destructive"
+                      >
+                        Delete All Clients
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 
                 <div className="space-y-1">
