@@ -276,66 +276,68 @@ export default function Settings() {
         </div>
 
         {/* Subscription Plan Section */}
-        <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300">
-          <div className="p-6">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
-                <CreditCard className="h-6 w-6 text-[#00FFFF]" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-xl font-semibold text-white">Subscription Plan</span>
-                <span className="text-sm text-slate-400">Manage your subscription and billing</span>
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              {/* Current Plan Display */}
-              <div className="flex flex-row items-center justify-between">
-                <div className="flex-1">
-                  <Label className="text-base font-medium text-white">Current Plan</Label>
-                  <p className="text-sm text-slate-400 mt-1">
-                    {userData.data?.subscription === 'none' && 'No plan chosen'}
-                    {userData.data?.subscription === 'free' && 'Free'}
-                    {userData.data?.subscription === 'pro' && 'Pro'}
-                  </p>
+        {false && (
+          <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md transition-all duration-300">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="p-2 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
+                  <CreditCard className="h-6 w-6 text-[#00FFFF]" />
                 </div>
-                {userData.data?.subscription !== 'none' && (
-                  <div className="px-3 py-1 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
-                    <span className="text-sm font-medium text-white">
-                      {userData.data?.subscription === 'free' ? 'Free' : 'Pro'}
-                    </span>
+                <div className="flex flex-col">
+                  <span className="text-xl font-semibold text-white">Subscription Plan</span>
+                  <span className="text-sm text-slate-400">Manage your subscription and billing</span>
+                </div>
+              </div>
+
+              <div className="space-y-6">
+                {/* Current Plan Display */}
+                <div className="flex flex-row items-center justify-between">
+                  <div className="flex-1">
+                    <Label className="text-base font-medium text-white">Current Plan</Label>
+                    <p className="text-sm text-slate-400 mt-1">
+                      {userData.data?.subscription === 'none' && 'No plan chosen'}
+                      {userData.data?.subscription === 'free' && 'Free'}
+                      {userData.data?.subscription === 'pro' && 'Pro'}
+                    </p>
                   </div>
-                )}
-                {userData.data?.hasPromoCode && (
-                  <div
-                    className={cn(
-                      "ml-2 px-3 py-1 bg-gradient-to-r from-green-500/20 to-[#BF00FF]/20",
-                      "rounded-md text-center cursor-help"
-                    )}
-                    title={'Promotional discount applied'}
+                  {userData.data?.subscription !== 'none' && (
+                    <div className="px-3 py-1 bg-gradient-to-r from-[#BF00FF]/20 to-[#00FFFF]/20 rounded-md">
+                      <span className="text-sm font-medium text-white">
+                        {userData.data?.subscription === 'free' ? 'Free' : 'Pro'}
+                      </span>
+                    </div>
+                  )}
+                  {userData.data?.hasPromoCode && (
+                    <div
+                      className={cn(
+                        "ml-2 px-3 py-1 bg-gradient-to-r from-green-500/20 to-[#BF00FF]/20",
+                        "rounded-md text-center cursor-help"
+                      )}
+                      title={'Promotional discount applied'}
+                    >
+                      <span className="text-sm font-medium text-green-400">🎉 Promo Applied</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Change Plan Button */}
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <Label className="text-base font-medium text-white">Manage Subscription</Label>
+                    <p className="text-sm text-slate-400 mt-1">View available plans and upgrade options</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowPricingView(true)}
                   >
-                    <span className="text-sm font-medium text-green-400">🎉 Promo Applied</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Change Plan Button */}
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <Label className="text-base font-medium text-white">Manage Subscription</Label>
-                  <p className="text-sm text-slate-400 mt-1">View available plans and upgrade options</p>
+                    Change Plan
+                  </Button>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPricingView(true)}
-                >
-                  Change Plan
-                </Button>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
         {/* Show pricing view */}
         {showPricingView && (
