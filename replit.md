@@ -45,6 +45,91 @@ The RisqAi platform employs a monorepo architecture, featuring a React 18 (TypeS
 - **MITRE ATT&CK Integration**: Implemented automated synchronization with MITRE ATT&CK framework data, fetching threat actor groups and techniques from STIX data twice daily at 12am and 12pm EST. Successfully enriched database with 181 verified threat actors including aliases and 76 MITRE techniques as threat keywords.
 - **Enhanced Company-Product Relationship Detection**: Implemented two-tier relationship detection (AI + heuristic patterns) across all input methods (manual entry, CSV uploads) to properly classify products like "Google DeepMind", "Microsoft Sentinel" and "AWS GuardDuty" as products of their parent companies. Uses AI with 0.6 confidence threshold, falling back to pattern matching for 40+ tech companies. Automatically adds parent companies as vendors and preserves full product names.
 - **Safe Upload Preview System**: Redesigned CSV/Excel upload flow to use read-only existence checks during preview phase. No entities are saved to database until user confirms selection. Upload endpoint now uses `check*Exists` methods instead of `findOrCreate*`, ensuring data integrity and user control over imports.
+- **Optimistic Updates with Smooth Transitions**: Implemented a local-state pattern for instant UI feedback with CSS transitions. When using TanStack Query optimistic updates, state changes happen synchronously in a single render cycle, preventing CSS transitions from playing. Solution: Use local component state (`useState`) that updates immediately on user interaction, synced with cache updates via `useEffect`. This allows the browser to see both the before and after states, enabling smooth CSS transitions while maintaining optimistic update benefits.
+
+## Frontend Development Patterns
+
+### Optimistic Updates with Smooth CSS Transitions
+
+When implementing optimistic updates with TanStack Query, direct cache updates happen synchronously, preventing CSS transitions from animating. This pattern solves that problem.
+
+#### The Problem
+```typescript
+// ❌ This won't animate smoothly
+<Switch 
+  checked={item.isActive}  // Changes instantly from cache update
+  onCheckedChange={(checked) => {
+    toggleMutation.mutate({ id: item.id, isActive: checked });
+  }}
+/>
+```
+
+**Why?** The optimistic `onMutate` updates the cache immediately in the same render cycle. The DOM goes from State A → State B instantly, with no time for CSS transitions to play.
+
+#### The Solution
+Use local component state as an intermediate layer:
+
+```typescript
+// ✅ This animates smoothly
+const MyComponent = ({ item }) => {
+  // 1. Local state for immediate UI feedback
+  const [localIsActive, setLocalIsActive] = useState(item.isActive);
+  
+  // 2. Sync with cache/server updates
+  useEffect(() => {
+    setLocalIsActive(item.isActive);
+  }, [item.isActive]);
+  
+  // 3. Update local state first, then mutate
+  return (
+    <Switch 
+      checked={localIsActive}
+      onCheckedChange={(checked) => {
+        setLocalIsActive(checked);  // Instant local update (animates)
+        toggleMutation.mutate({ id: item.id, isActive: checked });
+      }}
+    />
+  );
+};
+```
+
+#### How It Works
+1. **User clicks** → Local state updates immediately (`setLocalIsActive`)
+2. **Component re-renders** → Switch receives new value, CSS transition plays
+3. **Mutation triggers** → Optimistic update runs
+4. **useEffect syncs** → Keeps local state aligned with cache
+
+#### CSS Transition Setup
+Use inline styles to avoid Tailwind/CSS conflicts:
+
+```typescript
+<SwitchPrimitives.Root
+  style={{
+    transition: 'background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+  }}
+>
+  <SwitchPrimitives.Thumb
+    style={{
+      transition: 'transform 0.4s cubic-bezier(0.4, 0, 0.2, 1)'
+    }}
+  />
+</SwitchPrimitives.Root>
+```
+
+#### Best Practices
+- **Always sync with useEffect**: Prevents stale local state when cache updates from server/rollback
+- **Update local state first**: Provides instant visual feedback before mutation
+- **Use inline styles**: Ensures transitions always apply, avoiding specificity conflicts
+- **Don't invalidate queries**: In mutation `onSuccess`, avoid `invalidateQueries` to preserve optimistic updates
+- **Handle rollbacks**: The `useEffect` will automatically sync local state when `onError` rolls back the cache
+
+#### When to Use This Pattern
+- Toggle switches, checkboxes, radio buttons
+- Any interactive control with visual state transitions
+- Components where instant feedback + smooth animation are both desired
+
+#### Example Implementation
+See `frontend/src/pages/dashboard/threat-tracker/tech-stack.tsx` for a complete working example with the `TechStackItem` component.
 
 ## External Dependencies
 - **Database**: PostgreSQL 16
