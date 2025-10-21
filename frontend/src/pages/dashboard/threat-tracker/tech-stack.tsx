@@ -475,14 +475,14 @@ export default function TechStackPage() {
       return level.charAt(0).toUpperCase() + level.slice(1);
     };
 
-    // Default to active if not specified
-    const isActive = item.isActive !== false;
+    // Use the isActive field from the item, defaulting to true if not set
+    const isActive = item.isActive ?? true;
 
     return (
       <div 
         className={cn(
           "flex items-center justify-between py-3 px-4 rounded-md transition-colors",
-          isActive ? "hover:bg-muted/50" : "opacity-50 hover:bg-muted/30"
+          isActive ? "hover:bg-muted/50" : "opacity-60 hover:bg-muted/30"
         )}
         data-testid={`tech-item-${item.id}`}
       >
@@ -490,10 +490,7 @@ export default function TechStackPage() {
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
               <span 
-                className={cn(
-                  "font-medium",
-                  !isActive && "line-through text-muted-foreground"
-                )} 
+                className="font-medium" 
                 data-testid={`text-item-name-${item.id}`}
               >
                 {/* Display with styled prefix for both hardware and software */}
@@ -528,8 +525,8 @@ export default function TechStackPage() {
           </div>
         </div>
 
-        {/* Threat indicator - only shows if threats exist and item is active */}
-        {isActive && item.threats && item.threats.count > 0 && (
+        {/* Threat indicator - shows if threats exist */}
+        {item.threats && item.threats.count > 0 && (
           <button
             onClick={() => {
               // Navigate to threats page with filter for this specific entity
