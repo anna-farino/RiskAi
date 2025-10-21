@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronRight, Trash2, Plus, Upload, FileSpreadsheet, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/query-client";
 import { useFetch } from "@/hooks/use-fetch";
 import { Autocomplete } from "@/components/ui/autocomplete";
 import {
@@ -66,6 +65,7 @@ interface ExtractedEntity {
 
 export default function TechStackPage() {
   const fetchWithAuth = useFetch();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [softwareOpen, setSoftwareOpen] = useState(true);
   const [hardwareOpen, setHardwareOpen] = useState(false);
