@@ -224,9 +224,11 @@ router.get("/", async (req: any, res) => {
         version: usersSoftware.version,
         priority: usersSoftware.priority,
         company: companies.name,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
+        isActive: usersSoftware.isActive,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersSoftware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
+            WHEN ${usersSoftware.isActive} = false THEN NULL
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
@@ -246,14 +248,13 @@ router.get("/", async (req: any, res) => {
           eq(globalArticles.isCybersecurity, true),
         ),
       )
-      .where(
-        and(eq(usersSoftware.userId, userId), eq(usersSoftware.isActive, true)),
-      )
+      .where(eq(usersSoftware.userId, userId))
       .groupBy(
         software.id,
         software.name,
         usersSoftware.version,
         usersSoftware.priority,
+        usersSoftware.isActive,
         companies.name,
       );
 
@@ -266,9 +267,11 @@ router.get("/", async (req: any, res) => {
         model: hardware.model,
         version: sql<string>`NULL`,
         priority: usersHardware.priority,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
+        isActive: usersHardware.isActive,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersHardware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
+            WHEN ${usersHardware.isActive} = false THEN NULL
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
@@ -287,15 +290,14 @@ router.get("/", async (req: any, res) => {
           eq(globalArticles.isCybersecurity, true),
         ),
       )
-      .where(
-        and(eq(usersHardware.userId, userId), eq(usersHardware.isActive, true)),
-      )
+      .where(eq(usersHardware.userId, userId))
       .groupBy(
         hardware.id,
         hardware.name,
         hardware.manufacturer,
         hardware.model,
         usersHardware.priority,
+        usersHardware.isActive,
       );
 
     // Fetch vendors with threat counts
@@ -306,9 +308,11 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
         metadata: usersCompanies.metadata,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
+        isActive: usersCompanies.isActive,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
+            WHEN ${usersCompanies.isActive} = false THEN NULL
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
@@ -331,7 +335,6 @@ router.get("/", async (req: any, res) => {
         and(
           eq(usersCompanies.userId, userId),
           eq(usersCompanies.relationshipType, "vendor"),
-          eq(usersCompanies.isActive, true),
         ),
       )
       .groupBy(
@@ -339,6 +342,7 @@ router.get("/", async (req: any, res) => {
         companies.name,
         usersCompanies.priority,
         usersCompanies.metadata,
+        usersCompanies.isActive,
       );
 
     // Fetch clients with threat counts
@@ -348,9 +352,11 @@ router.get("/", async (req: any, res) => {
         name: companies.name,
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT ${globalArticles.id}), 0)`,
+        isActive: usersCompanies.isActive,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
+            WHEN ${usersCompanies.isActive} = false THEN NULL
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
             WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
@@ -373,10 +379,9 @@ router.get("/", async (req: any, res) => {
         and(
           eq(usersCompanies.userId, userId),
           eq(usersCompanies.relationshipType, "client"),
-          eq(usersCompanies.isActive, true),
         ),
       )
-      .groupBy(companies.id, companies.name, usersCompanies.priority);
+      .groupBy(companies.id, companies.name, usersCompanies.priority, usersCompanies.isActive);
 
     // Format response
     const response = {
@@ -386,6 +391,7 @@ router.get("/", async (req: any, res) => {
         company: s.company,
         version: s.version,
         priority: s.priority,
+        isActive: s.isActive,
         threats:
           parseInt(s.threatCount?.toString() || "0") > 0
             ? {
@@ -401,6 +407,7 @@ router.get("/", async (req: any, res) => {
         model: h.model,
         version: h.version,
         priority: h.priority,
+        isActive: h.isActive,
         threats:
           parseInt(h.threatCount?.toString() || "0") > 0
             ? {
@@ -414,6 +421,7 @@ router.get("/", async (req: any, res) => {
         name: v.name,
         version: v.version,
         priority: v.priority,
+        isActive: v.isActive,
         source: (v.metadata as any)?.source || "manual", // Extract source from metadata
         threats:
           parseInt(v.threatCount?.toString() || "0") > 0
@@ -428,6 +436,7 @@ router.get("/", async (req: any, res) => {
         name: c.name,
         version: c.version,
         priority: c.priority,
+        isActive: c.isActive,
         threats:
           parseInt(c.threatCount?.toString() || "0") > 0
             ? {
