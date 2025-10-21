@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -196,7 +196,7 @@ export default function TechStackPage() {
     item: TechStackItem; 
     type: 'software' | 'hardware' | 'vendor' | 'client' 
   }) => {
-    const [, setLocation] = useLocation();
+    const navigate = useNavigate();
     
     const getThreatColor = (level: string) => {
       switch(level) {
@@ -271,7 +271,7 @@ export default function TechStackPage() {
             onClick={() => {
               // Navigate to threats page with filter for this specific entity
               const filterParam = encodeURIComponent(`${type}:${item.name}`);
-              setLocation(`/dashboard/threat-tracker?entityFilter=${filterParam}`);
+              navigate(`/dashboard/threat-tracker?entityFilter=${filterParam}`);
             }}
             className="flex items-center gap-2 hover:opacity-80 transition-opacity mr-4 px-2 py-1 rounded-md hover:bg-muted/50"
             data-testid={`button-threat-indicator-${item.id}`}
