@@ -697,23 +697,57 @@ threatRouter.get("/articles/count", async (req, res) => {
   }
 });
 
+// Zod schema for article query request
+const articleQuerySchema = z.object({
+  search: z.string().max(500).optional(),
+  keywordIds: z.union([z.array(z.string()), z.string()]).transform(val => {
+    if (!val) return undefined;
+    const arr = Array.isArray(val) ? val : [val];
+    // Cap array length to prevent DoS via overly wide IN clauses
+    return arr.slice(0, 200);
+  }).optional(),
+  startDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
+  endDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+  page: z.number().int().min(1).optional().default(1),
+  sortBy: z.string().optional(),
+  entityFilter: z.object({
+    type: z.enum(['software', 'hardware', 'vendor', 'client']),
+    name: z.string().min(1).max(256).transform(s => s.trim())
+  }).optional()
+});
+
 // POST endpoint for articles - handles large keyword lists in body
 threatRouter.post("/articles/query", async (req, res) => {
   reqLog(req, "POST /articles/query");
   try {
     const userId = getUserId(req);
     
-    // Extract filters from request body instead of query params
+    // Ensure user is authenticated
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    // Validate request body
+    const validation = articleQuerySchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        error: "Invalid request parameters",
+        details: validation.error.issues 
+      });
+    }
+    
+    // Extract filters from validated request body
     const {
       search,
       keywordIds,
       startDate: startDateString,
       endDate: endDateString,
-      limit = 50,
-      page = 1,
+      limit,
+      page,
       sortBy,
       entityFilter
-    } = req.body;
+    } = validation.data;
     
     let startDate: Date | undefined;
     let endDate: Date | undefined;
@@ -726,20 +760,10 @@ threatRouter.post("/articles/query", async (req, res) => {
       endDate = new Date(endDateString);
     }
     
-    // Prepare keyword IDs array
-    let keywordIdsArray: string[] | undefined;
-    if (keywordIds) {
-      if (Array.isArray(keywordIds)) {
-        keywordIdsArray = keywordIds.filter(id => typeof id === 'string') as string[];
-      } else if (typeof keywordIds === 'string') {
-        keywordIdsArray = [keywordIds];
-      }
-    }
-    
     // Call threat-tracker storage directly with Technology Stack support
     const articles = await storage.getArticles({
       search,
-      keywordIds: keywordIdsArray,
+      keywordIds,
       startDate,
       endDate,
       userId,
@@ -747,7 +771,7 @@ threatRouter.post("/articles/query", async (req, res) => {
       page,
       sortBy,
       entityFilter
-    } as any);
+    });
     
     res.json(articles);
   } catch (error: any) {

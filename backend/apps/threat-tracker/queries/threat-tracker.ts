@@ -147,6 +147,10 @@ export interface IStorage {
     limit?: number;
     page?: number;
     sortBy?: string;
+    entityFilter?: {
+      type: 'software' | 'hardware' | 'vendor' | 'client';
+      name: string;
+    };
   }): Promise<ThreatArticle[]>;
   createArticle(article: {
     url: string;
@@ -727,12 +731,32 @@ export const storage: IStorage = {
   },
 
   // ARTICLES
-  getArticles: async (options: any = {}) => {
+  getArticles: async (options: {
+    search?: string;
+    keywordIds?: string[];
+    startDate?: Date;
+    endDate?: Date;
+    userId?: string;
+    limit?: number;
+    page?: number;
+    sortBy?: string;
+    entityFilter?: {
+      type: 'software' | 'hardware' | 'vendor' | 'client';
+      name: string;
+    };
+  } = {}) => {
     try {
       const { search, keywordIds, startDate, endDate, userId, limit, page, sortBy = 'relevance', entityFilter } =
         options;
-      const pageNum = page || 1;
-      const pageSize = limit || 50;
+      
+      // SECURITY: userId is required for authorization scoping
+      if (!userId) {
+        throw new Error("userId is required for article queries");
+      }
+      
+      // Defensive caps for limit and page (belt-and-suspenders with router validation)
+      const pageNum = Math.max(1, page || 1);
+      const pageSize = Math.min(100, Math.max(1, limit || 50));
 
       // Step 1: Get user's enabled sources
       const sourceIds = await getUserEnabledSources(userId, "threat_tracker");
