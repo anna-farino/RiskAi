@@ -37,13 +37,6 @@ app.use(setNonce)
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
-
-// Test route directly in server
-app.post('/api/test-scraping/test-article-direct', (req, res) => {
-  console.log('[SERVER] Direct test route hit');
-  res.json({ success: true, message: 'Direct test route works' });
-});
-
 app.use('/api', router);
 
 if (isDevelopment) {
