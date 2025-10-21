@@ -31,6 +31,7 @@ interface SoftwareExtraction {
   versionTo?: string;
   vendor?: string;
   category?: string;
+  isMalware?: boolean;
   specificity: 'generic' | 'partial' | 'specific';
   confidence: number;
   context: string;
