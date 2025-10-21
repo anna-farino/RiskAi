@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-const testUrl = 'https://thehackernews.com/2025/10/north-korean-hackers-combine-beavertail.html';
+const testUrl = 'https://thehackernews.com/2025/10/hackers-abuse-blockchain-smart.html';
 
 async function testEntityExtraction() {
   console.log('='.repeat(80));
