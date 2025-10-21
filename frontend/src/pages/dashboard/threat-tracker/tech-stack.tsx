@@ -188,6 +188,48 @@ export default function TechStackPage() {
     }
   });
 
+  // Bulk toggle mutation - enable/disable multiple items at once
+  const bulkToggle = useMutation({
+    mutationFn: async ({ type, isActive }: { type?: string; isActive: boolean }) => {
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/bulk-toggle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type || 'all', isActive })
+      });
+      if (!response.ok) throw new Error('Failed to bulk toggle items');
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      const typeLabel = variables.type || 'all';
+      toast({
+        title: variables.isActive ? "Items enabled" : "Items disabled",
+        description: `${variables.isActive ? 'Enabled' : 'Disabled'} ${typeLabel} items`
+      });
+    }
+  });
+
+  // Bulk delete mutation - delete multiple items at once
+  const bulkDelete = useMutation({
+    mutationFn: async ({ type }: { type?: string }) => {
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/bulk-delete', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: type || 'all' })
+      });
+      if (!response.ok) throw new Error('Failed to bulk delete items');
+      return response.json();
+    },
+    onSuccess: (data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      const typeLabel = variables.type || 'all';
+      toast({
+        title: "Items deleted",
+        description: `Deleted ${typeLabel} items from tech stack`
+      });
+    }
+  });
+
   // Helper component for tech stack items with threat indicators
   const TechStackItem = ({ 
     item, 
@@ -661,17 +703,7 @@ export default function TechStackPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // Enable all items across all categories
-                  const allItems = [
-                    ...(techStack?.software || []).map(item => ({ id: item.id, type: 'software' })),
-                    ...(techStack?.hardware || []).map(item => ({ id: item.id, type: 'hardware' })),
-                    ...(techStack?.vendors || []).map(item => ({ id: item.id, type: 'vendor' })),
-                    ...(techStack?.clients || []).map(item => ({ id: item.id, type: 'client' }))
-                  ];
-                  
-                  allItems.forEach(item => {
-                    toggleItem.mutate({ itemId: item.id, type: item.type, isActive: true });
-                  });
+                  bulkToggle.mutate({ isActive: true });
                 }}
                 className="h-8 px-3 text-xs"
                 data-testid="button-enable-all"
@@ -682,17 +714,7 @@ export default function TechStackPage() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  // Disable all items across all categories
-                  const allItems = [
-                    ...(techStack?.software || []).map(item => ({ id: item.id, type: 'software' })),
-                    ...(techStack?.hardware || []).map(item => ({ id: item.id, type: 'hardware' })),
-                    ...(techStack?.vendors || []).map(item => ({ id: item.id, type: 'vendor' })),
-                    ...(techStack?.clients || []).map(item => ({ id: item.id, type: 'client' }))
-                  ];
-                  
-                  allItems.forEach(item => {
-                    toggleItem.mutate({ itemId: item.id, type: item.type, isActive: false });
-                  });
+                  bulkToggle.mutate({ isActive: false });
                 }}
                 className="h-8 px-3 text-xs"
                 data-testid="button-disable-all"
@@ -704,17 +726,7 @@ export default function TechStackPage() {
                 size="sm"
                 onClick={() => {
                   if (confirm('Are you sure you want to delete ALL items from your technology stack? This cannot be undone.')) {
-                    // Delete all items across all categories
-                    const allItems = [
-                      ...(techStack?.software || []).map(item => ({ id: item.id, type: 'software' })),
-                      ...(techStack?.hardware || []).map(item => ({ id: item.id, type: 'hardware' })),
-                      ...(techStack?.vendors || []).map(item => ({ id: item.id, type: 'vendor' })),
-                      ...(techStack?.clients || []).map(item => ({ id: item.id, type: 'client' }))
-                    ];
-                    
-                    allItems.forEach(item => {
-                      removeItem.mutate({ itemId: item.id, type: item.type });
-                    });
+                    bulkDelete.mutate({});
                   }
                 }}
                 className="h-8 px-3 text-xs"
@@ -781,9 +793,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.software.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'software', isActive: true });
-                          });
+                          bulkToggle.mutate({ type: 'software', isActive: true });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -793,9 +803,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.software.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'software', isActive: false });
-                          });
+                          bulkToggle.mutate({ type: 'software', isActive: false });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -806,9 +814,7 @@ export default function TechStackPage() {
                         size="sm"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete all software items? This cannot be undone.')) {
-                            techStack.software.forEach(item => {
-                              removeItem.mutate({ itemId: item.id, type: 'software' });
-                            });
+                            bulkDelete.mutate({ type: 'software' });
                           }
                         }}
                         className="h-7 px-2 text-xs text-destructive hover:text-destructive"
@@ -894,9 +900,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.hardware.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'hardware', isActive: true });
-                          });
+                          bulkToggle.mutate({ type: 'hardware', isActive: true });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -906,9 +910,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.hardware.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'hardware', isActive: false });
-                          });
+                          bulkToggle.mutate({ type: 'hardware', isActive: false });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -919,9 +921,7 @@ export default function TechStackPage() {
                         size="sm"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete all hardware items? This cannot be undone.')) {
-                            techStack.hardware.forEach(item => {
-                              removeItem.mutate({ itemId: item.id, type: 'hardware' });
-                            });
+                            bulkDelete.mutate({ type: 'hardware' });
                           }
                         }}
                         className="h-7 px-2 text-xs text-destructive hover:text-destructive"
@@ -1007,9 +1007,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.vendors.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'vendor', isActive: true });
-                          });
+                          bulkToggle.mutate({ type: 'vendor', isActive: true });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -1019,9 +1017,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.vendors.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'vendor', isActive: false });
-                          });
+                          bulkToggle.mutate({ type: 'vendor', isActive: false });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -1032,9 +1028,7 @@ export default function TechStackPage() {
                         size="sm"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete all vendor items? This cannot be undone.')) {
-                            techStack.vendors.forEach(item => {
-                              removeItem.mutate({ itemId: item.id, type: 'vendor' });
-                            });
+                            bulkDelete.mutate({ type: 'vendor' });
                           }
                         }}
                         className="h-7 px-2 text-xs text-destructive hover:text-destructive"
@@ -1120,9 +1114,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.clients.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'client', isActive: true });
-                          });
+                          bulkToggle.mutate({ type: 'client', isActive: true });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -1132,9 +1124,7 @@ export default function TechStackPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => {
-                          techStack.clients.forEach(item => {
-                            toggleItem.mutate({ itemId: item.id, type: 'client', isActive: false });
-                          });
+                          bulkToggle.mutate({ type: 'client', isActive: false });
                         }}
                         className="h-7 px-2 text-xs"
                       >
@@ -1145,9 +1135,7 @@ export default function TechStackPage() {
                         size="sm"
                         onClick={() => {
                           if (confirm('Are you sure you want to delete all client items? This cannot be undone.')) {
-                            techStack.clients.forEach(item => {
-                              removeItem.mutate({ itemId: item.id, type: 'client' });
-                            });
+                            bulkDelete.mutate({ type: 'client' });
                           }
                         }}
                         className="h-7 px-2 text-xs text-destructive hover:text-destructive"
