@@ -711,7 +711,8 @@ threatRouter.post("/articles/query", async (req, res) => {
       endDate: endDateString,
       limit = 50,
       page = 1,
-      sortBy
+      sortBy,
+      entityFilter
     } = req.body;
     
     let startDate: Date | undefined;
@@ -744,8 +745,9 @@ threatRouter.post("/articles/query", async (req, res) => {
       userId,
       limit,
       page,
-      sortBy
-    });
+      sortBy,
+      entityFilter
+    } as any);
     
     res.json(articles);
   } catch (error: any) {

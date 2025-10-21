@@ -727,9 +727,9 @@ export const storage: IStorage = {
   },
 
   // ARTICLES
-  getArticles: async (options = {}) => {
+  getArticles: async (options: any = {}) => {
     try {
-      const { search, keywordIds, startDate, endDate, userId, limit, page, sortBy = 'relevance' } =
+      const { search, keywordIds, startDate, endDate, userId, limit, page, sortBy = 'relevance', entityFilter } =
         options;
       const pageNum = page || 1;
       const pageSize = limit || 50;
@@ -787,8 +787,8 @@ export const storage: IStorage = {
       // Only cybersecurity articles
       conditions.push(eq(globalArticles.isCybersecurity, true));
 
-      // Add search term filter
-      if (search && search.trim().length > 0) {
+      // Add search term filter (only if no entity filter)
+      if (search && search.trim().length > 0 && !entityFilter) {
         const searchTerm = search.trim();
 
         // For short terms (< 5 characters), use exact word boundary matching
@@ -810,53 +810,118 @@ export const storage: IStorage = {
         conditions.push(searchCondition);
       }
 
-      // Technology Stack entity filtering is REQUIRED
-      // Build the tech stack filtering conditions
+      // Technology Stack entity filtering
       const entityConditions = [];
       
-      // Software match
-      if (hasSoftware.length > 0) {
-        entityConditions.push(sql`
-          EXISTS (
-            SELECT 1 FROM ${articleSoftware} AS art_sw
-            INNER JOIN ${usersSoftware} AS user_sw 
-              ON art_sw.software_id = user_sw.software_id
-            WHERE art_sw.article_id = ${globalArticles.id}
-              AND user_sw.user_id = ${userId}
-              AND user_sw.is_active = true
-          )
-        `);
+      // If entity filter is provided, filter by specific entity
+      if (entityFilter && entityFilter.type && entityFilter.name) {
+        const { type, name } = entityFilter;
+        const trimmedName = name.trim();
+        let entityFound = false;
+        
+        if (type === 'software') {
+          // Find the specific software entity (case-insensitive)
+          const softwareEntity = await db.select({ id: software.id })
+            .from(software)
+            .where(sql`LOWER(${software.name}) = LOWER(${trimmedName})`)
+            .limit(1);
+          
+          if (softwareEntity.length > 0) {
+            entityFound = true;
+            entityConditions.push(sql`
+              EXISTS (
+                SELECT 1 FROM ${articleSoftware} AS art_sw
+                WHERE art_sw.article_id = ${globalArticles.id}
+                  AND art_sw.software_id = ${softwareEntity[0].id}
+              )
+            `);
+          }
+        } else if (type === 'hardware') {
+          // Find the specific hardware entity (case-insensitive)
+          const hardwareEntity = await db.select({ id: hardware.id })
+            .from(hardware)
+            .where(sql`LOWER(${hardware.name}) = LOWER(${trimmedName})`)
+            .limit(1);
+          
+          if (hardwareEntity.length > 0) {
+            entityFound = true;
+            entityConditions.push(sql`
+              EXISTS (
+                SELECT 1 FROM ${articleHardware} AS art_hw
+                WHERE art_hw.article_id = ${globalArticles.id}
+                  AND art_hw.hardware_id = ${hardwareEntity[0].id}
+              )
+            `);
+          }
+        } else if (type === 'vendor' || type === 'client') {
+          // Find the specific company entity (case-insensitive)
+          const companyEntity = await db.select({ id: companies.id })
+            .from(companies)
+            .where(sql`LOWER(${companies.name}) = LOWER(${trimmedName})`)
+            .limit(1);
+          
+          if (companyEntity.length > 0) {
+            entityFound = true;
+            entityConditions.push(sql`
+              EXISTS (
+                SELECT 1 FROM ${articleCompanies} AS art_co
+                WHERE art_co.article_id = ${globalArticles.id}
+                  AND art_co.company_id = ${companyEntity[0].id}
+              )
+            `);
+          }
+        }
+        
+        // If entity filter was provided but entity not found, return empty
+        if (!entityFound) {
+          return [];
+        }
+      } else {
+        // No entity filter - use broad tech stack filtering (all user's active entities)
+        // Software match
+        if (hasSoftware.length > 0) {
+          entityConditions.push(sql`
+            EXISTS (
+              SELECT 1 FROM ${articleSoftware} AS art_sw
+              INNER JOIN ${usersSoftware} AS user_sw 
+                ON art_sw.software_id = user_sw.software_id
+              WHERE art_sw.article_id = ${globalArticles.id}
+                AND user_sw.user_id = ${userId}
+                AND user_sw.is_active = true
+            )
+          `);
+        }
+        
+        // Hardware match
+        if (hasHardware.length > 0) {
+          entityConditions.push(sql`
+            EXISTS (
+              SELECT 1 FROM ${articleHardware} AS art_hw
+              INNER JOIN ${usersHardware} AS user_hw 
+                ON art_hw.hardware_id = user_hw.hardware_id
+              WHERE art_hw.article_id = ${globalArticles.id}
+                AND user_hw.user_id = ${userId}
+                AND user_hw.is_active = true
+            )
+          `);
+        }
+        
+        // Company match (vendors and clients)
+        if (hasCompanies.length > 0) {
+          entityConditions.push(sql`
+            EXISTS (
+              SELECT 1 FROM ${articleCompanies} AS art_co
+              INNER JOIN ${usersCompanies} AS user_co 
+                ON art_co.company_id = user_co.company_id
+              WHERE art_co.article_id = ${globalArticles.id}
+                AND user_co.user_id = ${userId}
+                AND user_co.is_active = true
+            )
+          `);
+        }
       }
       
-      // Hardware match
-      if (hasHardware.length > 0) {
-        entityConditions.push(sql`
-          EXISTS (
-            SELECT 1 FROM ${articleHardware} AS art_hw
-            INNER JOIN ${usersHardware} AS user_hw 
-              ON art_hw.hardware_id = user_hw.hardware_id
-            WHERE art_hw.article_id = ${globalArticles.id}
-              AND user_hw.user_id = ${userId}
-              AND user_hw.is_active = true
-          )
-        `);
-      }
-      
-      // Company match (vendors and clients)
-      if (hasCompanies.length > 0) {
-        entityConditions.push(sql`
-          EXISTS (
-            SELECT 1 FROM ${articleCompanies} AS art_co
-            INNER JOIN ${usersCompanies} AS user_co 
-              ON art_co.company_id = user_co.company_id
-            WHERE art_co.article_id = ${globalArticles.id}
-              AND user_co.user_id = ${userId}
-              AND user_co.is_active = true
-          )
-        `);
-      }
-      
-      // Articles must match at least one tech stack entity
+      // Articles must match at least one tech stack entity (or the specific filtered entity)
       if (entityConditions.length > 0) {
         conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
       }

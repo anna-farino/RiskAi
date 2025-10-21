@@ -195,17 +195,26 @@ export default function ThreatHome() {
       selectedKeywordIds,
       originalDateRange,
       sortOrder,
+      entityFilter,
     ],
     queryFn: async () => {
       try {
         // Build request body for POST request
         const requestBody = {
-          search: searchTerm || undefined,
-          keywordIds: selectedKeywordIds.length > 0 ? selectedKeywordIds : undefined,
-          startDate: originalDateRange.startDate 
+          // If entity filter is present, pass it separately from search term
+          entityFilter: entityFilter ? {
+            type: entityFilter.type,
+            name: entityFilter.name
+          } : undefined,
+          // Only use search as text search if no entity filter
+          search: (!entityFilter && searchTerm) ? searchTerm : undefined,
+          // Don't send keywordIds when entity filter is active (to match count logic)
+          keywordIds: (!entityFilter && selectedKeywordIds.length > 0) ? selectedKeywordIds : undefined,
+          // Don't send date range when entity filter is active (to match count logic)
+          startDate: (!entityFilter && originalDateRange.startDate) 
             ? `${originalDateRange.startDate}T00:00:00.000Z` 
             : undefined,
-          endDate: originalDateRange.endDate 
+          endDate: (!entityFilter && originalDateRange.endDate) 
             ? `${originalDateRange.endDate}T23:59:59.999Z` 
             : undefined,
           sortBy: sortOrder.toLowerCase().replace(" ", "_"),
