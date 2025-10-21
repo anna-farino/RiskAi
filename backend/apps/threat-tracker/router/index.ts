@@ -2,7 +2,7 @@ import { insertThreatKeywordSchema, insertThreatSourceSchema } from "@shared/db/
 import { User } from "@shared/db/schema/user";
 import { storage } from "../queries/threat-tracker";
 import { unifiedStorage } from "backend/services/unified-storage";
-import { isUserJobRunning, runGlobalScrapeJob, scrapeSource, stopGlobalScrapeJob } from "../services/background-jobs";
+import { isUserJobRunning } from "../services/background-jobs";
 // Using global scheduler from backend/services/global-scheduler.ts
 import { getGlobalSchedulerStatus } from "backend/services/global-scheduler";
 import { log } from "backend/utils/log";
@@ -10,6 +10,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
 import { extractTitlesFromUrls, isValidUrl } from "backend/services/scraping/extractors/title-extraction/bulk-title-extractor";
+import techStackRouter from "./tech-stack";
 
 export const threatRouter = Router();
 
@@ -482,12 +483,40 @@ threatRouter.delete("/admin/sources/:id", async (req, res) => {
   }
 });
 
+// Threat Actors API
+threatRouter.get("/threat-actors", async (req, res) => {
+  reqLog(req, "GET /threat-actors");
+  try {
+    const actors = await storage.getThreatActors();
+    res.json(actors);
+  } catch (error: any) {
+    console.error("Error fetching threat actors:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch threat actors" });
+  }
+});
+
+threatRouter.get("/threat-actors/:id", async (req, res) => {
+  reqLog(req, `GET /threat-actors/${req.params.id}`);
+  try {
+    const actor = await storage.getThreatActor(req.params.id);
+    if (!actor) {
+      return res.status(404).json({ error: "Threat actor not found" });
+    }
+    res.json(actor);
+  } catch (error: any) {
+    console.error("Error fetching threat actor:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch threat actor" });
+  }
+});
+
 // Keywords API
-threatRouter.get("/keywords", async (req, res) => {
-  reqLog(req, "GET /keywords");
+
+// POST endpoint for fetching keywords - handles potential future filtering
+threatRouter.post("/keywords/list", async (req, res) => {
+  reqLog(req, "POST /keywords/list");
   try {
     const userId = getUserId(req);
-    const category = req.query.category as string | undefined;
+    const { category } = req.body;
     const keywords = await storage.getKeywords(category, userId);
     res.json(keywords);
   } catch (error: any) {
@@ -634,6 +663,26 @@ threatRouter.delete("/keywords/:id", async (req, res) => {
 });
 
 // Articles API - Phase 5: Using unified storage to read from global_articles
+
+// POST endpoint for article count - handles large keyword lists in body
+threatRouter.post("/articles/count", async (req, res) => {
+  reqLog(req, "POST /articles/count");
+  try {
+    const userId = getUserId(req);
+    
+    // Extract filters from request body
+    const { keywordIds } = req.body;
+    
+    // For now, just get the total count (filtering by keywords happens at query time)
+    const count = await unifiedStorage.getUserArticleCount(userId, 'threat-tracker');
+    res.json({ count });
+  } catch (error: any) {
+    console.error("Error fetching article count:", error);
+    res.status(500).json({ error: error.message || "Failed to fetch article count" });
+  }
+});
+
+// Keep GET endpoint for backward compatibility
 threatRouter.get("/articles/count", async (req, res) => {
   reqLog(req, "GET /articles/count");
   try {
@@ -648,49 +697,81 @@ threatRouter.get("/articles/count", async (req, res) => {
   }
 });
 
-threatRouter.get("/articles", async (req, res) => {
-  reqLog(req, "GET /articles");
+// Zod schema for article query request
+const articleQuerySchema = z.object({
+  search: z.string().max(500).optional(),
+  keywordIds: z.union([z.array(z.string()), z.string()]).transform(val => {
+    if (!val) return undefined;
+    const arr = Array.isArray(val) ? val : [val];
+    // Cap array length to prevent DoS via overly wide IN clauses
+    return arr.slice(0, 200);
+  }).optional(),
+  startDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
+  endDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
+  limit: z.number().int().min(1).max(100).optional().default(50),
+  page: z.number().int().min(1).optional().default(1),
+  sortBy: z.string().optional(),
+  entityFilter: z.object({
+    type: z.enum(['software', 'hardware', 'vendor', 'client']),
+    name: z.string().min(1).max(256).transform(s => s.trim())
+  }).optional()
+});
+
+// POST endpoint for articles - handles large keyword lists in body
+threatRouter.post("/articles/query", async (req, res) => {
+  reqLog(req, "POST /articles/query");
   try {
     const userId = getUserId(req);
     
-    // Parse filter parameters
-    const search = req.query.search as string | undefined;
-    const keywordIds = req.query.keywordIds;
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 50;
-    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    // Ensure user is authenticated
+    if (!userId) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    
+    // Validate request body
+    const validation = articleQuerySchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ 
+        error: "Invalid request parameters",
+        details: validation.error.issues 
+      });
+    }
+    
+    // Extract filters from validated request body
+    const {
+      search,
+      keywordIds,
+      startDate: startDateString,
+      endDate: endDateString,
+      limit,
+      page,
+      sortBy,
+      entityFilter
+    } = validation.data;
     
     let startDate: Date | undefined;
     let endDate: Date | undefined;
     
-    if (req.query.startDate) {
-      startDate = new Date(req.query.startDate as string);
+    if (startDateString) {
+      startDate = new Date(startDateString);
     }
     
-    if (req.query.endDate) {
-      endDate = new Date(req.query.endDate as string);
+    if (endDateString) {
+      endDate = new Date(endDateString);
     }
     
-    // Prepare filter object for unified storage
-    const filter: any = {
-      searchTerm: search,
+    // Call threat-tracker storage directly with Technology Stack support
+    const articles = await storage.getArticles({
+      search,
+      keywordIds,
       startDate,
       endDate,
+      userId,
       limit,
-      offset: (page - 1) * limit
-    };
-    
-    // Add keyword IDs filter if provided
-    if (keywordIds) {
-      if (Array.isArray(keywordIds)) {
-        filter.keywordIds = keywordIds.filter(id => typeof id === 'string') as string[];
-      } else if (typeof keywordIds === 'string') {
-        filter.keywordIds = [keywordIds];
-      }
-    }
-    
-    // Use unified storage to get articles from global_articles table
-    // Threat tracker only shows cybersecurity articles (handled by unified storage)
-    const articles = await unifiedStorage.getUserArticles(userId, 'threat-tracker', filter);
+      page,
+      sortBy,
+      entityFilter: entityFilter as { type: 'software' | 'hardware' | 'vendor' | 'client'; name: string } | undefined
+    });
     
     res.json(articles);
   } catch (error: any) {
@@ -698,6 +779,7 @@ threatRouter.get("/articles", async (req, res) => {
     res.status(500).json({ error: error.message || "Failed to fetch articles" });
   }
 });
+
 
 threatRouter.get("/articles/:id", async (req, res) => {
   reqLog(req, `GET /articles/${req.params.id}`);
@@ -826,82 +908,7 @@ threatRouter.get("/articles/marked-for-capsule", async (req, res) => {
   }
 });
 
-// Scraping API
-threatRouter.post("/scrape/source/:id", async (req, res) => {
-  reqLog(req, `POST /scrape/source/${req.params.id}`);
-  try {
-    const sourceId = req.params.id;
-    const userId = getUserId(req);
-    
-    // Check if the source exists and belongs to the user
-    const source = await storage.getSource(sourceId);
-    if (!source) {
-      return res.status(404).json({ error: "Source not found" });
-    }
-    
-    if (source.userId && source.userId !== userId) {
-      return res.status(403).json({ error: "Not authorized to scrape this source" });
-    }
-    
-    // Scrape the source (global - no userId needed)
-    const newArticles = await scrapeSource(source);
-    
-    res.json({
-      message: `Successfully scraped source: ${source.name}`,
-      articleCount: newArticles ? newArticles.length : 0,
-      articles: newArticles
-    });
-  } catch (error: any) {
-    console.error("Error scraping source:", error);
-    res.status(500).json({ error: error.message || "Failed to scrape source" });
-  }
-});
-
-threatRouter.post("/scrape/all", async (req, res) => {
-  reqLog(req, "POST /scrape/all");
-  try {
-    // Global scrape no longer needs userId - runs for all sources
-    
-    // Start the global scrape job (no userId needed)
-    const job = runGlobalScrapeJob();
-    
-    res.json({
-      message: "Global scrape job started",
-      job
-    });
-  } catch (error: any) {
-    console.error("Error starting global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to start global scrape job" });
-  }
-});
-
-threatRouter.post("/scrape/stop", async (req, res) => {
-  reqLog(req, "POST /scrape/stop");
-  try {
-    // Stop global scrape job (no userId needed)
-    const result = stopGlobalScrapeJob();
-    res.json(result);
-  } catch (error: any) {
-    console.error("Error stopping global scrape job:", error);
-    res.status(500).json({ error: error.message || "Failed to stop global scrape job" });
-  }
-});
-
-threatRouter.get("/scrape/status", async (req, res) => {
-  reqLog(req, "GET /scrape/status");
-  try {
-    const userId = getUserId(req);
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" });
-    }
-    
-    const isRunning = isUserJobRunning(userId);
-    res.json({ running: isRunning });
-  } catch (error: any) {
-    console.error("Error checking scrape job status:", error);
-    res.status(500).json({ error: error.message || "Failed to check scrape job status" });
-  }
-});
+// Scraping API removed - all scraping now handled by global scheduler
 
 // Auto-scrape settings API - now returns global scheduler status
 threatRouter.get("/settings/auto-scrape", async (req, res) => {
@@ -960,4 +967,6 @@ threatRouter.post("/scheduler/reinitialize", async (req, res) => {
   }
 });
 
+// Register tech-stack router
+threatRouter.use("/tech-stack", techStackRouter);
 

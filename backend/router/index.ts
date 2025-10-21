@@ -52,6 +52,29 @@ router.use("/live-logs-management", liveLogsRouter);
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
 
+// CSRF TOKEN INITIALIZATION (must be before protected routes)
+router.get("/csrf-token", limiter, (req: Request, res: Response) => {
+  // Import generateToken from CSRF middleware
+  const { generateToken, csrfCookieOptions } = require("../middleware/csrf");
+  
+  // Log cookie options for debugging
+  console.log('[CSRF] Cookie options:', csrfCookieOptions);
+  console.log('[CSRF] Request hostname:', req.hostname);
+  console.log('[CSRF] Request origin:', req.headers.origin);
+  
+  // Generate CSRF token and set cookie
+  const csrfToken = generateToken(req, res);
+  
+  console.log('[CSRF] Generated token:', csrfToken ? 'Token generated' : 'Failed to generate');
+  
+  // Return the token in response as well
+  res.json({ 
+    success: true,
+    token: csrfToken,
+    message: "CSRF token initialized" 
+  });
+});
+
 // AUTH
 router.use("/auth", limiter, authRouter);
 

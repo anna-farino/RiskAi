@@ -14,8 +14,9 @@ import { detectHtmlStructure } from "backend/services/scraping/extractors/struct
 // Global strategy
 import { GlobalStrategy } from "backend/services/scraping/strategies/global-strategy";
 // AI services
-import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai";
-import { analyzeContent } from "../../apps/news-radar/services/openai";
+import { analyzeCybersecurity, calculateSecurityRisk, extractArticleEntities, summarizeArticle } from "backend/services/openai";
+import { EntityManager } from "backend/services/entity-manager";
+import { ThreatAnalyzer } from "backend/services/threat-analysis";
 // Content validation
 import { isValidArticleContent, isValidTitle, extractTitleFromUrl } from "../scraping/validators/content-validator";
 // Error logging
@@ -41,11 +42,11 @@ let globalJobRunning = false;
  */
 function createGlobalContext(sourceId?: string, sourceUrl?: string, sourceName?: string): ScrapingContextInfo {
   return {
-    userId: undefined, // Global scraping has no user
+    userId: undefined, // Global scraping has no user - optional field
     sourceId,
     sourceUrl,
     sourceName,
-    appType: 'news-radar' // Use news-radar as default for global scraping
+    appType: 'threat-tracker' as AppType // Use threat-tracker for global cybersecurity analysis
   };
 }
 
@@ -191,9 +192,8 @@ async function scrapeGlobalSource(
 
         // Step 4: AI Analysis for ALL articles
         log(`[Global Scraping] Analyzing article with AI`, "scraper");
-        const analysis = await analyzeContent(
-          articleContent.content,
-          [], // No keywords for global scraping
+        const summary = await summarizeArticle(
+          `${articleContent.title || finalTitle}\n\n${articleContent.content}`
         );
 
         // Analyze for cybersecurity relevance (adds metadata, doesn't filter)
@@ -203,9 +203,48 @@ async function scrapeGlobalSource(
         });
         const isCybersecurity = cybersecurityAnalysis?.isCybersecurity || false;
         
-        // Calculate security risk score if it's a cybersecurity article
+        // Initialize threat scoring and entity data
         let securityScore = null;
+        let threatSeverityScore = null;
+        let threatMetadata = null;
+        let threatLevel = null;
+        let extractedEntities = null;
+        let entitiesExtracted = false;
+        
         if (isCybersecurity) {
+          // Extract entities from the article using AI
+          log(`[Global Scraping] Extracting entities from article`, "scraper");
+          try {
+            extractedEntities = await extractArticleEntities({
+              title: finalTitle,
+              content: articleContent.content,
+              url: link
+            });
+            entitiesExtracted = true;
+            
+            // Calculate threat severity score (user-independent)
+            const threatAnalyzer = new ThreatAnalyzer();
+            const severityResult = await threatAnalyzer.calculateSeverityScore(
+              {
+                title: finalTitle,
+                content: articleContent.content,
+                publishDate: articleContent.publishDate || new Date(),
+                attackVectors: []  // We don't have attack vectors yet
+              } as any,  // Cast temporarily until we fix the type signature
+              extractedEntities
+            );
+            
+            threatSeverityScore = severityResult.severityScore;
+            threatLevel = severityResult.threatLevel;
+            threatMetadata = severityResult.metadata;
+            
+            log(`[Global Scraping] Threat severity score: ${threatSeverityScore} (${threatLevel})`, "scraper");
+          } catch (error) {
+            log(`[Global Scraping] Entity extraction failed: ${error.message}`, "scraper");
+            // Don't fail the whole article if entity extraction fails
+          }
+          
+          // Keep backward compatibility with old risk analysis
           const riskAnalysis = await calculateSecurityRisk({
             title: articleContent.title || "",
             content: articleContent.content
@@ -213,11 +252,7 @@ async function scrapeGlobalSource(
           securityScore = riskAnalysis?.score || null;
         }
 
-        // Prepare detected keywords with cybersecurity flag
-        const detectedKeywords = analysis.detectedKeywords || [];
-        if (isCybersecurity) {
-          detectedKeywords.push('_cyber:true');
-        }
+        // No keywords are used in global scraping
 
         // Step 5: Save article to globalArticles table
         const [savedArticle] = await db
@@ -229,14 +264,34 @@ async function scrapeGlobalSource(
             url: link,
             author: articleContent.author || "Unknown",
             publishDate: articleContent.publishDate || new Date(),
-            summary: analysis.summary || "",
-            detectedKeywords: detectedKeywords,
+            summary: summary || "",
+            detectedKeywords: {}, // Empty object for backward compatibility
             isCybersecurity: isCybersecurity, // Mark if it's a cybersecurity article
             securityScore: securityScore, // Add security score if it's a cybersecurity article
+            threatSeverityScore: threatSeverityScore ? threatSeverityScore.toString() : null, // Add threat severity score
+            threatMetadata: threatMetadata || null, // Add threat metadata
+            threatLevel: threatLevel || null, // Add threat level
+            entitiesExtracted: entitiesExtracted, // Mark if entities were extracted
           })
           .returning();
 
         log(`[Global Scraping] Saved article: ${savedArticle.title} - ${articleContent.content.length} chars (Cyber: ${isCybersecurity}, Risk: ${securityScore || 'N/A'})`, "scraper");
+        
+        // Link entities to the article if we extracted them
+        if (isCybersecurity && extractedEntities && savedArticle?.id) {
+          try {
+            log(`[Global Scraping] Linking entities to article ${savedArticle.id}`, "scraper");
+            const entityManager = new EntityManager();
+            // Pass the full article content for validation
+            const fullContent = `${savedArticle.title || ''} ${articleContent.content || ''} ${summary || ''}`;
+            await entityManager.linkArticleToEntities(savedArticle.id, extractedEntities, fullContent);
+            log(`[Global Scraping] Successfully linked entities to article`, "scraper");
+          } catch (error) {
+            log(`[Global Scraping] Failed to link entities: ${error.message}`, "scraper");
+            // Don't fail the whole article processing if entity linking fails
+          }
+        }
+        
         savedCount++;
         newArticleIds.push(savedArticle.id);
       } catch (error) {

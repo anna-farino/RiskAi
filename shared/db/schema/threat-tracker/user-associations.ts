@@ -45,7 +45,7 @@ export const usersCompanies = pgTable('users_companies', {
   addedAt: timestamp('added_at').defaultNow(),
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(50), // For relevance scoring (1-100)
-  metadata: jsonb('metadata')
+  metadata: jsonb('metadata') // Stores additional info like { source: 'auto-software' }
 }, (table) => {
   return {
     pk: primaryKey({ columns: [table.userId, table.companyId] }),

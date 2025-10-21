@@ -5,17 +5,20 @@ import {
   User,
   Loader2,
   AlertTriangle,
+  AlertCircle,
   Shield,
   CheckCircle2,
   Zap,
   Send,
+  ChevronDown,
+  ChevronUp,
+  Bug,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
-import { Progress } from "@/components/ui/progress";
 import { formatDateOnly } from "@/utils/date-utils";
 
 
@@ -24,6 +27,25 @@ interface ExtendedThreatArticle extends ThreatArticle {
   securityScore: string | null;
   sourceName?: string | null;
   matchedKeywords?: string[];
+  matchedSoftware?: string[];
+  matchedCompanies?: string[];
+  matchedHardware?: string[];
+  matchedMalware?: string[]; // New field for malware
+  threatSeverityScore?: string | number | null;
+  threatLevel?: string | null;
+  threatMetadata?: any;
+  cves?: string[];
+  affectedSoftware?: Array<{
+    name: string;
+    confidence: number;
+    specificity: string;
+  }>;
+  attackVectors?: string[];
+  threatActors?: string[];
+  // New threat-related fields
+  matchedThreatActors?: string[];
+  matchedCves?: string[];
+  matchedThreatKeywords?: string[];
 }
 
 interface ThreatArticleCardProps {
@@ -35,12 +57,6 @@ interface ThreatArticleCardProps {
   totalArticles?: number;
 }
 
-interface KeywordCategories {
-  threats: string[];
-  vendors: string[];
-  clients: string[];
-  hardware: string[];
-}
 
 export function ThreatArticleCard({
   article,
@@ -52,6 +68,8 @@ export function ThreatArticleCard({
 }: ThreatArticleCardProps) {
   const [openAlert, setOpenAlert] = useState(false);
   const [sendingToCapsule, setSendingToCapsule] = useState(false);
+  const [expandedEntities, setExpandedEntities] = useState(false);
+  const [expandedThreats, setExpandedThreats] = useState(false);
 
   const handleSendToCapsule = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -77,70 +95,60 @@ export function ThreatArticleCard({
     typeof article.securityScore === "string"
       ? parseInt(article.securityScore, 10)
       : article.securityScore || 0;
+      
+  // Parse the new threat severity score (0-100 scale)
+  const threatSeverityScore = 
+    typeof article.threatSeverityScore === "string"
+      ? parseFloat(article.threatSeverityScore)
+      : typeof article.threatSeverityScore === "number"
+      ? article.threatSeverityScore
+      : 0;
 
   // Safety check in case scores are NaN
   const normalizedRelevanceScore = isNaN(relevanceScore) ? 0 : relevanceScore;
   const normalizedSecurityScore = isNaN(securityScore) ? 0 : securityScore;
+  const normalizedThreatSeverity = isNaN(threatSeverityScore) ? 0 : threatSeverityScore;
 
-  // Calculate color based on score (0-10 scale)
-  const getScoreColor = (score: number) => {
-    if (score >= 8) return "text-red-500";
-    if (score >= 6) return "text-orange-500";
-    if (score >= 4) return "text-yellow-500";
-    return "text-green-500";
-  };
-
-  // Progress bar color based on score
-  const getProgressColor = (score: number) => {
-    if (score >= 8) return "bg-red-500";
-    if (score >= 6) return "bg-orange-500";
-    if (score >= 4) return "bg-yellow-500";
-    return "bg-green-500";
-  };
-
-  // Get all detected keywords from the different categories
-  const getDetectedKeywords = (): KeywordCategories => {
-    if (!article.detectedKeywords)
-      return { threats: [], vendors: [], clients: [], hardware: [] };
-
-    try {
-      // If it's already an object with categories
-      if (
-        typeof article.detectedKeywords === "object" &&
-        !Array.isArray(article.detectedKeywords)
-      ) {
-        return article.detectedKeywords as KeywordCategories;
-      }
-
-      // If it's a string, parse it
-      if (typeof article.detectedKeywords === "string") {
-        try {
-          return JSON.parse(article.detectedKeywords) as KeywordCategories;
-        } catch (e) {
-          return { threats: [], vendors: [], clients: [], hardware: [] };
-        }
-      }
-
-      // Default empty structure
-      return { threats: [], vendors: [], clients: [], hardware: [] };
-    } catch (e) {
-      console.error("Error parsing detected keywords:", e);
-      return { threats: [], vendors: [], clients: [], hardware: [] };
+  // Get threat level badge color and styling
+  const getThreatLevelColor = (level: string) => {
+    switch(level?.toLowerCase()) {
+      case 'critical': return 'bg-red-500 text-white border-red-600';
+      case 'high': return 'bg-orange-500 text-white border-orange-600';
+      case 'medium': return 'bg-yellow-400 text-black border-yellow-500';
+      case 'low': return 'bg-green-500 text-white border-green-600';
+      default: return 'bg-gray-500 text-white border-gray-600';
     }
   };
 
-  const detectedKeywords = getDetectedKeywords();
-  const hasKeywords = Object.values(detectedKeywords).some(
-    (arr: string[]) => arr.length > 0,
-  );
+  // Convert relevance score to categorical
+  const getRelevanceCategory = (score: number): string => {
+    if (score >= 70) return 'High';
+    if (score >= 40) return 'Medium';
+    return 'Low';
+  };
 
-  // Unified accent color based on threat severity using consistent scale
+  const getRelevanceColor = (category: string) => {
+    if (category === 'High') return 'bg-purple-500 text-white border-purple-600';
+    if (category === 'Medium') return 'bg-blue-500 text-white border-blue-600';
+    return 'bg-gray-400 text-black border-gray-500';
+  };
+  
+  // Get threat level from article
+  const threatLevel = article.threatLevel || 'low';
+  const relevanceCategory = getRelevanceCategory(normalizedRelevanceScore);
+
+  // detectedKeywords is no longer used - we get threat indicators from other sources
+  // (matchedThreatKeywords, matchedCves, matchedThreatActors)
+
+  // Unified accent color based on threat level
   const getUnifiedAccentColor = () => {
-    if (normalizedSecurityScore >= 8) return "from-red-500/30";    // Critical - red
-    if (normalizedSecurityScore >= 6) return "from-orange-500/30"; // High - orange  
-    if (normalizedSecurityScore >= 4) return "from-yellow-500/30"; // Medium - yellow
-    if (normalizedSecurityScore >= 2) return "from-blue-500/30";   // Low - blue
-    return "from-[#00FFFF]/30"; // Minimal - primary cyan
+    switch(threatLevel?.toLowerCase()) {
+      case 'critical': return "from-red-500/30";
+      case 'high': return "from-orange-500/30";
+      case 'medium': return "from-yellow-500/30";  
+      case 'low': return "from-blue-500/30";
+      default: return "from-[#00FFFF]/30";
+    }
   };
 
   return (
@@ -163,65 +171,37 @@ export function ThreatArticleCard({
         ></div>
 
         <div className="flex-1 p-4 sm:p-5 flex flex-col">
-          <div className="flex justify-between items-start mb-3">
-            <h3 className="text-lg font-semibold text-white line-clamp-2 leading-6 group-hover:text-[#00FFFF] transition-colors flex-1 pr-2">
-              <a
-                href={article.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:underline cursor-pointer"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {article.title}
-              </a>
-            </h3>
+          <h3 className="text-lg font-semibold text-white line-clamp-2 leading-6 group-hover:text-[#00FFFF] transition-colors mb-2">
+            <a
+              href={article.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:underline cursor-pointer"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {article.title}
+            </a>
+          </h3>
 
-            {/* Threat severity score badge */}
-            <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded-full flex-shrink-0">
-              <Zap
-                className={cn(
-                  "h-3.5 w-3.5",
-                  getScoreColor(normalizedSecurityScore),
-                )}
-              />
-              <span
-                className={cn(
-                  "text-xs font-semibold leading-4",
-                  getScoreColor(normalizedSecurityScore),
-                )}
-              >
-                {normalizedSecurityScore}/10
-              </span>
+          {/* Threat level and relevance badges */}
+          <div className="flex items-center gap-2 mb-3">
+            {/* Threat severity badge */}
+            <div className={cn(
+              "text-xs px-3 py-1.5 rounded-md font-medium whitespace-nowrap border",
+              getThreatLevelColor(threatLevel)
+            )}>
+              <span className="font-normal">Threat Severity :</span> <span className="font-bold">{threatLevel.charAt(0).toUpperCase() + threatLevel.slice(1).toLowerCase()}</span>
+            </div>
+            
+            {/* Relevance badge */}
+            <div className={cn(
+              "text-xs px-3 py-1.5 rounded-md font-medium whitespace-nowrap border",
+              getRelevanceColor(relevanceCategory)
+            )}>
+              <span className="font-normal">Relevance :</span> <span className="font-bold">{relevanceCategory}</span>
             </div>
           </div>
 
-          {/* Score indicators */}
-          <div className="space-y-3 mb-3">
-            {/* Severity score indicator */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-400 flex items-center gap-1 leading-4">
-                  <Zap className="h-3 w-3" /> Threat Severity
-                </span>
-                <span
-                  className={cn(
-                    "text-xs font-medium leading-4",
-                    getScoreColor(normalizedSecurityScore),
-                  )}
-                >
-                  {normalizedSecurityScore * 10}%
-                </span>
-              </div>
-              <Progress
-                value={normalizedSecurityScore * 10}
-                className="h-1.5 bg-slate-700/50"
-                indicatorClassName={cn(
-                  "transition-all",
-                  getProgressColor(normalizedSecurityScore),
-                )}
-              />
-            </div>
-          </div>
 
           <div className="flex items-center gap-3 mb-3">
             {(article.author && article.author !== "Unknown") ? (
@@ -252,216 +232,238 @@ export function ThreatArticleCard({
             {article.summary}
           </p>
 
-          {hasKeywords && (
-            <div className="space-y-2 mb-4">
-              {detectedKeywords.threats &&
-                detectedKeywords.threats.length > 0 && (
-                  <div>
-                    <span className="text-xs text-red-400 flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <AlertTriangle className="h-3 w-3" /> Threats
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.threats
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`threat-${keyword}`}
-                            variant="outline"
-                            className="bg-red-500/10 text-xs font-medium text-red-400 hover:bg-red-500/20 hover:text-red-400 border-red-500/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "threat");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.threats.length > 3 && (
-                        <span className="text-xs font-medium text-red-400 leading-4">
-                          +{detectedKeywords.threats.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {detectedKeywords.vendors &&
-                detectedKeywords.vendors.length > 0 && (
-                  <div>
-                    <span className="text-xs text-blue-400 flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <Shield className="h-3 w-3" /> Vendors
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.vendors
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`vendor-${keyword}`}
-                            variant="outline"
-                            className="bg-blue-500/10 text-xs font-medium text-blue-400 hover:bg-blue-500/20 hover:text-blue-400 border-blue-500/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "vendor");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.vendors.length > 3 && (
-                        <span className="text-xs font-medium text-blue-400 leading-4">
-                          +{detectedKeywords.vendors.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {detectedKeywords.clients &&
-                detectedKeywords.clients.length > 0 && (
-                  <div>
-                    <span className="text-xs text-[#BF00FF] flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <CheckCircle2 className="h-3 w-3" /> Clients
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.clients
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`client-${keyword}`}
-                            variant="outline"
-                            className="bg-[#BF00FF]/10 text-xs font-medium text-[#BF00FF] hover:bg-[#BF00FF]/20 hover:text-[#BF00FF] border-[#BF00FF]/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "client");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.clients.length > 3 && (
-                        <span className="text-xs font-medium text-[#BF00FF] leading-4">
-                          +{detectedKeywords.clients.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-              {detectedKeywords.hardware &&
-                detectedKeywords.hardware.length > 0 && (
-                  <div>
-                    <span className="text-xs text-[#00FFFF] flex items-center gap-1 mb-1 leading-4 font-medium">
-                      <Shield className="h-3 w-3" /> Hardware/Software
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detectedKeywords.hardware
-                        .slice(0, 3)
-                        .map((keyword: string) => (
-                          <Badge
-                            key={`hardware-${keyword}`}
-                            variant="outline"
-                            className="bg-[#00FFFF]/10 text-xs font-medium text-[#00FFFF] hover:bg-[#00FFFF]/20 hover:text-[#00FFFF] border-[#00FFFF]/30 cursor-pointer transition-colors truncate max-w-24 leading-4"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              if (onKeywordClick)
-                                onKeywordClick(keyword, "hardware");
-                            }}
-                          >
-                            {keyword}
-                          </Badge>
-                        ))}
-                      {detectedKeywords.hardware.length > 3 && (
-                        <span className="text-xs font-medium text-[#00FFFF] leading-4">
-                          +{detectedKeywords.hardware.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                )}
-            </div>
-          )}
-
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 mt-auto pt-3 border-t border-slate-700/50">
-            <div className="flex flex-wrap items-center gap-1.5 min-w-0 flex-1">
-              {/* Matched user keywords */}
-              {article.matchedKeywords && article.matchedKeywords.length > 0 && (
-                <>
-                  {article.matchedKeywords.slice(0, 3).map((keyword, index) => {
-                    // Use consistent color palette from News Radar
-                    const colors = [
-                      {
-                        bg: "bg-[#00FFFF]/10",
-                        text: "text-[#00FFFF]",
-                        border: "border-[#00FFFF]/30",
-                        hover: "hover:bg-[#00FFFF]/20 hover:text-[#00FFFF]"
-                      },
-                      {
-                        bg: "bg-[#BF00FF]/10",
-                        text: "text-[#BF00FF]",
-                        border: "border-[#BF00FF]/30",
-                        hover: "hover:bg-[#BF00FF]/20 hover:text-[#BF00FF]"
-                      },
-                      {
-                        bg: "bg-blue-500/10",
-                        text: "text-blue-400",
-                        border: "border-blue-500/30",
-                        hover: "hover:bg-blue-500/20 hover:text-blue-400"
-                      },
-                      {
-                        bg: "bg-yellow-500/10",
-                        text: "text-yellow-400",
-                        border: "border-yellow-500/30",
-                        hover: "hover:bg-yellow-500/20 hover:text-yellow-400"
-                      },
-                      {
-                        bg: "bg-orange-500/10",
-                        text: "text-orange-400",
-                        border: "border-orange-500/30",
-                        hover: "hover:bg-orange-500/20 hover:text-orange-400"
-                      }
-                    ];
-                    const colorSet = colors[index % colors.length];
+            <div className="flex-1 min-w-0">
+              {/* Tech Stack Matches Container */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                {/* Matched Tech Stack Items */}
+                {((article.matchedSoftware && article.matchedSoftware.length > 0) ||
+                  (article.matchedHardware && article.matchedHardware.length > 0) ||
+                  (article.matchedCompanies && article.matchedCompanies.length > 0) ||
+                  (article.matchedKeywords && article.matchedKeywords.length > 0)) && (
+                  <>
+                  {/* Software Matches */}
+                  {article.matchedSoftware && article.matchedSoftware.slice(0, expandedEntities ? undefined : 2).map((item) => (
+                    <Badge
+                      key={`software-${item}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-[#00FFFF]/10 text-[#00FFFF] border-[#00FFFF]/30 hover:bg-[#00FFFF]/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(item, "software");
+                      }}
+                      title={`Software: ${item}`}
+                    >
+                      <Shield className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {item}
+                    </Badge>
+                  ))}
+                  
+                  {/* Hardware Matches */}
+                  {article.matchedHardware && article.matchedHardware.slice(0, expandedEntities ? undefined : 2).map((item) => (
+                    <Badge
+                      key={`hardware-${item}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(item, "hardware");
+                      }}
+                      title={`Hardware: ${item}`}
+                    >
+                      <Zap className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {item}
+                    </Badge>
+                  ))}
+                  
+                  {/* Company Matches */}
+                  {article.matchedCompanies && article.matchedCompanies.slice(0, expandedEntities ? undefined : 2).map((item) => (
+                    <Badge
+                      key={`company-${item}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-[#BF00FF]/10 text-[#BF00FF] border-[#BF00FF]/30 hover:bg-[#BF00FF]/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(item, "company");
+                      }}
+                      title={`Company: ${item}`}
+                    >
+                      <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {item}
+                    </Badge>
+                  ))}
+                  
+                  {/* Keyword Matches */}
+                  {article.matchedKeywords && article.matchedKeywords.slice(0, expandedEntities ? undefined : 2).map((keyword) => (
+                    <Badge
+                      key={`keyword-${keyword}`}
+                      variant="outline"
+                      className="text-xs font-medium cursor-pointer transition-colors truncate max-w-32 leading-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/30 hover:bg-yellow-500/20"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (onKeywordClick) onKeywordClick(keyword, "keyword");
+                      }}
+                      title={`Keyword: ${keyword}`}
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {keyword}
+                    </Badge>
+                  ))}
+                  
+                  {/* Show expand/collapse button for additional matches */}
+                  {(() => {
+                    const totalMatches = 
+                      (article.matchedSoftware?.length || 0) + 
+                      (article.matchedHardware?.length || 0) + 
+                      (article.matchedCompanies?.length || 0) + 
+                      (article.matchedKeywords?.length || 0);
+                    const shownMatches = expandedEntities ? totalMatches :
+                      Math.min(2, article.matchedSoftware?.length || 0) + 
+                      Math.min(2, article.matchedHardware?.length || 0) + 
+                      Math.min(2, article.matchedCompanies?.length || 0) + 
+                      Math.min(2, article.matchedKeywords?.length || 0);
+                    const additionalCount = totalMatches - shownMatches;
                     
-                    return (
-                      <Badge
-                        key={`matched-${keyword}-${index}`}
-                        variant="outline"
-                        className={cn(
-                          "text-xs font-medium cursor-pointer transition-colors truncate max-w-24 leading-4",
-                          colorSet.bg,
-                          colorSet.text,
-                          colorSet.border,
-                          colorSet.hover
-                        )}
+                    return additionalCount > 0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (onKeywordClick) onKeywordClick(keyword, "matched");
+                          setExpandedEntities(!expandedEntities);
                         }}
+                        className="h-5 px-1.5 text-xs font-medium text-slate-400 hover:text-slate-300 hover:bg-slate-800/50"
                       >
-                        {keyword}
-                      </Badge>
-                    );
-                  })}
-                  {article.matchedKeywords.length > 3 && (
-                    <span className="text-xs font-medium text-[#00FFFF] leading-4">
-                      +{article.matchedKeywords.length - 3} more
-                    </span>
-                  )}
+                        {expandedEntities ? (
+                          <>
+                            <ChevronUp className="h-3 w-3 mr-1" />
+                            Show less
+                          </>
+                        ) : (
+                          <>
+                            +{additionalCount} more
+                            <ChevronDown className="h-3 w-3 ml-1" />
+                          </>
+                        )}
+                      </Button>
+                    ) : null;
+                  })()}
                 </>
               )}
+              </div>
               
-              {/* Article counter - only show if no keywords */}
-              {(!article.matchedKeywords || article.matchedKeywords.length === 0) && 
+              {/* Threat Indicators - Show below tech stack pills */}
+              {((article.matchedThreatActors && article.matchedThreatActors.length > 0) ||
+                (article.matchedCves && article.matchedCves.length > 0) ||
+                (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0) ||
+                (article.matchedMalware && article.matchedMalware.length > 0)) && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-800">
+                  {/* Threat Actors */}
+                  {article.matchedThreatActors && article.matchedThreatActors.slice(0, expandedThreats ? undefined : 2).map((actor, index) => (
+                    <Badge
+                      key={`actor-${index}-${actor}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-red-500/10 text-red-400 border-red-500/30"
+                      title={`Threat Actor: ${actor}`}
+                    >
+                      <Shield className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {actor}
+                    </Badge>
+                  ))}
+                  
+                  {/* Malware - Display with distinct visual indicators */}
+                  {article.matchedMalware && article.matchedMalware.slice(0, expandedThreats ? undefined : 2).map((malware, index) => (
+                    <Badge
+                      key={`malware-${index}-${malware}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-red-600/20 text-red-300 border-red-600/40 animate-pulse-slow"
+                      title={`Malware: ${malware}`}
+                    >
+                      <Bug className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {malware}
+                    </Badge>
+                  ))}
+                  
+                  {/* CVEs */}
+                  {article.matchedCves && article.matchedCves.slice(0, expandedThreats ? undefined : 2).map((cve, index) => (
+                    <Badge
+                      key={`cve-${index}-${cve}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-orange-500/10 text-orange-400 border-orange-500/30"
+                      title={`CVE: ${cve}`}
+                    >
+                      <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {cve}
+                    </Badge>
+                  ))}
+                  
+                  {/* Threat Keywords */}
+                  {article.matchedThreatKeywords && article.matchedThreatKeywords.slice(0, expandedThreats ? undefined : 2).map((keyword, index) => (
+                    <Badge
+                      key={`threat-kw-${index}-${keyword}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-yellow-500/10 text-yellow-400 border-yellow-500/30"
+                      title={`Threat Keyword: ${keyword}`}
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {keyword}
+                    </Badge>
+                  ))}
+                  
+                  {/* Show expand/collapse button for additional threat indicators */}
+                  {(() => {
+                    const totalThreatIndicators = 
+                      (article.matchedThreatActors?.length || 0) + 
+                      (article.matchedMalware?.length || 0) +
+                      (article.matchedCves?.length || 0) + 
+                      (article.matchedThreatKeywords?.length || 0);
+                    const shownThreatIndicators = expandedThreats ? totalThreatIndicators :
+                      Math.min(2, article.matchedThreatActors?.length || 0) + 
+                      Math.min(2, article.matchedMalware?.length || 0) +
+                      Math.min(2, article.matchedCves?.length || 0) + 
+                      Math.min(2, article.matchedThreatKeywords?.length || 0);
+                    const additionalThreatCount = totalThreatIndicators - shownThreatIndicators;
+                    
+                    return additionalThreatCount > 0 ? (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setExpandedThreats(!expandedThreats);
+                        }}
+                        className="h-5 px-1.5 text-xs font-medium text-slate-400 hover:text-slate-300 hover:bg-slate-800/50"
+                      >
+                        {expandedThreats ? (
+                          <>
+                            <ChevronUp className="h-3 w-3 mr-1" />
+                            Show less threats
+                          </>
+                        ) : (
+                          <>
+                            +{additionalThreatCount} more threats
+                            <ChevronDown className="h-3 w-3 ml-1" />
+                          </>
+                        )}
+                      </Button>
+                    ) : null;
+                  })()}
+                </div>
+              )}
+              
+              {/* Article counter - only show if no matches */}
+              {(!article.matchedSoftware || article.matchedSoftware.length === 0) && 
+               (!article.matchedHardware || article.matchedHardware.length === 0) && 
+               (!article.matchedCompanies || article.matchedCompanies.length === 0) && 
+               (!article.matchedKeywords || article.matchedKeywords.length === 0) && 
                articleIndex !== undefined && totalArticles !== undefined && (
-                <div className="text-xs text-slate-400 flex-shrink-0">
+                <div className="text-xs text-slate-400 flex-shrink-0 mt-2">
                   Article {articleIndex + 1} of {totalArticles}
                 </div>
               )}

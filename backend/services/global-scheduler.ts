@@ -10,6 +10,7 @@ import { runUnifiedGlobalScraping } from "./global-scraping/global-scraper";
 import { db } from "backend/db/db";
 import { schedulerMetadata } from "@shared/db/schema/scheduler-metadata";
 import { eq } from "drizzle-orm";
+import { mitreSyncService } from "./mitre-sync";
 
 // GLOBAL SCRAPING INTERVAL - Every 3 hours as per re-architecture plan
 const THREE_HOURS = 3 * 60 * 60 * 1000;
@@ -224,6 +225,21 @@ async function executeUnifiedGlobalScrape(): Promise<void> {
   log(`[GLOBAL SCHEDULER] Starting unified global scrape job at ${currentTime.toLocaleString("en-US", { timeZone: "America/New_York" })} EST`, "scheduler");
   
   try {
+    // Check if we should run MITRE sync (at 12am or 12pm EST)
+    const estTime = new Date(currentTime.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const estHour = estTime.getHours();
+    
+    if (estHour === 0 || estHour === 12) {
+      log(`[GLOBAL SCHEDULER] Running MITRE ATT&CK sync at ${estHour === 0 ? '12am' : '12pm'} EST`, "scheduler");
+      try {
+        await mitreSyncService.syncMitreData();
+        log(`[GLOBAL SCHEDULER] MITRE sync completed successfully`, "scheduler");
+      } catch (error: any) {
+        log(`[GLOBAL SCHEDULER] MITRE sync failed: ${error.message}`, "scheduler-error");
+        // Continue with regular scraping even if MITRE sync fails
+      }
+    }
+    
     // Run unified global scraping for all sources
     log(`[GLOBAL SCHEDULER] Starting unified global scraping for all sources`, "scheduler");
     const result = await runUnifiedGlobalScraping();

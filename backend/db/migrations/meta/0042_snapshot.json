@@ -4099,6 +4099,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'manual'"
+        },
         "added_at": {
           "name": "added_at",
           "type": "timestamp",

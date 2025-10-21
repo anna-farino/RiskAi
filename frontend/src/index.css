@@ -124,6 +124,7 @@ body {
   @apply max-w-7xl mx-auto p-8;
 }
 
+
 .card {
   @apply p-8;
 }
@@ -493,5 +494,19 @@ body::-webkit-scrollbar-thumb:active {
   100% {
     top: 100%;
   }
+}
+
+/* Slow pulse animation for malware badges */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
 }
 

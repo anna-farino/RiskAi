@@ -40,7 +40,7 @@ export function useFetch() {
           audience
         },
         // Force refresh on retry attempts
-        cacheMode: retryCount > 0 ? 'off' : 'cache-first'
+        cacheMode: retryCount > 0 ? 'off' : 'cache-only'
       });
 
       // Validate the token we just received
@@ -159,11 +159,23 @@ export function useFetch() {
       });
     }
 
-    const defaultHeaders = {
+    // Check if body is FormData - if so, don't set Content-Type header
+    const isFormData = options.body instanceof FormData;
+    
+    const defaultHeaders: any = {
       ...csfrHeaderObject(),
-      Authorization: `Bearer ${accessToken}`,
-      ...(options.headers || {})
+      Authorization: `Bearer ${accessToken}`
     };
+
+    // Merge any provided headers, but exclude Content-Type for FormData
+    if (options.headers) {
+      Object.entries(options.headers).forEach(([key, value]) => {
+        // Skip Content-Type for FormData (browser sets it automatically with boundary)
+        if (!(isFormData && key.toLowerCase() === 'content-type')) {
+          defaultHeaders[key] = value;
+        }
+      });
+    }
 
     return fetch(`${serverUrl}${url}`, {
       method: options.method || 'GET',

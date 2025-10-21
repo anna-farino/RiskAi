@@ -1,7 +1,9 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
+import { useRelevanceTrigger } from "@/hooks/use-relevance-trigger";
 import type {
   ThreatArticle,
   ThreatKeyword,
@@ -28,12 +30,33 @@ import { ThreatArticleCard } from "./components/threat-article-card";
 export default function ThreatHome() {
   const { toast } = useToast();
   const fetchWithAuth = useFetch();
+  const location = useLocation();
+  
+  // Get URL parameters for entity filtering
+  const urlParams = new URLSearchParams(location.search);
+  const entityFilterParam = urlParams.get("entityFilter");
+  
+  // Parse entity filter if present
+  const [entityFilter, setEntityFilter] = useState<{ type: string; name: string } | null>(() => {
+    if (entityFilterParam) {
+      const decoded = decodeURIComponent(entityFilterParam);
+      const [type, ...nameParts] = decoded.split(":");
+      if (type && nameParts.length > 0) {
+        return { type, name: nameParts.join(":") };
+      }
+    }
+    return null;
+  });
+  
+  // Trigger relevance score calculation when user enters the page
+  useRelevanceTrigger();
 
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  // Filter state - initialize searchTerm with entity name if filtered
+  const [searchTerm, setSearchTerm] = useState<string>(entityFilter?.name || "");
   const [threatLevel, setThreatLevel] = useState<string>("All");
-  const [dateRange, setDateRange] = useState<string>("Today");
-  const [sortOrder, setSortOrder] = useState<string>("Newest First");
+  // If entity filter is present, show all dates, otherwise default to Today
+  const [dateRange, setDateRange] = useState<string>(entityFilter ? "All Time" : "Today");
+  const [sortOrder, setSortOrder] = useState<string>("Relevance");
   const [fromDate, setFromDate] = useState<string>("");
   const [toDate, setToDate] = useState<string>("");
 
@@ -103,6 +126,11 @@ export default function ThreatHome() {
     startDate?: string;
     endDate?: string;
   }>(() => {
+    // If entity filter is present, don't apply date restrictions
+    if (entityFilter) {
+      return { startDate: undefined, endDate: undefined };
+    }
+    // Otherwise default to today
     const now = new Date();
     return {
       startDate: now.toISOString().split('T')[0],
@@ -134,13 +162,17 @@ export default function ThreatHome() {
   >(null);
 
 
-  // Fetch keywords for filter dropdown
+  // Fetch keywords for filter dropdown (using POST for consistency)
   const keywords = useQuery<ThreatKeyword[]>({
     queryKey: ["/api/threat-tracker/keywords"],
     queryFn: async () => {
       try {
-        const response = await fetchWithAuth("/api/threat-tracker/keywords", {
-          method: "GET",
+        const response = await fetchWithAuth("/api/threat-tracker/keywords/list", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({})
         });
         if (!response.ok) throw new Error("Failed to fetch keywords");
         const data = await response.json();
@@ -155,61 +187,71 @@ export default function ThreatHome() {
     refetchOnWindowFocus: true, // Refetch when window regains focus
   });
 
-  // Build query string for filtering
-  const buildQueryString = () => {
-    const params = new URLSearchParams();
-
-    if (searchTerm) {
-      params.append("search", searchTerm);
-    }
-
-    if (selectedKeywordIds.length > 0) {
-      selectedKeywordIds.forEach((id) => {
-        params.append("keywordIds", id);
-      });
-    }
-
-    if (originalDateRange.startDate) {
-      params.append("startDate", `${originalDateRange.startDate}T00:00:00.000Z`);
-    }
-
-    if (originalDateRange.endDate) {
-      params.append("endDate", `${originalDateRange.endDate}T23:59:59.999Z`);
-    }
-
-    // Send a high limit to get more articles (instead of backend default 50)
-    params.append("limit", "1000");
-
-    return params.toString();
-  };
-
-  // Articles query with filtering - only fetch when keywords are selected
+  // Articles query - now uses POST to handle large keyword lists
   const articles = useQuery<ThreatArticle[]>({
     queryKey: [
       "/api/threat-tracker/articles",
       searchTerm,
       selectedKeywordIds,
       originalDateRange,
+      sortOrder,
+      entityFilter,
     ],
     queryFn: async () => {
       try {
-        const queryString = buildQueryString();
-        const url = `/api/threat-tracker/articles${queryString ? `?${queryString}` : ""}`;
+        // Build request body for POST request
+        const requestBody = {
+          // If entity filter is present, pass it separately from search term
+          entityFilter: entityFilter ? {
+            type: entityFilter.type,
+            name: entityFilter.name
+          } : undefined,
+          // Only use search as text search if no entity filter
+          search: (!entityFilter && searchTerm) ? searchTerm : undefined,
+          // Don't send keywordIds when entity filter is active (to match count logic)
+          keywordIds: (!entityFilter && selectedKeywordIds.length > 0) ? selectedKeywordIds : undefined,
+          // Don't send date range when entity filter is active (to match count logic)
+          startDate: (!entityFilter && originalDateRange.startDate) 
+            ? `${originalDateRange.startDate}T00:00:00.000Z` 
+            : undefined,
+          endDate: (!entityFilter && originalDateRange.endDate) 
+            ? `${originalDateRange.endDate}T23:59:59.999Z` 
+            : undefined,
+          sortBy: sortOrder.toLowerCase().replace(" ", "_"),
+          limit: 100, // Backend maximum
+          page: 1
+        };
 
-        const response = await fetchWithAuth(url, {
-          method: "GET",
+        // Remove undefined values from request body
+        const cleanBody = Object.fromEntries(
+          Object.entries(requestBody).filter(([_, v]) => v !== undefined)
+        );
+
+        const response = await fetchWithAuth("/api/threat-tracker/articles/query", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(cleanBody),
         });
 
         if (!response.ok) throw new Error("Failed to fetch articles");
         const data = await response.json();
         console.log("Received filtered articles:", data.length);
+        console.log("Entity filter sent:", cleanBody.entityFilter);
+        console.log("First 3 articles:", data.slice(0, 3).map((a: any) => ({ 
+          id: a.id, 
+          title: a.title?.substring(0, 50),
+          threatLevel: a.threatLevel,
+          securityScore: a.securityScore
+        })));
         return data || [];
       } catch (error) {
         console.error("Error fetching articles:", error);
         return [];
       }
     },
-    enabled: selectedKeywordIds.length > 0, // Only fetch when keywords are selected
+    enabled: true, // Always fetch - backend will use Tech Stack or fallback to keywords
   });
 
   // Auto-select active keywords when keywords are loaded
@@ -417,12 +459,20 @@ export default function ThreatHome() {
     setSearchTerm("");
     setSelectedKeywordIds([]);
     setThreatLevel("All");
-    const newDateRange = "Today";
-    setDateRange(newDateRange);
-    setOriginalDateRange(getDateRangeFromLabel(newDateRange));
+    // If entity filter exists, keep showing all time, otherwise reset to Today
+    if (!entityFilter) {
+      const newDateRange = "Today";
+      setDateRange(newDateRange);
+      setOriginalDateRange(getDateRangeFromLabel(newDateRange));
+    } else {
+      setDateRange("All Time");
+      setOriginalDateRange({ startDate: undefined, endDate: undefined });
+    }
     setSortOrder("Newest First");
     setFromDate("");
     setToDate("");
+    // Don't clear entity filter when using Clear All button - only clear other filters
+    // Entity filter should only be cleared using the dedicated Clear Filter button
   };
 
   // Function to handle marking for capsule
@@ -657,6 +707,45 @@ export default function ThreatHome() {
             </div>
           </div>
 
+          {/* Entity Filter Banner */}
+          {entityFilter && (
+            <div className="mb-4 p-3 bg-gradient-to-r from-purple-500/20 to-transparent border border-purple-500/30 rounded-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm text-purple-300">
+                    Showing threats related to:
+                  </span>
+                  <Badge className="bg-purple-500/30 text-purple-200 border-purple-500/50">
+                    {entityFilter.type}: {entityFilter.name}
+                  </Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEntityFilter(null);
+                    setSearchTerm("");
+                    // Reset date range to Today when clearing entity filter
+                    const now = new Date();
+                    setDateRange("Today");
+                    setOriginalDateRange({
+                      startDate: now.toISOString().split('T')[0],
+                      endDate: now.toISOString().split('T')[0]
+                    });
+                    // Clear URL parameter
+                    const newUrl = window.location.pathname;
+                    window.history.pushState({}, '', newUrl);
+                  }}
+                  className="h-7 px-2 text-xs text-purple-300 hover:text-white hover:bg-purple-500/20"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear Filter
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* 3-Column Compact Layout */}
           <div className="grid gap-4 lg:grid-cols-3">
             
@@ -716,46 +805,58 @@ export default function ThreatHome() {
               </div>
               
               <div className="space-y-2">
-                    {/* Horizontal buttons for Today/24hrs/48hrs/YTD */}
-                    <div className="grid grid-cols-4 gap-1">
-                      {["Today", "24hrs", "48hrs", "YTD"].map((range) => (
-                        <Button
-                          key={range}
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            const actualRange = range === "YTD" ? "Year to Date" : range;
-                            setDateRange(actualRange);
-                            setOriginalDateRange(getDateRangeFromLabel(actualRange));
-                          }}
-                          className={cn(
-                            "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
-                            (range === "YTD" && dateRange === "Year to Date") || (range !== "YTD" && dateRange === range)
-                              ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
-                              : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
-                          )}
-                        >
-                          {range}
-                        </Button>
-                      ))}
-                    </div>
-                    {/* Custom date range inputs */}
-                    <div className="grid grid-cols-2 gap-1">
-                      <Input
-                        type="date"
-                        value={fromDate}
-                        onChange={(e) => setFromDate(e.target.value)}
-                        placeholder="From Date"
-                        className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                      <Input
-                        type="date"
-                        value={toDate}
-                        onChange={(e) => setToDate(e.target.value)}
-                        placeholder="To Date"
-                        className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
-                      />
-                    </div>
+                    {/* Show All Time indicator when entity filter is active */}
+                    {entityFilter ? (
+                      <div className="bg-[#9333EA]/20 border border-[#9333EA] rounded-md px-2 py-2 text-center">
+                        <span className="text-xs font-medium text-[#A855F7]">All Time</span>
+                        <p className="text-xs text-purple-300 mt-1">Showing all threats for filtered entity</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Horizontal buttons for Today/24hrs/48hrs/YTD */}
+                        <div className="grid grid-cols-4 gap-1">
+                          {["Today", "24hrs", "48hrs", "YTD"].map((range) => (
+                            <Button
+                              key={range}
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const actualRange = range === "YTD" ? "Year to Date" : range;
+                                setDateRange(actualRange);
+                                setOriginalDateRange(getDateRangeFromLabel(actualRange));
+                              }}
+                              className={cn(
+                                "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
+                                (range === "YTD" && dateRange === "Year to Date") || (range !== "YTD" && dateRange === range)
+                                  ? "border-[#9333EA] bg-[#9333EA]/20 text-[#A855F7] hover:bg-[#9333EA]/30 hover:text-white"
+                                  : "border-slate-600 bg-slate-800/85 text-slate-200 hover:border-[#9333EA]/50 hover:text-white hover:bg-slate-800/85"
+                              )}
+                            >
+                              {range}
+                            </Button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                    {/* Custom date range inputs - hide when entity filter is active */}
+                    {!entityFilter && (
+                      <div className="grid grid-cols-2 gap-1">
+                        <Input
+                          type="date"
+                          value={fromDate}
+                          onChange={(e) => setFromDate(e.target.value)}
+                          placeholder="From Date"
+                          className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
+                        />
+                        <Input
+                          type="date"
+                          value={toDate}
+                          onChange={(e) => setToDate(e.target.value)}
+                          placeholder="To Date"
+                          className="w-full h-8 px-2 text-xs bg-slate-800/85 border-slate-600 text-slate-200 placeholder:text-slate-400 focus:border-[#00FFFF] focus:ring-0 focus-visible:outline-none focus-visible:ring-0 focus-visible:border-[#00FFFF]"
+                        />
+                      </div>
+                    )}
               </div>
             </div>
 
@@ -1056,26 +1157,25 @@ export default function ThreatHome() {
                 <Shield className="h-8 w-8 text-[#BF00FF]" />
               </div>
               <h3 className="text-xl font-semibold text-white mb-3">
-                No threat articles found
+                Configure Your Technology Stack
               </h3>
               <p className="text-slate-400 text-center max-w-md mb-8 leading-relaxed">
-                Start by enabling sources and keywords to monitor for security
-                threats, or adjust your search filters to discover potential
-                vulnerabilities.
+                To see personalized threat intelligence, first configure your technology stack.
+                Add the software, hardware, vendors, and clients you want to monitor for security threats.
               </p>
               <div className="flex flex-wrap gap-4 justify-center">
                 <Button
                   asChild
                   className="h-10 px-6 font-semibold bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] transition-all duration-200"
                 >
-                  <Link to="/dashboard/threat/sources">Enable Sources</Link>
+                  <Link to="/dashboard/threat/tech-stack">Configure Technology Stack</Link>
                 </Button>
                 <Button
                   variant="outline"
                   asChild
                   className="h-10 px-6 font-semibold border-slate-600 hover:bg-white/10 text-white transition-all duration-200"
                 >
-                  <Link to="/dashboard/threat/keywords">Manage Keywords</Link>
+                  <Link to="/dashboard/threat/sources">Enable Sources</Link>
                 </Button>
               </div>
             </div>
