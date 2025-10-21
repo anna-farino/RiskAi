@@ -895,8 +895,8 @@ export const storage: IStorage = {
             .where(and(
               sql`LOWER(${companies.name}) = LOWER(${trimmedName})`,
               eq(usersCompanies.userId, userId),
-              eq(usersCompanies.isActive, true),
-              eq(usersCompanies.relationshipType, type) // FIX: Must match the relationship type!
+              eq(usersCompanies.isActive, true)
+              // No relationship type check - show ALL articles for the entity regardless of vendor/client type
             ))
             .limit(1);
           
