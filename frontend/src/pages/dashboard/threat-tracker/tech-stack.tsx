@@ -186,8 +186,7 @@ export default function TechStackPage() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch after successful mutation
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      // Don't invalidate queries to preserve optimistic update
       toast({
         title: "Item added",
         description: "Technology stack item has been added successfully"
@@ -241,8 +240,7 @@ export default function TechStackPage() {
       });
     },
     onSuccess: () => {
-      // Invalidate and refetch after successful mutation
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      // Don't invalidate queries to preserve optimistic update
       toast({
         title: "Item removed",
         description: "Technology stack item has been permanently removed"
@@ -457,8 +455,7 @@ export default function TechStackPage() {
       });
     },
     onSuccess: (data, variables) => {
-      // Invalidate and refetch after successful mutation
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      // Don't invalidate queries to preserve optimistic update
       const typeLabel = variables.type || 'all';
       toast({
         title: "Items deleted",
