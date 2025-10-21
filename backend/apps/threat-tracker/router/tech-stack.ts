@@ -217,7 +217,7 @@ router.get("/", async (req: any, res) => {
     }
 
     // Fetch software with threat counts and company info
-    // Only count articles that have BOTH tech stack match AND threat indicators
+    // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const softwareResults = await db
       .select({
         id: software.id,
@@ -226,98 +226,14 @@ router.get("/", async (req: any, res) => {
         priority: usersSoftware.priority,
         company: companies.name,
         isActive: usersSoftware.isActive,
-        threatCount: sql<number>`
-          COALESCE(
-            COUNT(DISTINCT 
-              CASE 
-                WHEN ${usersSoftware.isActive} = true 
-                AND ${globalArticles.id} IS NOT NULL
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN ${globalArticles.id} 
-                ELSE NULL 
-              END
-            ), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersSoftware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
             WHEN ${usersSoftware.isActive} = false THEN NULL
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'critical' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'critical'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'high' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'high'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'medium' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'medium'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'low' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `,
@@ -344,7 +260,7 @@ router.get("/", async (req: any, res) => {
       );
 
     // Fetch hardware with threat counts
-    // Only count articles that have BOTH tech stack match AND threat indicators
+    // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const hardwareResults = await db
       .select({
         id: hardware.id,
@@ -354,98 +270,14 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersHardware.priority,
         isActive: usersHardware.isActive,
-        threatCount: sql<number>`
-          COALESCE(
-            COUNT(DISTINCT 
-              CASE 
-                WHEN ${usersHardware.isActive} = true 
-                AND ${globalArticles.id} IS NOT NULL
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN ${globalArticles.id} 
-                ELSE NULL 
-              END
-            ), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersHardware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
             WHEN ${usersHardware.isActive} = false THEN NULL
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'critical' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'critical'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'high' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'high'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'medium' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'medium'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'low' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `,
@@ -471,7 +303,7 @@ router.get("/", async (req: any, res) => {
       );
 
     // Fetch vendors with threat counts
-    // Only count articles that have BOTH tech stack match AND threat indicators
+    // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const vendorResults = await db
       .select({
         id: companies.id,
@@ -480,98 +312,14 @@ router.get("/", async (req: any, res) => {
         priority: usersCompanies.priority,
         metadata: usersCompanies.metadata,
         isActive: usersCompanies.isActive,
-        threatCount: sql<number>`
-          COALESCE(
-            COUNT(DISTINCT 
-              CASE 
-                WHEN ${usersCompanies.isActive} = true 
-                AND ${globalArticles.id} IS NOT NULL
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN ${globalArticles.id} 
-                ELSE NULL 
-              END
-            ), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
             WHEN ${usersCompanies.isActive} = false THEN NULL
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'critical' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'critical'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'high' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'high'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'medium' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'medium'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'low' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `,
@@ -601,7 +349,7 @@ router.get("/", async (req: any, res) => {
       );
 
     // Fetch clients with threat counts
-    // Only count articles that have BOTH tech stack match AND threat indicators
+    // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const clientResults = await db
       .select({
         id: companies.id,
@@ -609,98 +357,14 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
         isActive: usersCompanies.isActive,
-        threatCount: sql<number>`
-          COALESCE(
-            COUNT(DISTINCT 
-              CASE 
-                WHEN ${usersCompanies.isActive} = true 
-                AND ${globalArticles.id} IS NOT NULL
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN ${globalArticles.id} 
-                ELSE NULL 
-              END
-            ), 0)`,
+        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
         highestLevel: sql<string>`
           CASE 
             WHEN ${usersCompanies.isActive} = false THEN NULL
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'critical' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'critical'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'high' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'high'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'medium' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'medium'
-            WHEN SUM(
-              CASE 
-                WHEN ${globalArticles.threatLevel} = 'low' 
-                AND (
-                  EXISTS (
-                    SELECT 1 FROM article_threat_actors ata
-                    WHERE ata.article_id = ${globalArticles.id}
-                  )
-                  OR EXISTS (
-                    SELECT 1 FROM article_cves ac
-                    WHERE ac.article_id = ${globalArticles.id}
-                  )
-                  OR ${globalArticles.threatMetadata}::jsonb ? 'matchedThreatKeywords'
-                )
-                THEN 1 ELSE 0 
-              END
-            ) > 0 THEN 'low'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
+            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
             ELSE NULL
           END
         `,
