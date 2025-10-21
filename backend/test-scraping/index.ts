@@ -6,7 +6,7 @@
 
 import { Request, Response } from 'express';
 import { log } from "backend/utils/log";
-import { testSourceScraping } from './scraper';
+import { testSourceScraping, testSingleArticle } from './scraper';
 import { TestScrapingRequest, TestScrapingResponse } from './types';
 
 // Security configuration
@@ -63,6 +63,49 @@ function validateRequest(body: any): { isValid: boolean; error?: string; data?: 
       sourceUrl: body.sourceUrl,
       testMode: body.testMode || false,
       fullTest: body.fullTest || false
+    }
+  };
+}
+
+/**
+ * Validate article test request payload
+ */
+function validateArticleRequest(body: any): { isValid: boolean; error?: string; data?: { password: string; articleUrl: string; } } {
+  // Check required fields
+  if (!body || typeof body !== 'object') {
+    return { isValid: false, error: 'Request body must be a valid JSON object' };
+  }
+
+  if (!body.password || typeof body.password !== 'string') {
+    return { isValid: false, error: 'Password is required' };
+  }
+
+  if (body.password !== TEST_PASSWORD) {
+    return { isValid: false, error: 'Invalid password' };
+  }
+
+  if (!body.articleUrl || typeof body.articleUrl !== 'string') {
+    return { isValid: false, error: 'articleUrl is required and must be a string' };
+  }
+
+  // Validate URL format
+  try {
+    const url = new URL(body.articleUrl);
+    if (!['http:', 'https:'].includes(url.protocol)) {
+      return { isValid: false, error: 'articleUrl must use HTTP or HTTPS protocol' };
+    }
+    if (body.articleUrl.length > MAX_URL_LENGTH) {
+      return { isValid: false, error: `articleUrl must be less than ${MAX_URL_LENGTH} characters` };
+    }
+  } catch (error) {
+    return { isValid: false, error: 'articleUrl must be a valid URL' };
+  }
+
+  return {
+    isValid: true,
+    data: {
+      password: body.password,
+      articleUrl: body.articleUrl
     }
   };
 }
@@ -317,6 +360,162 @@ async function processAllSourcesTestInBackground(
     log(`[TEST-ALL-SOURCES] Background processing failed for request ${requestId}: ${error.message}`, "test-all-sources-error");
     if (error.stack) {
       log(`[TEST-ALL-SOURCES] Stack trace: ${error.stack}`, "test-all-sources-error");
+    }
+  }
+}
+
+/**
+ * Test single article handler
+ */
+export async function handleTestArticle(req: Request, res: Response): Promise<void> {
+  const requestId = req.headers['x-call-id'] || 'unknown';
+  const startTime = Date.now();
+
+  // Production environment check
+  if (process.env.NODE_ENV === 'production') {
+    log(`[TEST-ARTICLE] BLOCKED: Attempt to use test endpoint in production`, "test-article-security");
+    res.status(403).json({
+      error: 'Forbidden'
+    });
+    return;
+  }
+
+  try {
+    log(`[TEST-ARTICLE] Request ${requestId} started`, "test-article");
+
+    // Validate request
+    const validation = validateArticleRequest(req.body);
+    if (!validation.isValid) {
+      log(`[TEST-ARTICLE] Request ${requestId} validation failed: ${validation.error}`, "test-article");
+      res.status(400).json({
+        success: false,
+        error: validation.error,
+        timestamp: new Date().toISOString()
+      });
+      return;
+    }
+
+    const { articleUrl } = validation.data!;
+
+    log(`[TEST-ARTICLE] Request ${requestId} - Testing article: ${articleUrl}`, "test-article");
+
+    // Return immediately with request accepted status
+    const immediateResponse = {
+      success: true,
+      message: 'Article test scraping initiated - check logs for progress',
+      requestId,
+      articleUrl,
+      timestamp: new Date().toISOString(),
+      processingStatus: 'started',
+      serverInfo: {
+        nodeEnv: process.env.NODE_ENV,
+        isAzure: process.env.IS_AZURE === 'true',
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    res.status(202).json(immediateResponse); // 202 Accepted
+
+    // Process article scraping in background (fire and forget)
+    processArticleInBackground(articleUrl, requestId, startTime);
+
+  } catch (error: any) {
+    const errorMsg = `Test article scraping request failed: ${error.message}`;
+    log(`[TEST-ARTICLE] Request ${requestId} ERROR: ${errorMsg}`, "test-article-error");
+
+    res.status(500).json({
+      success: false,
+      error: errorMsg,
+      requestId,
+      timestamp: new Date().toISOString(),
+      processingTimeMs: Date.now() - startTime,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+}
+
+/**
+ * Process single article scraping in background
+ */
+async function processArticleInBackground(
+  articleUrl: string,
+  requestId: string | unknown,
+  startTime: number
+): Promise<void> {
+  try {
+    log(`[TEST-ARTICLE] Background processing started for request ${requestId}`, "test-article");
+
+    // Perform single article test scraping
+    const result = await testSingleArticle(articleUrl);
+
+    // Log comprehensive results
+    const status = result.success ? 'SUCCESS' : 'FAILURE';
+    const totalTime = Date.now() - startTime;
+
+    log(`[TEST-ARTICLE] Background processing ${status} for request ${requestId}:`, "test-article");
+    log(`  - Article URL: ${articleUrl}`, "test-article");
+    log(`  - Title: ${result.article?.title || 'N/A'}`, "test-article");
+    log(`  - Content length: ${result.article?.content?.length || 0} chars`, "test-article");
+    log(`  - Author: ${result.article?.author || 'Unknown'}`, "test-article");
+    log(`  - Publish date: ${result.article?.publishDate || 'N/A'}`, "test-article");
+    log(`  - Total time: ${totalTime}ms`, "test-article");
+
+    // Log AI analysis if available
+    if (result.analysis) {
+      log(`  - AI Analysis:`, "test-article");
+      log(`    - Summary length: ${result.analysis.summary?.length || 0} chars`, "test-article");
+      log(`    - Is Cybersecurity: ${result.analysis.isCybersecurity}`, "test-article");
+      if (result.analysis.securityScore !== null && result.analysis.securityScore !== undefined) {
+        log(`    - Security Score: ${result.analysis.securityScore}`, "test-article");
+      }
+      if (result.analysis.detectedKeywords && result.analysis.detectedKeywords.length > 0) {
+        log(`    - Detected Keywords: ${result.analysis.detectedKeywords.join(', ')}`, "test-article");
+      }
+    }
+
+    // Log entities if extracted
+    if (result.entities) {
+      log(`  - Extracted Entities:`, "test-article");
+      if (result.entities.software && result.entities.software.length > 0) {
+        log(`    - Software: ${result.entities.software.map(s => s.name + (s.isMalware ? ' (MALWARE)' : '')).join(', ')}`, "test-article");
+      }
+      if (result.entities.companies && result.entities.companies.length > 0) {
+        log(`    - Companies: ${result.entities.companies.map(c => c.name).join(', ')}`, "test-article");
+      }
+      if (result.entities.hardware && result.entities.hardware.length > 0) {
+        log(`    - Hardware: ${result.entities.hardware.map(h => h.name).join(', ')}`, "test-article");
+      }
+      if (result.entities.cves && result.entities.cves.length > 0) {
+        log(`    - CVEs: ${result.entities.cves.map(c => c.id).join(', ')}`, "test-article");
+      }
+      if (result.entities.threatActors && result.entities.threatActors.length > 0) {
+        log(`    - Threat Actors: ${result.entities.threatActors.map(t => t.name).join(', ')}`, "test-article");
+      }
+    }
+
+    // Log saved status
+    if (result.savedToDb) {
+      log(`  - Article saved to database with ID: ${result.savedArticleId}`, "test-article");
+    }
+
+    // Log errors if any
+    if (result.error) {
+      log(`  - Error: ${result.error}`, "test-article-error");
+    }
+
+    // Log diagnostics
+    if (result.diagnostics) {
+      log(`  - Diagnostics:`, "test-article");
+      log(`    - Extraction method: ${result.diagnostics.extractionMethod || 'N/A'}`, "test-article");
+      log(`    - Confidence score: ${result.diagnostics.confidence || 'N/A'}`, "test-article");
+    }
+
+    log(`[TEST-ARTICLE] Background processing completed for request ${requestId}`, "test-article");
+
+  } catch (error: any) {
+    log(`[TEST-ARTICLE] Background processing failed for request ${requestId}: ${error.message}`, "test-article-error");
+    if (error.stack) {
+      log(`[TEST-ARTICLE] Stack trace: ${error.stack}`, "test-article-error");
     }
   }
 }

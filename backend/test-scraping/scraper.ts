@@ -523,6 +523,237 @@ export async function testSourceScraping(sourceUrl: string, testMode: boolean = 
 }
 
 /**
+ * Test a single article URL through the normal scraping pipeline
+ */
+export async function testSingleArticle(articleUrl: string): Promise<{
+  success: boolean;
+  article?: {
+    title: string;
+    content: string;
+    author?: string;
+    publishDate?: Date;
+    url: string;
+  };
+  analysis?: {
+    summary?: string;
+    isCybersecurity?: boolean;
+    securityScore?: number | null;
+    detectedKeywords?: string[];
+  };
+  entities?: {
+    software: any[];
+    companies: any[];
+    hardware: any[];
+    cves: any[];
+    threatActors: any[];
+  };
+  savedToDb?: boolean;
+  savedArticleId?: string;
+  error?: string;
+  diagnostics?: {
+    extractionMethod?: string;
+    confidence?: number;
+  };
+}> {
+  const logCapture = new TestLogCapture();
+  const startTime = Date.now();
+
+  try {
+    logCapture.captureLog(`Starting single article test for: ${articleUrl}`, "test-article");
+
+    // Extract domain to get source name
+    const sourceName = extractDomainName(articleUrl);
+    
+    // Check if source exists in database
+    const sourceResults = await db.select()
+      .from(globalSources)
+      .where(eq(globalSources.url, new URL(articleUrl).origin));
+    
+    const knownSource = sourceResults.length > 0 ? sourceResults[0] : null;
+    const sourceId = knownSource?.id;
+    
+    // Create a scraping config (similar to what the global scraper would use)
+    const scrapingConfig = knownSource?.scrapingConfig || {};
+    
+    // Check if article already exists
+    const existingArticles = await db
+      .select()
+      .from(globalArticles)
+      .where(eq(globalArticles.url, articleUrl))
+      .limit(1);
+
+    if (existingArticles.length > 0) {
+      logCapture.captureLog(`Article already exists in database: ${articleUrl}`, "test-article", "warning");
+      const existing = existingArticles[0];
+      return {
+        success: true,
+        article: {
+          title: existing.title || 'Unknown',
+          content: existing.content,
+          author: existing.author || undefined,
+          publishDate: existing.publishDate || undefined,
+          url: existing.url
+        },
+        analysis: {
+          summary: existing.summary || undefined,
+          isCybersecurity: existing.isCybersecurity || false,
+          securityScore: existing.securityScore || null,
+          detectedKeywords: existing.detectedKeywords || []
+        },
+        savedToDb: false,
+        error: 'Article already exists in database'
+      };
+    }
+
+    // Scrape the article content
+    logCapture.captureLog(`Scraping article content...`, "test-article");
+    const articleContent = await unifiedScraper.scrapeArticleUrl(articleUrl, scrapingConfig, globalContext);
+
+    if (!articleContent || !articleContent.content) {
+      logCapture.captureLog(`Failed to extract content from: ${articleUrl}`, "test-article", "error");
+      return {
+        success: false,
+        error: 'Failed to extract article content'
+      };
+    }
+
+    // Validate content
+    if (articleContent.confidence && articleContent.confidence < 0.2) {
+      logCapture.captureLog(`Very low extraction confidence (${articleContent.confidence}): ${articleUrl}`, "test-article", "warning");
+      return {
+        success: false,
+        error: `Content validation failed - likely corrupted or error page (confidence: ${articleContent.confidence})`
+      };
+    }
+
+    if (!isValidArticleContent(articleContent.content)) {
+      logCapture.captureLog(`Invalid article content - likely non-article page`, "test-article", "warning");
+      return {
+        success: false,
+        error: 'Content validation failed - not a valid article'
+      };
+    }
+
+    // Validate title
+    let finalTitle = articleContent.title;
+    if (!finalTitle || !isValidTitle(finalTitle)) {
+      finalTitle = extractTitleFromUrl(articleUrl);
+      if (!isValidTitle(finalTitle)) {
+        finalTitle = "Untitled Article";
+      }
+      logCapture.captureLog(`Using fallback title: ${finalTitle}`, "test-article", "warning");
+    }
+
+    // AI Analysis
+    logCapture.captureLog(`Analyzing article with AI...`, "test-article");
+    const analysis = await analyzeContent(
+      articleContent.content,
+      [], // No keywords for test scraping
+    );
+
+    // Analyze for cybersecurity relevance
+    const cybersecurityAnalysis = await analyzeCybersecurity({
+      title: finalTitle,
+      content: articleContent.content
+    });
+    const isCybersecurity = cybersecurityAnalysis?.isCybersecurity || false;
+
+    // Calculate security risk score if it's a cybersecurity article
+    let securityScore = null;
+    if (isCybersecurity) {
+      const riskAnalysis = await calculateSecurityRisk({
+        title: finalTitle,
+        content: articleContent.content
+      });
+      securityScore = riskAnalysis?.score || null;
+    }
+
+    // Extract entities (for Threat Tracker)
+    logCapture.captureLog(`Extracting entities...`, "test-article");
+    const { extractArticleEntities } = require("backend/services/openai");
+    const entities = await extractArticleEntities({
+      title: finalTitle,
+      content: articleContent.content,
+      url: articleUrl
+    });
+
+    // Prepare detected keywords with cybersecurity flag
+    const detectedKeywords = analysis.detectedKeywords || [];
+    if (isCybersecurity) {
+      detectedKeywords.push('_cyber:true');
+    }
+
+    // Save article to database
+    logCapture.captureLog(`Saving article to database...`, "test-article");
+    const [savedArticle] = await db
+      .insert(globalArticles)
+      .values({
+        sourceId: sourceId,
+        title: finalTitle,
+        content: articleContent.content,
+        url: articleUrl,
+        author: articleContent.author || "Unknown",
+        publishDate: articleContent.publishDate || new Date(),
+        summary: analysis.summary || "",
+        detectedKeywords: detectedKeywords,
+        isCybersecurity: isCybersecurity,
+        securityScore: securityScore,
+      })
+      .returning();
+
+    logCapture.captureLog(`Article saved successfully: ${savedArticle.id}`, "test-article");
+
+    // Log entity extraction results for diagnostics
+    if (entities) {
+      const entityCounts = {
+        software: entities.software?.length || 0,
+        companies: entities.companies?.length || 0,
+        hardware: entities.hardware?.length || 0,
+        cves: entities.cves?.length || 0,
+        threatActors: entities.threatActors?.length || 0
+      };
+      logCapture.captureLog(`Entities extracted - Software: ${entityCounts.software}, Companies: ${entityCounts.companies}, Hardware: ${entityCounts.hardware}, CVEs: ${entityCounts.cves}, Threat Actors: ${entityCounts.threatActors}`, "test-article");
+    }
+
+    const totalTime = Date.now() - startTime;
+    logCapture.captureLog(`Single article test completed in ${totalTime}ms`, "test-article");
+
+    return {
+      success: true,
+      article: {
+        title: finalTitle,
+        content: articleContent.content,
+        author: articleContent.author || undefined,
+        publishDate: articleContent.publishDate || undefined,
+        url: articleUrl
+      },
+      analysis: {
+        summary: analysis.summary || undefined,
+        isCybersecurity,
+        securityScore,
+        detectedKeywords
+      },
+      entities,
+      savedToDb: true,
+      savedArticleId: savedArticle.id,
+      diagnostics: {
+        extractionMethod: articleContent.extractionMethod || 'unknown',
+        confidence: articleContent.confidence || undefined
+      }
+    };
+
+  } catch (error: any) {
+    const errorMsg = `Single article test failed: ${error.message}`;
+    logCapture.captureLog(errorMsg, "test-article", "error");
+    
+    return {
+      success: false,
+      error: errorMsg
+    };
+  }
+}
+
+/**
  * Extract a readable name from a URL
  */
 function extractDomainName(url: string): string {
