@@ -124,6 +124,24 @@ body {
   @apply max-w-7xl mx-auto p-8;
 }
 
+/* Smooth toggle switch animations */
+button[role="switch"] {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[role="switch"] span {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+button[role="switch"][data-state="checked"] {
+  transition-delay: 0.05s;
+}
+
+/* Add subtle scale effect on toggle */
+button[role="switch"]:active {
+  transform: scale(0.98);
+}
+
 .card {
   @apply p-8;
 }
