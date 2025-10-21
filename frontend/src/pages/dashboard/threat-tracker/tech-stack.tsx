@@ -549,77 +549,77 @@ export default function TechStackPage() {
           </div>
         </div>
 
-        {/* Threat severity buttons - show individual buttons for each severity level */}
-        <div className="flex items-center gap-2 mr-4">
-          {item.criticalCount && item.criticalCount > 0 && (
-            <button
-              onClick={() => {
-                const filterParam = encodeURIComponent(`${type}:${item.name}:critical`);
-                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
-              }}
-              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
-              data-testid={`button-threat-critical-${item.id}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">Critical Threats</span>
-            </button>
-          )}
-          {item.highCount && item.highCount > 0 && (
-            <button
-              onClick={() => {
-                const filterParam = encodeURIComponent(`${type}:${item.name}:high`);
-                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
-              }}
-              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
-              data-testid={`button-threat-high-${item.id}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              <span className="text-muted-foreground">High Threats</span>
-            </button>
-          )}
-          {item.mediumCount && item.mediumCount > 0 && (
-            <button
-              onClick={() => {
-                const filterParam = encodeURIComponent(`${type}:${item.name}:medium`);
-                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
-              }}
-              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
-              data-testid={`button-threat-medium-${item.id}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              <span className="text-muted-foreground">Medium Threats</span>
-            </button>
-          )}
-          {item.lowCount && item.lowCount > 0 && (
-            <button
-              onClick={() => {
-                const filterParam = encodeURIComponent(`${type}:${item.name}:low`);
-                navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
-              }}
-              className="flex items-center gap-1 hover:opacity-80 transition-opacity px-2 py-1 text-xs rounded hover:bg-muted/50"
-              data-testid={`button-threat-low-${item.id}`}
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-muted-foreground">Low Threats</span>
-            </button>
-          )}
-          {/* Show "See all Threats" if any threats exist */}
-          {((item.criticalCount && item.criticalCount > 0) || 
-            (item.highCount && item.highCount > 0) || 
-            (item.mediumCount && item.mediumCount > 0) || 
-            (item.lowCount && item.lowCount > 0)) && (
+        {/* Threat severity buttons - only show if there are any threats */}
+        {((item.criticalCount && item.criticalCount > 0) || 
+          (item.highCount && item.highCount > 0) || 
+          (item.mediumCount && item.mediumCount > 0) || 
+          (item.lowCount && item.lowCount > 0)) && (
+          <div className="flex items-center gap-3 mr-4 text-xs">
+            {item.criticalCount && item.criticalCount > 0 && (
+              <button
+                onClick={() => {
+                  const filterParam = encodeURIComponent(`${type}:${item.name}:critical`);
+                  navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                }}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                data-testid={`button-threat-critical-${item.id}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                <span className="text-muted-foreground">Critical Threats</span>
+              </button>
+            )}
+            {item.highCount && item.highCount > 0 && (
+              <button
+                onClick={() => {
+                  const filterParam = encodeURIComponent(`${type}:${item.name}:high`);
+                  navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                }}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                data-testid={`button-threat-high-${item.id}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                <span className="text-muted-foreground">High Threats</span>
+              </button>
+            )}
+            {item.mediumCount && item.mediumCount > 0 && (
+              <button
+                onClick={() => {
+                  const filterParam = encodeURIComponent(`${type}:${item.name}:medium`);
+                  navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                }}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                data-testid={`button-threat-medium-${item.id}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                <span className="text-muted-foreground">Medium Threats</span>
+              </button>
+            )}
+            {item.lowCount && item.lowCount > 0 && (
+              <button
+                onClick={() => {
+                  const filterParam = encodeURIComponent(`${type}:${item.name}:low`);
+                  navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                }}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                data-testid={`button-threat-low-${item.id}`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                <span className="text-muted-foreground">Low Threats</span>
+              </button>
+            )}
+            {/* Show "See all Threats" link */}
             <button
               onClick={() => {
                 const filterParam = encodeURIComponent(`${type}:${item.name}`);
                 navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
               }}
-              className="text-xs text-primary hover:underline ml-2"
+              className="text-primary hover:underline"
               data-testid={`button-see-all-threats-${item.id}`}
             >
               See all Threats
             </button>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           {/* Enable/Disable Toggle */}
