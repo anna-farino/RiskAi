@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Environment Analysis Report - Altair Integrated Services</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+        }
+
+        header {
+            background-color: #0078d4;
+            color: white;
+            padding: 15px 30px;
+            border-bottom: 3px solid #005a9e;
+        }
+
+        header h1 {
+            font-size: 1.5em;
+            margin: 0;
+            font-weight: 600;
+        }
+
+        .metadata {
+            background-color: #f8f9fa;
+            padding: 12px 30px;
+            border-top: 1px solid #dee2e6;
+            border-bottom: 2px solid #0078d4;
+            font-size: 0.85em;
+        }
+
+        .metadata p {
+            margin: 3px 0;
+            display: inline-block;
+            margin-right: 20px;
+        }
+
+        .metadata strong {
+            color: #0078d4;
+            font-weight: 600;
+        }
+
+        nav {
+            display: none;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            color: #0078d4;
+            border-bottom: 3px solid #0078d4;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+            font-size: 2em;
+        }
+
+        h3 {
+            color: #005a9e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        h4 {
+            color: #333;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.2em;
+        }
+
+        p {
+            margin-bottom: 15px;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background-color: #0078d4;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f8f8f8;
+        }
+
+        tr:hover {
+            background-color: #e8f4fd;
+        }
+
+        .highlight-box {
+            background-color: #fff4e5;
+            border-left: 4px solid #ff9800;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .success-box {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .info-box {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .warning-box {
+            background-color: #fff3e0;
+            border-left: 4px solid #ff5722;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .card {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .card h4 {
+            color: #0078d4;
+            margin-top: 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+
+        .badge-success {
+            background-color: #4caf50;
+            color: white;
+        }
+
+        .badge-warning {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        .badge-danger {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .badge-info {
+            background-color: #2196f3;
+            color: white;
+        }
+
+        .status-running {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        .status-ready {
+            color: #4caf50;
+            font-weight: 600;
+        }
+
+        footer {
+            background-color: #333;
+            color: white;
+            text-align: center;
+            padding: 30px;
+            margin-top: 40px;
+        }
+
+        .redacted {
+            background-color: #000;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .redacted::selection {
+            background-color: #000;
+            color: #000;
+        }
+
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #ddd;
+            margin: 40px 0;
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+                margin: 0;
+            }
+
+            .container {
+                box-shadow: none;
+                max-width: 100%;
+                margin: 0;
+            }
+
+            nav {
+                display: none;
+            }
+
+            header {
+                background-color: #0078d4 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                padding: 10px 20px !important;
+                page-break-after: avoid;
+            }
+
+            header h1 {
+                font-size: 1.3em !important;
+                margin: 0 !important;
+            }
+
+            .metadata {
+                background-color: #f8f9fa !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                padding: 8px 20px !important;
+                page-break-after: avoid;
+                font-size: 0.75em !important;
+            }
+
+            .metadata p {
+                margin: 2px 10px 2px 0 !important;
+                display: inline-block;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            section {
+                page-break-inside: avoid;
+                margin-bottom: 40px;
+            }
+
+            h2 {
+                page-break-after: avoid;
+                page-break-before: auto;
+                margin-top: 30px;
+            }
+
+            h3 {
+                page-break-after: avoid;
+                margin-top: 20px;
+            }
+
+            h4 {
+                page-break-after: avoid;
+            }
+
+            table {
+                page-break-inside: avoid;
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 0.9em;
+            }
+
+            th {
+                background-color: #0078d4 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+
+            td {
+                border: 1px solid #ddd;
+            }
+
+            .card {
+                page-break-inside: avoid;
+                border: 1px solid #dee2e6;
+                background-color: #f8f9fa !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .info-box, .warning-box, .highlight-box, .success-box {
+                page-break-inside: avoid;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .info-box {
+                background-color: #e3f2fd !important;
+                border-left: 4px solid #2196f3 !important;
+            }
+
+            .warning-box {
+                background-color: #fff3e0 !important;
+                border-left: 4px solid #ff5722 !important;
+            }
+
+            .highlight-box {
+                background-color: #fff4e5 !important;
+                border-left: 4px solid #ff9800 !important;
+            }
+
+            .success-box {
+                background-color: #e8f5e9 !important;
+                border-left: 4px solid #4caf50 !important;
+            }
+
+            .badge {
+                border: 1px solid #333;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .badge-success {
+                background-color: #4caf50 !important;
+                color: white !important;
+            }
+
+            .badge-info {
+                background-color: #2196f3 !important;
+                color: white !important;
+            }
+
+            .status-running, .status-ready {
+                color: #2e7d32 !important;
+                font-weight: bold;
+            }
+
+            .redacted {
+                background-color: #000 !important;
+                color: #000 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            footer {
+                page-break-before: auto;
+                background-color: #333 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                margin-top: 40px;
+            }
+
+            /* Avoid breaking these elements */
+            ul, ol {
+                page-break-inside: avoid;
+            }
+
+            /* Keep orphans and widows under control */
+            p, li {
+                orphans: 3;
+                widows: 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                margin: 0;
+            }
+            header, .content {
+                padding: 20px;
+            }
+            nav ul {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Azure Environment Analysis Report | Altair Integrated Services</h1>
+        </header>
+
+        <div class="metadata">
+            <p><strong>Generated:</strong> October 14, 2025</p>
+            <p><strong>For:</strong> Azure Managed Services Provider Evaluation</p>
+            <p><strong>Subscription:</strong> Azure subscription 1</p>
+            <p><strong>ID:</strong> <span class="redacted">[REDACTED]</span></p>
+        </div>
+
+        <div class="content">
+            <section id="summary">
+                <h2>Summary</h2>
+
+                <h3>Environment Overview</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Category</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Subscription</strong></td>
+                            <td>Azure subscription 1 (Altair Integrated Services)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Regions</strong></td>
+                            <td>East US (backend/database), East US 2 (frontend)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Architecture</strong></td>
+                            <td>Full-stack cloud-native - Backend (Container Apps) + Frontend (Static Web Apps)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Environments</strong></td>
+                            <td>2 (Staging + Production)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Resource Groups</strong></td>
+                            <td>3</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Resource Inventory</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Resource Type</th>
+                            <th>Count</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Virtual Machines</td>
+                            <td>0</td>
+                            <td>None - fully cloud-native architecture</td>
+                        </tr>
+                        <tr>
+                            <td>Container Apps</td>
+                            <td>2</td>
+                            <td>Staging + Production backends</td>
+                        </tr>
+                        <tr>
+                            <td>Static Web Apps</td>
+                            <td>3</td>
+                            <td>Staging + Production frontends + Landing page</td>
+                        </tr>
+                        <tr>
+                            <td>Container Registries</td>
+                            <td>2</td>
+                            <td>Standard tier</td>
+                        </tr>
+                        <tr>
+                            <td>PostgreSQL Databases</td>
+                            <td>2</td>
+                            <td>Flexible Server v17</td>
+                        </tr>
+                        <tr>
+                            <td>Storage Accounts</td>
+                            <td>0</td>
+                            <td>None - using DB storage</td>
+                        </tr>
+                        <tr>
+                            <td>Key Vaults</td>
+                            <td>2</td>
+                            <td>Secret management</td>
+                        </tr>
+                        <tr>
+                            <td>Log Analytics Workspaces</td>
+                            <td>2</td>
+                            <td>Monitoring & logging</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Compute Capacity</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>CPU (per replica)</th>
+                            <th>Memory (per replica)</th>
+                            <th>Replicas</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td>3 cores</td>
+                            <td>6 GiB</td>
+                            <td>1-10</td>
+                            <td class="status-running">Running</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td>0.5 cores</td>
+                            <td>1 GiB</td>
+                            <td>1-10</td>
+                            <td class="status-running">Running</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Storage Capacity</h3>
+                <ul>
+                    <li><strong>Database:</strong> 64 GB total (32 GB × 2)</li>
+                    <li><strong>Ephemeral:</strong> Up to 100 GiB (scaled across replicas)</li>
+                    <li><strong>Images:</strong> ~2-5 GB (container registry)</li>
+                </ul>
+
+                <h3>Key Technologies</h3>
+                <ul>
+                    <li><strong>Backend Compute:</strong> Azure Container Apps (serverless containers)</li>
+                    <li><strong>Frontend Hosting:</strong> Azure Static Web Apps (serverless)</li>
+                    <li><strong>Database:</strong> PostgreSQL 17 Flexible Server</li>
+                    <li><strong>Security:</strong> Azure Key Vault, Managed Identities, Auto SSL</li>
+                    <li><strong>Monitoring:</strong> Log Analytics, Azure Monitor</li>
+                    <li><strong>Networking:</strong> Public endpoints, custom domains, SSL/TLS, Global CDN</li>
+                    <li><strong>CI/CD:</strong> Azure Container Registry + GitHub Actions</li>
+                </ul>
+
+                <h3>Monthly Service Hours</h3>
+                <ul>
+                    <li><strong>Container Apps:</strong> 24/7 operation with auto-scaling</li>
+                    <li><strong>Databases:</strong> 24/7 availability</li>
+                    <li><strong>Static Web Apps:</strong> 24/7 globally distributed hosting</li>
+                    <li><strong>Regions:</strong> East US + East US 2</li>
+                </ul>
+            </section>
+
+            <section id="vms">
+                <h2>1. Virtual Machines & Compute Resources</h2>
+
+                <div class="warning-box">
+                    <h3>Virtual Machines</h3>
+                    <p><strong>Answer: The organization does NOT use traditional virtual machines.</strong></p>
+                    <p>The infrastructure is entirely containerized using Azure Container Apps, which provides:</p>
+                    <ul>
+                        <li>Automatic scaling based on demand</li>
+                        <li>Pay-per-use pricing model</li>
+                        <li>No VM management overhead</li>
+                        <li>Container orchestration without Kubernetes complexity</li>
+                    </ul>
+                </div>
+
+                <h3>Azure Container Apps (Serverless Containers)</h3>
+                <p>The application uses <strong>2 Azure Container Apps</strong> for the backend services:</p>
+
+                <div class="card">
+                    <h4>Staging Environment <span class="badge badge-info">STAGING</span></h4>
+                    <ul>
+                        <li><strong>Name:</strong> app-risqai-backend</li>
+                        <li><strong>Resource Group:</strong> group-risqai-staging</li>
+                        <li><strong>FQDN:</strong> <span class="redacted">[REDACTED]</span></li>
+                        <li><strong>CPU:</strong> 3 cores per container</li>
+                        <li><strong>Memory:</strong> 6 GiB per container</li>
+                        <li><strong>Ephemeral Storage:</strong> 8 GiB per container</li>
+                        <li><strong>Scaling:</strong> Min 1 / Max 10 replicas</li>
+                        <li><strong>Port:</strong> 3000</li>
+                        <li><strong>Status:</strong> <span class="status-running">Running</span></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>Production Environment <span class="badge badge-success">PRODUCTION</span></h4>
+                    <ul>
+                        <li><strong>Name:</strong> app-risqai-backend-prod</li>
+                        <li><strong>Resource Group:</strong> group-risqai-production</li>
+                        <li><strong>FQDN:</strong> <span class="redacted">[REDACTED]</span></li>
+                        <li><strong>CPU:</strong> 0.5 cores per container</li>
+                        <li><strong>Memory:</strong> 1 GiB per container</li>
+                        <li><strong>Ephemeral Storage:</strong> 2 GiB per container</li>
+                        <li><strong>Scaling:</strong> Min 1 / Max 10 replicas</li>
+                        <li><strong>Port:</strong> 3000</li>
+                        <li><strong>Status:</strong> <span class="status-running">Running</span></li>
+                    </ul>
+                </div>
+
+                <h3>Compute Summary</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Container App</th>
+                            <th>CPU</th>
+                            <th>Memory</th>
+                            <th>Storage</th>
+                            <th>Replicas</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td>app-risqai-backend</td>
+                            <td>3 cores</td>
+                            <td>6 GiB</td>
+                            <td>8 GiB</td>
+                            <td>1-10</td>
+                            <td class="status-running">Running</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td>app-risqai-backend-prod</td>
+                            <td>0.5 cores</td>
+                            <td>1 GiB</td>
+                            <td>2 GiB</td>
+                            <td>1-10</td>
+                            <td class="status-running">Running</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <h4>Total Potential Compute</h4>
+                    <ul>
+                        <li><strong>Staging:</strong> Up to 30 CPU cores and 60 GiB memory (at max scale)</li>
+                        <li><strong>Production:</strong> Up to 5 CPU cores and 10 GiB memory (at max scale)</li>
+                    </ul>
+                </div>
+
+                <h3>Azure Static Web Apps (Frontend)</h3>
+                <p>The application uses <strong>3 Azure Static Web Apps</strong> for frontend hosting:</p>
+
+                <div class="card">
+                    <h4>Staging Frontend <span class="badge badge-info">STAGING</span></h4>
+                    <ul>
+                        <li><strong>Name:</strong> frontend-risqai-staging</li>
+                        <li><strong>Resource Group:</strong> group-risqai-staging</li>
+                        <li><strong>Location:</strong> East US 2</li>
+                        <li><strong>SKU:</strong> Standard</li>
+                        <li><strong>Default Hostname:</strong> <span class="redacted">[REDACTED]</span>.azurestaticapps.net</li>
+                        <li><strong>Custom Domains:</strong> <span class="redacted">[REDACTED]</span></li>
+                        <li><strong>GitHub Integration:</strong> Connected (staging branch)</li>
+                        <li><strong>Status:</strong> <span class="status-ready">Succeeded</span></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>Production Frontend (App) <span class="badge badge-success">PRODUCTION</span></h4>
+                    <ul>
+                        <li><strong>Name:</strong> frontend-risqai-production</li>
+                        <li><strong>Resource Group:</strong> group-risqai-production</li>
+                        <li><strong>Location:</strong> East US 2</li>
+                        <li><strong>SKU:</strong> Standard</li>
+                        <li><strong>Default Hostname:</strong> <span class="redacted">[REDACTED]</span>.azurestaticapps.net</li>
+                        <li><strong>Custom Domains:</strong> <span class="redacted">[REDACTED]</span>, <span class="redacted">[REDACTED]</span></li>
+                        <li><strong>GitHub Integration:</strong> Connected (master branch)</li>
+                        <li><strong>Status:</strong> <span class="status-ready">Succeeded</span></li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>Production Frontend (Landing Page) <span class="badge badge-success">PRODUCTION</span></h4>
+                    <ul>
+                        <li><strong>Name:</strong> landing-page-prod</li>
+                        <li><strong>Resource Group:</strong> group-risqai-production</li>
+                        <li><strong>Location:</strong> East US 2</li>
+                        <li><strong>SKU:</strong> Standard</li>
+                        <li><strong>Default Hostname:</strong> <span class="redacted">[REDACTED]</span>.azurestaticapps.net</li>
+                        <li><strong>Custom Domains:</strong> <span class="redacted">[REDACTED]</span>, <span class="redacted">[REDACTED]</span></li>
+                        <li><strong>GitHub Integration:</strong> Connected to separate repository (main branch)</li>
+                        <li><strong>Staging Environment Policy:</strong> Enabled</li>
+                        <li><strong>Status:</strong> <span class="status-ready">Succeeded</span></li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>Static Web Apps Features</h4>
+                    <ul>
+                        <li>Globally distributed static content</li>
+                        <li>Built-in CI/CD from GitHub</li>
+                        <li>Automatic HTTPS/SSL for custom domains</li>
+                        <li>Free SSL certificates</li>
+                        <li>GitHub Actions for deployment</li>
+                        <li>Preview environments (landing page)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="containers">
+                <h2>2. Container Infrastructure</h2>
+
+                <h3>Azure Container Registry</h3>
+                <p>The environment uses <strong>2 Azure Container Registries</strong> to store and manage container images:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Name</th>
+                            <th>Login Server</th>
+                            <th>SKU</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td><span class="redacted">[REDACTED]</span>.azurecr.io</td>
+                            <td>Standard</td>
+                            <td class="status-ready">Succeeded</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td><span class="redacted">[REDACTED]</span>.azurecr.io</td>
+                            <td>Standard</td>
+                            <td class="status-ready">Succeeded</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card">
+                    <h4>Container Registry Features</h4>
+                    <ul>
+                        <li>Azure AD authentication enabled</li>
+                        <li>Admin user enabled for CI/CD</li>
+                        <li>Public network access enabled</li>
+                        <li>Export policy enabled</li>
+                        <li>Image retention: 7 days (currently disabled)</li>
+                        <li>Geo-replication: Not configured</li>
+                        <li>Zone redundancy: Disabled</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="database">
+                <h2>3. Database Services</h2>
+
+                <h3>PostgreSQL Flexible Server</h3>
+                <p>The application uses <strong>2 PostgreSQL Flexible Server instances</strong> for database services:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Server Name</th>
+                            <th>Version</th>
+                            <th>SKU</th>
+                            <th>vCores</th>
+                            <th>Storage</th>
+                            <th>Auto-Grow</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td>17.5</td>
+                            <td>Standard_B2s (Burstable)</td>
+                            <td>2</td>
+                            <td>32 GB</td>
+                            <td>No</td>
+                            <td class="status-ready">Ready</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td>17.5</td>
+                            <td>Standard_D2ds_v5 (General Purpose)</td>
+                            <td>2</td>
+                            <td>32 GB</td>
+                            <td>Yes</td>
+                            <td class="status-ready">Ready</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card">
+                    <h4>Staging Database Details</h4>
+                    <ul>
+                        <li><strong>FQDN:</strong> db-risqay-staging.postgres.database.azure.com</li>
+                        <li><strong>Tier:</strong> Burstable</li>
+                        <li><strong>Backup Retention:</strong> 7 days</li>
+                        <li><strong>Geo-Redundant Backup:</strong> Disabled</li>
+                        <li><strong>High Availability:</strong> Disabled</li>
+                        <li><strong>SSL:</strong> Required</li>
+                        <li><strong>Created:</strong> August 12, 2025</li>
+                    </ul>
+                </div>
+
+                <div class="card">
+                    <h4>Production Database Details</h4>
+                    <ul>
+                        <li><strong>FQDN:</strong> db-risqai-production.postgres.database.azure.com</li>
+                        <li><strong>Tier:</strong> General Purpose</li>
+                        <li><strong>Backup Retention:</strong> 7 days</li>
+                        <li><strong>Geo-Redundant Backup:</strong> Disabled</li>
+                        <li><strong>High Availability:</strong> Disabled</li>
+                        <li><strong>SSL:</strong> Required</li>
+                        <li><strong>Created:</strong> August 26, 2025</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>Database Total Capacity</h4>
+                    <p><strong>Total Database Storage: 64 GB</strong> (32 GB × 2 instances)</p>
+                </div>
+            </section>
+
+            <section id="storage">
+                <h2>4. Storage Requirements Summary</h2>
+
+                <h3>Database Storage</h3>
+                <ul>
+                    <li>Staging Database: 32 GB (PostgreSQL)</li>
+                    <li>Production Database: 32 GB (PostgreSQL)</li>
+                    <li><strong>Total Persistent Storage: 64 GB</strong></li>
+                </ul>
+
+                <h3>Container Ephemeral Storage</h3>
+                <ul>
+                    <li>Staging Container: 8 GiB per replica (max 10 replicas = 80 GiB potential)</li>
+                    <li>Production Container: 2 GiB per replica (max 10 replicas = 20 GiB potential)</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <h4>Storage Accounts</h4>
+                    <p><strong>Note:</strong> No standalone Azure Storage Accounts detected. The application uses:</p>
+                    <ul>
+                        <li>Database storage for persistent data</li>
+                        <li>Container ephemeral storage for temporary files</li>
+                        <li>Container registries for image storage</li>
+                    </ul>
+                </div>
+
+                <div class="info-box">
+                    <h4>Total Infrastructure Storage</h4>
+                    <p><strong>~64-100 GB</strong> (accounting for databases, images, and ephemeral storage)</p>
+                </div>
+            </section>
+
+            <section id="security">
+                <h2>5. Security & Secrets Management</h2>
+
+                <h3>Azure Key Vault</h3>
+                <p>The environment uses <strong>2 Key Vault instances</strong> for secure secrets management:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Name</th>
+                            <th>Location</th>
+                            <th>Purpose</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td>East US</td>
+                            <td>Encryption keys for staging</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td>East US</td>
+                            <td>Encryption keys for production</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Managed Identities</h3>
+                <div class="card">
+                    <h4>System-Assigned Identities</h4>
+                    <ul>
+                        <li>Staging Container App: <span class="redacted">[REDACTED]</span></li>
+                        <li>Production Container App: <span class="redacted">[REDACTED]</span></li>
+                    </ul>
+                    <p>These identities provide secure, credential-free access to Azure services including Container Registry and Key Vault.</p>
+                </div>
+
+                <h3>Secrets Management</h3>
+                <p>Container apps use Azure-managed secrets for:</p>
+                <ul>
+                    <li>Database connection strings <span class="redacted">[REDACTED]</span></li>
+                    <li>Authentication credentials (Auth0) <span class="redacted">[REDACTED]</span></li>
+                    <li>API keys (OpenAI, SendGrid) <span class="redacted">[REDACTED]</span></li>
+                    <li>JWT secrets <span class="redacted">[REDACTED]</span></li>
+                    <li>CSRF tokens <span class="redacted">[REDACTED]</span></li>
+                    <li>Encryption keys <span class="redacted">[REDACTED]</span></li>
+                </ul>
+
+                <h3>SSL/TLS Certificates</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Custom Domain</th>
+                            <th>Certificate Management</th>
+                            <th>Binding Type</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td>api.preview.risqai.co</td>
+                            <td>Azure Managed</td>
+                            <td>SNI Enabled</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td>api.app.risqai.co</td>
+                            <td>Azure Managed</td>
+                            <td>SNI Enabled</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="monitoring">
+                <h2>6. Monitoring & Logging</h2>
+
+                <h3>Log Analytics Workspaces</h3>
+                <p>The environment uses <strong>2 Log Analytics Workspaces</strong> for centralized logging and monitoring:</p>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Workspace Name</th>
+                            <th>Pricing Tier</th>
+                            <th>Retention</th>
+                            <th>Daily Quota</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td>Pay-as-you-go</td>
+                            <td>30 days</td>
+                            <td>Unlimited</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td>Pay-as-you-go</td>
+                            <td>30 days</td>
+                            <td>Unlimited</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="card">
+                    <h4>Monitoring Features</h4>
+                    <ul>
+                        <li>Container App logs captured in Log Analytics</li>
+                        <li>Database metrics available through PostgreSQL insights</li>
+                        <li>Public network access enabled for both ingestion and query</li>
+                        <li>Data retention: 30 days</li>
+                        <li>No daily quota limits configured</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="networking">
+                <h2>7. Networking</h2>
+
+                <h3>Network Architecture</h3>
+                <div class="warning-box">
+                    <p><strong>Note:</strong> No custom Virtual Networks (VNets) detected. Container apps and databases use Azure-managed networking with public endpoints.</p>
+                </div>
+
+                <p>The application uses public networking for all services.</p>
+
+                <h3>Custom Domains</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Environment</th>
+                            <th>Application Domain</th>
+                            <th>Container App FQDN</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Staging</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td><span class="redacted">[REDACTED]</span>.eastus.azurecontainerapps.io</td>
+                        </tr>
+                        <tr>
+                            <td>Production</td>
+                            <td><span class="redacted">[REDACTED]</span></td>
+                            <td><span class="redacted">[REDACTED]</span>.eastus.azurecontainerapps.io</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Outbound IP Addresses</h3>
+                <div class="card">
+                    <h4>Container Apps Outbound IPs</h4>
+                    <p>Both container apps share a pool of approximately <strong>96 outbound IP addresses</strong> for external communications.</p>
+                    <p><strong>Use Case:</strong> These IPs can be provided to external services for firewall whitelisting when the application needs to make outbound connections. (Specific IPs redacted from this report but available upon request.)</p>
+                </div>
+
+                <h3>Network Security</h3>
+                <div class="info-box">
+                    <h4>Current Configuration</h4>
+                    <ul>
+                        <li>Public endpoints for all services</li>
+                        <li>No private networking (VNet integration)</li>
+                        <li>No network security groups (NSGs) configured</li>
+                        <li>SSL/TLS encryption for all connections</li>
+                        <li>Database port 5432 accessible with SSL requirement</li>
+                    </ul>
+                </div>
+            </section>
+
+            </div>
+
+        <footer>
+            <h3>Document Control</h3>
+            <p><strong>Report Version:</strong> 1.0</p>
+            <p><strong>Generated:</strong> October 14, 2025</p>
+            <p><strong>Generated By:</strong> Azure CLI automated analysis</p>
+            <p><strong>Sensitive Data:</strong> All credentials, keys, and secrets redacted</p>
+            <hr style="margin: 20px 0; border-color: #555;">
+            <p style="font-size: 0.9em; opacity: 0.8;">This report is intended for evaluation by Azure Managed Services providers. All sensitive information including passwords, connection strings, API keys, and secrets have been redacted.</p>
+        </footer>
+    </div>
+</body>
+</html>

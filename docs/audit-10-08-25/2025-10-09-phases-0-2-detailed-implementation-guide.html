@@ -1,0 +1,1898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Infrastructure Implementation Guide - Phases 0-2</title>
+    <style>
+        :root {
+            --primary-color: #0078d4;
+            --secondary-color: #50e6ff;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-main: #f9fafb;
+            --bg-content: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --table-header-bg: #f9fafb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-main);
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
+            color: white;
+            padding: 60px 20px;
+            margin: -40px -20px 40px -20px;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .header-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            opacity: 0.95;
+        }
+
+        .header-meta-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 12px 16px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-meta strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            background: var(--bg-content);
+            padding: 48px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin: 48px 0 24px 0;
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 12px;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            margin: 36px 0 16px 0;
+            color: var(--text-primary);
+        }
+
+        h4 {
+            font-size: 1.25rem;
+            margin: 24px 0 12px 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        p {
+            margin: 16px 0;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        ul, ol {
+            margin: 16px 0;
+            padding-left: 32px;
+        }
+
+        li {
+            margin: 8px 0;
+            line-height: 1.7;
+        }
+
+        li ul, li ol {
+            margin: 8px 0;
+        }
+
+        code {
+            background: var(--code-bg);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9em;
+            color: #e11d48;
+            font-weight: 500;
+        }
+
+        pre {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid var(--primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: #d4d4d4;
+            font-weight: normal;
+            display: block;
+            line-height: 1.6;
+        }
+
+        /* Syntax highlighting for code blocks */
+        .language-bash .comment { color: #6a9955; }
+        .language-bash .string { color: #ce9178; }
+        .language-bash .keyword { color: #569cd6; }
+        .language-bash .variable { color: #9cdcfe; }
+
+        .language-typescript .keyword { color: #569cd6; }
+        .language-typescript .string { color: #ce9178; }
+        .language-typescript .comment { color: #6a9955; }
+        .language-typescript .function { color: #dcdcaa; }
+        .language-typescript .type { color: #4ec9b0; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background: var(--table-header-bg);
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--bg-main);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid var(--border-color);
+            margin: 40px 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .callout {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+            border-left: 4px solid;
+        }
+
+        .callout-info {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+
+        .callout-success {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .callout-warning {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .callout-danger {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .toc {
+            background: var(--bg-main);
+            padding: 24px;
+            border-radius: 8px;
+            margin: 32px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 4px 0;
+        }
+
+        .toc a {
+            color: var(--primary-color);
+            text-decoration: none;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .toc a:hover {
+            background: white;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 64px;
+        }
+
+        .phase-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin: 8px 4px;
+            font-size: 0.9rem;
+        }
+
+        .phase-0 { background: #e0f2fe; color: #075985; }
+        .phase-1 { background: #ddd6fe; color: #5b21b6; }
+        .phase-2 { background: #fce7f3; color: #9f1239; }
+
+        .task-header {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            padding: 24px;
+            border-radius: 8px;
+            margin: 32px 0 24px 0;
+            border-left: 6px solid var(--primary-color);
+        }
+
+        .task-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .task-meta-item {
+            background: white;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .task-meta-item strong {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            margin-bottom: 4px;
+        }
+
+        .checklist {
+            background: var(--bg-main);
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .checklist h4 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .checklist li {
+            list-style-type: none;
+            padding-left: 0;
+        }
+
+        .checklist li:before {
+            content: "☐ ";
+            color: var(--text-secondary);
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 16px;
+            }
+
+            .header {
+                padding: 40px 16px;
+            }
+
+            .header h1 {
+                font-size: 1.75rem;
+            }
+
+            .content {
+                padding: 24px;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            h3 {
+                font-size: 1.25rem;
+            }
+
+            pre {
+                padding: 12px;
+                font-size: 0.85rem;
+            }
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        .emoji {
+            font-style: normal;
+        }
+
+        /* Back to top button */
+        .back-to-top {
+            position: fixed;
+            bottom: 32px;
+            right: 32px;
+            background: var(--primary-color);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 12px rgba(0, 120, 212, 0.3);
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 1000;
+            text-decoration: none;
+        }
+
+        .back-to-top:hover {
+            background: #005a9e;
+            transform: translateY(-4px);
+            box-shadow: 0 6px 16px rgba(0, 120, 212, 0.4);
+            text-decoration: none;
+        }
+
+        /* Navigation breadcrumb */
+        .breadcrumb {
+            background: var(--bg-main);
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        .breadcrumb a {
+            color: var(--primary-color);
+            margin: 0 8px;
+        }
+
+        .breadcrumb span {
+            color: var(--text-secondary);
+        }
+
+        /* Print-optimized styles */
+        @media print {
+            body {
+                background: white;
+                font-size: 11pt;
+                line-height: 1.5;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .header {
+                background: none;
+                color: var(--text-primary);
+                padding: 20px 0;
+                margin: 0 0 20px 0;
+                border-radius: 0;
+                box-shadow: none;
+                border-bottom: 3px solid var(--primary-color);
+                page-break-after: avoid;
+            }
+
+            .header h1 {
+                color: var(--primary-color);
+                font-size: 24pt;
+            }
+
+            .header-meta {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 10px;
+            }
+
+            .header-meta-item {
+                background: var(--bg-main);
+                color: var(--text-primary);
+            }
+
+            .content {
+                padding: 0;
+                box-shadow: none;
+                background: white;
+            }
+
+            .back-to-top {
+                display: none;
+            }
+
+            .breadcrumb {
+                display: none;
+            }
+
+            .toc {
+                page-break-after: always;
+                background: var(--bg-main);
+                padding: 15px;
+                border: 1px solid var(--border-color);
+            }
+
+            h2 {
+                color: var(--primary-color);
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 30pt;
+                font-size: 18pt;
+            }
+
+            h3 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 20pt;
+                font-size: 14pt;
+            }
+
+            h4 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 15pt;
+                font-size: 12pt;
+            }
+
+            .task-header {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                background: var(--bg-main);
+                border: 1px solid var(--border-color);
+                padding: 15px;
+                margin: 20px 0;
+            }
+
+            .task-meta {
+                grid-template-columns: repeat(4, 1fr);
+            }
+
+            pre {
+                page-break-inside: avoid;
+                background: #f5f5f5;
+                border: 1px solid var(--border-color);
+                padding: 10pt;
+                font-size: 9pt;
+                overflow: visible;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+
+            pre code {
+                color: #000;
+            }
+
+            .callout {
+                page-break-inside: avoid;
+                border: 1px solid var(--border-color);
+                padding: 10pt;
+            }
+
+            .callout-info {
+                background: #f0f9ff;
+                border-left: 4px solid #3b82f6;
+            }
+
+            .callout-success {
+                background: #f0fdf4;
+                border-left: 4px solid #10b981;
+            }
+
+            .callout-warning {
+                background: #fffbeb;
+                border-left: 4px solid #f59e0b;
+            }
+
+            .callout-danger {
+                background: #fef2f2;
+                border-left: 4px solid #ef4444;
+            }
+
+            .checklist {
+                page-break-inside: avoid;
+                background: var(--bg-main);
+                border: 1px solid var(--border-color);
+                padding: 10pt;
+            }
+
+            table {
+                page-break-inside: avoid;
+                font-size: 9pt;
+            }
+
+            .phase-badge {
+                border: 1px solid currentColor;
+                padding: 4px 12px;
+            }
+
+            .badge {
+                border: 1px solid currentColor;
+            }
+
+            a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            a[href]:after {
+                content: " (" attr(href) ")";
+                font-size: 8pt;
+                color: var(--text-secondary);
+            }
+
+            a[href^="#"]:after {
+                content: "";
+            }
+
+            .footer {
+                page-break-before: always;
+                border-top: 2px solid var(--border-color);
+                padding-top: 20px;
+                margin-top: 40px;
+            }
+
+            /* Ensure important sections stay together */
+            .task-meta,
+            .checklist,
+            .callout {
+                orphans: 3;
+                widows: 3;
+            }
+
+            /* Page numbering */
+            @page {
+                margin: 2cm;
+                @bottom-right {
+                    content: "Page " counter(page) " of " counter(pages);
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header" id="top">
+            <h1>🚀 Azure Infrastructure Implementation Guide</h1>
+            <p style="font-size: 1.25rem; margin-top: 12px; opacity: 0.95;">Phases 0-2: Quick Wins, Foundation & Security</p>
+            <div class="header-meta">
+                <div class="header-meta-item">
+                    <strong>Document Version</strong>
+                    1.0
+                </div>
+                <div class="header-meta-item">
+                    <strong>Created</strong>
+                    October 9, 2025
+                </div>
+                <div class="header-meta-item">
+                    <strong>Project</strong>
+                    RisqAI Platform
+                </div>
+                <div class="header-meta-item">
+                    <strong>Target Audience</strong>
+                    DevOps Engineers, Backend Developers
+                </div>
+                <div class="header-meta-item">
+                    <strong>Estimated Total Time</strong>
+                    8-12 weeks
+                </div>
+                <div class="header-meta-item">
+                    <strong>Estimated Total Cost Impact</strong>
+                    +$255-445/month
+                </div>
+            </div>
+        </div>
+
+        <div class="content">
+
+<div class="toc">
+<h3>📋 Table of Contents</h3>
+
+<h4><span class="phase-badge phase-0">Phase 0: Quick Wins</span> (Week 1)</h4>
+<ol>
+<li><a href="#phase-0-task-1">Configure Azure Monitor Alerts</a></li>
+<li><a href="#phase-0-task-2">Implement Azure Cost Management Budgets</a></li>
+<li><a href="#phase-0-task-3">Container Registry Lifecycle Policies</a></li>
+<li><a href="#phase-0-task-4">Verify PostgreSQL Backups</a></li>
+</ol>
+
+<h4><span class="phase-badge phase-1">Phase 1: Foundational Improvements</span> (Weeks 2-5)</h4>
+<ol start="5">
+<li><a href="#phase-1-task-1">Enable Application Insights</a></li>
+<li><a href="#phase-1-task-2">Configure Container Apps Auto-Scaling</a></li>
+<li><a href="#phase-1-task-3">Extend Log Retention to 90 Days</a></li>
+<li><a href="#phase-1-task-4">Right-Size Container Resources</a></li>
+<li><a href="#phase-1-task-5">Implement Health Probes</a></li>
+</ol>
+
+<h4><span class="phase-badge phase-2">Phase 2: Security & Resilience</span> (Weeks 6-12)</h4>
+<ol start="10">
+<li><a href="#phase-2-task-1">Enable PostgreSQL High Availability</a></li>
+<li><a href="#phase-2-task-2">Enable Microsoft Defender for Cloud</a></li>
+<li><a href="#phase-2-task-3">Implement WAF with Azure Front Door</a></li>
+</ol>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <span>Phase 0: Quick Wins</span>
+</div>
+
+<h2 id="phase-0"><span class="phase-badge phase-0">Phase 0: Quick Wins</span> (Week 1)</h2>
+
+<div class="task-header">
+    <p><strong>Goal:</strong> Establish basic monitoring, cost controls, and safety nets</p>
+    <div class="task-meta">
+        <div class="task-meta-item">
+            <strong>Total Time</strong>
+            2-3 days
+        </div>
+        <div class="task-meta-item">
+            <strong>Total Cost</strong>
+            -$5 to +$15/month
+        </div>
+        <div class="task-meta-item">
+            <strong>Risk Level</strong>
+            <span class="badge badge-success">Low</span>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-0">Phase 0</a>
+    <span>›</span>
+    <span>Task 1: Configure Azure Monitor Alerts</span>
+</div>
+
+<h2 id="phase-0-task-1">Phase 0, Task 1: Configure Azure Monitor Alerts</h2>
+
+<h3>What This Is</h3>
+<p>Azure Monitor Alerts is a proactive notification system that continuously watches your infrastructure metrics and logs, sending notifications when predefined thresholds are crossed. Think of it as your infrastructure's early warning system.</p>
+
+<h3>What It Does</h3>
+<ul>
+<li><strong>Monitors metrics</strong> from Container Apps, PostgreSQL, Key Vault, and other Azure resources</li>
+<li><strong>Evaluates alert rules</strong> every 1-5 minutes (depending on configuration)</li>
+<li><strong>Triggers actions</strong> like sending emails, SMS, webhooks, or executing Azure Automation runbooks</li>
+<li><strong>Maintains alert history</strong> for audit trails and trend analysis</li>
+<li><strong>Integrates with incident management</strong> tools like PagerDuty, ServiceNow, or Slack</li>
+</ul>
+
+<h3>Why You Need This</h3>
+
+<p><strong>Without alerts:</strong></p>
+<ul>
+<li>😰 You discover outages when users complain</li>
+<li>💸 Cost overruns go unnoticed until the bill arrives</li>
+<li>🔥 Performance degradation escalates into full outages</li>
+<li>⏰ Mean Time To Detection (MTTD) is measured in hours or days</li>
+</ul>
+
+<p><strong>With alerts:</strong></p>
+<ul>
+<li>✅ Know about issues in minutes, not hours</li>
+<li>✅ Prevent small problems from becoming big ones</li>
+<li>✅ Meet SLA commitments with confidence</li>
+<li>✅ Sleep better knowing you'll be notified of issues</li>
+</ul>
+
+<div class="callout callout-info">
+<p><strong>Real-world scenario:</strong> Container memory hits 95% → Alert fires → Team investigates → Find memory leak → Deploy fix → Prevent crash that would have affected thousands of users.</p>
+</div>
+
+<div class="checklist">
+<h4>Prerequisites</h4>
+<ul>
+<li>Azure CLI installed and authenticated (<code>az login</code>)</li>
+<li>Access to Azure subscription with Contributor role</li>
+<li>Email addresses for alert recipients</li>
+<li>(Optional) Slack webhook or PagerDuty integration key</li>
+</ul>
+</div>
+
+<div class="task-meta">
+    <div class="task-meta-item">
+        <strong>Setup</strong>
+        4 hours
+    </div>
+    <div class="task-meta-item">
+        <strong>Testing</strong>
+        2 hours
+    </div>
+    <div class="task-meta-item">
+        <strong>Documentation</strong>
+        1 hour
+    </div>
+    <div class="task-meta-item">
+        <strong>Total</strong>
+        1 day
+    </div>
+</div>
+
+<h3>Cost Impact</h3>
+<ul>
+<li>First 10 alert rules: <strong>FREE</strong></li>
+<li>Each additional alert rule: <strong>$0.10/month</strong></li>
+<li>Email actions: <strong>FREE</strong></li>
+<li>SMS actions: <strong>$0.15 per SMS</strong></li>
+<li><strong>Estimated total:</strong> $2-5/month</li>
+</ul>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Create Action Groups</h4>
+<p>Action Groups define WHO gets notified and HOW when an alert fires.</p>
+
+<p><strong>1.1: Create Email Action Group</strong></p>
+<pre><code class="language-bash"># Create action group for email notifications
+az monitor action-group create \
+  --name ag-risqai-email-critical \
+  --resource-group group-risqai-production \
+  --short-name emailcrit \
+  --action email engineering-team engineering@risqai.com \
+  --action email devops-lead devops-lead@risqai.com</code></pre>
+
+<p><strong>1.2: Create SMS Action Group (Optional)</strong></p>
+<pre><code class="language-bash"># Create action group for SMS (critical alerts only)
+az monitor action-group create \
+  --name ag-risqai-sms-critical \
+  --resource-group group-risqai-production \
+  --short-name smscrit \
+  --action sms oncall "+1234567890"</code></pre>
+
+<p><strong>1.3: Create Webhook Action Group for Slack (Optional)</strong></p>
+<pre><code class="language-bash"># Create action group for Slack webhook
+az monitor action-group create \
+  --name ag-risqai-slack \
+  --resource-group group-risqai-production \
+  --short-name slackalert \
+  --action webhook slack-webhook https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK</code></pre>
+
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash"># List all action groups
+az monitor action-group list \
+  --resource-group group-risqai-production \
+  --output table
+
+# Test action group (sends test notification)
+az monitor action-group test-notifications create \
+  --action-group-name ag-risqai-email-critical \
+  --resource-group group-risqai-production \
+  --notification-type Email \
+  --test-notification-id "test-$(date +%s)"</code></pre>
+
+<hr>
+
+<h4>Step 2: Create Container App Alerts</h4>
+
+<p><strong>2.1: CPU Usage Alert</strong></p>
+<pre><code class="language-bash"># Alert when Container App CPU > 90% for 10 minutes
+az monitor metrics alert create \
+  --name alert-containerapp-cpu-high-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.App/containerApps/app-risqai-backend-prod \
+  --condition "avg UsagePercentage > 90" \
+  --window-size 10m \
+  --evaluation-frequency 5m \
+  --action ag-risqai-email-critical \
+  --description "Container App CPU usage exceeded 90% for 10 minutes" \
+  --severity 2</code></pre>
+
+<div class="callout callout-info">
+<p><strong>Note:</strong> Replace <code>{subscription-id}</code> with your actual subscription ID. Get it with: <code>az account show --query id -o tsv</code></p>
+</div>
+
+<p><strong>2.2: Memory Usage Alert</strong></p>
+<pre><code class="language-bash"># Alert when Container App memory > 95% for 5 minutes
+az monitor metrics alert create \
+  --name alert-containerapp-memory-high-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.App/containerApps/app-risqai-backend-prod \
+  --condition "avg WorkingSetBytes > 1019215872" \
+  --window-size 5m \
+  --evaluation-frequency 5m \
+  --action ag-risqai-email-critical \
+  --action ag-risqai-sms-critical \
+  --description "Container App memory usage exceeded 95% (970 MB out of 1024 MB)" \
+  --severity 1</code></pre>
+
+<div class="callout callout-info">
+<p><strong>Note:</strong> 1019215872 bytes = 972 MB (95% of 1 GiB = 1024 MB)</p>
+</div>
+
+<p><strong>2.3: Container Restart Alert</strong></p>
+<pre><code class="language-bash"># Alert when containers restart frequently (sign of crashes)
+az monitor metrics alert create \
+  --name alert-containerapp-restarts-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.App/containerApps/app-risqai-backend-prod \
+  --condition "total Restarts > 3" \
+  --window-size 1h \
+  --evaluation-frequency 5m \
+  --action ag-risqai-email-critical \
+  --description "Container restarted more than 3 times in 1 hour" \
+  --severity 2</code></pre>
+
+<p><strong>2.4: HTTP 5xx Error Rate Alert</strong></p>
+<pre><code class="language-bash"># Alert when error rate > 5% of requests
+az monitor metrics alert create \
+  --name alert-containerapp-errors-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.App/containerApps/app-risqai-backend-prod \
+  --condition "avg Requests where ResultCode >= 500 > 5" \
+  --window-size 5m \
+  --evaluation-frequency 1m \
+  --action ag-risqai-email-critical \
+  --action ag-risqai-sms-critical \
+  --description "HTTP 5xx error rate exceeded 5%" \
+  --severity 1</code></pre>
+
+<hr>
+
+<h4>Step 3: Create PostgreSQL Database Alerts</h4>
+
+<p><strong>3.1: Database CPU Alert</strong></p>
+<pre><code class="language-bash"># Alert when database CPU > 80% for 15 minutes
+az monitor metrics alert create \
+  --name alert-postgres-cpu-high-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.DBforPostgreSQL/flexibleServers/db-risqai-production \
+  --condition "avg cpu_percent > 80" \
+  --window-size 15m \
+  --evaluation-frequency 5m \
+  --action ag-risqai-email-critical \
+  --description "PostgreSQL CPU usage exceeded 80% for 15 minutes" \
+  --severity 2</code></pre>
+
+<p><strong>3.2: Database Connection Count Alert</strong></p>
+<pre><code class="language-bash"># Alert when connection count > 80% of max (Standard_D2ds_v5 supports ~100 connections)
+az monitor metrics alert create \
+  --name alert-postgres-connections-high-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.DBforPostgreSQL/flexibleServers/db-risqai-production \
+  --condition "avg active_connections > 80" \
+  --window-size 15m \
+  --evaluation-frequency 5m \
+  --action ag-risqai-email-critical \
+  --description "PostgreSQL active connections exceeded 80 (80% of max)" \
+  --severity 2</code></pre>
+
+<p><strong>3.3: Database Storage Alert</strong></p>
+<pre><code class="language-bash"># Alert when storage > 85% full
+az monitor metrics alert create \
+  --name alert-postgres-storage-high-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.DBforPostgreSQL/flexibleServers/db-risqai-production \
+  --condition "avg storage_percent > 85" \
+  --window-size 1h \
+  --evaluation-frequency 15m \
+  --action ag-risqai-email-critical \
+  --description "PostgreSQL storage exceeded 85% of 32 GB capacity" \
+  --severity 2</code></pre>
+
+<hr>
+
+<h4>Step 4: Create Key Vault Alerts</h4>
+
+<p><strong>4.1: Key Vault Access Denied Alert</strong></p>
+<pre><code class="language-bash"># Alert on any Key Vault access denied events
+az monitor metrics alert create \
+  --name alert-keyvault-access-denied-prod \
+  --resource-group group-risqai-production \
+  --scopes /subscriptions/{subscription-id}/resourceGroups/group-risqai-production/providers/Microsoft.KeyVault/vaults/risqai-keyv-production \
+  --condition "total ServiceApiResult where StatusCode = 403 > 0" \
+  --window-size 5m \
+  --evaluation-frequency 1m \
+  --action ag-risqai-email-critical \
+  --description "Key Vault access denied - possible security issue" \
+  --severity 1</code></pre>
+
+<hr>
+
+<h3>Verification & Testing</h3>
+
+<p><strong>Test 1: Verify All Alerts Are Created</strong></p>
+<pre><code class="language-bash"># List all alert rules in production resource group
+az monitor metrics alert list \
+  --resource-group group-risqai-production \
+  --output table
+
+# Expected output: Should see all alert rules created above</code></pre>
+
+<p><strong>Test 2: Manually Trigger a Test Alert</strong></p>
+<pre><code class="language-bash"># Update an alert to trigger immediately (lower threshold temporarily)
+az monitor metrics alert update \
+  --name alert-containerapp-cpu-high-prod \
+  --resource-group group-risqai-production \
+  --condition "avg UsagePercentage > 1"  # Very low threshold
+
+# Wait 5-10 minutes, check email for alert
+
+# Restore original threshold
+az monitor metrics alert update \
+  --name alert-containerapp-cpu-high-prod \
+  --resource-group group-risqai-production \
+  --condition "avg UsagePercentage > 90"</code></pre>
+
+<hr>
+
+<div class="checklist">
+<h4>Success Metrics</h4>
+<ul>
+<li>All 12 alert rules created and enabled</li>
+<li>Test notification received by email</li>
+<li>Alert fires when threshold is crossed</li>
+<li>Alert history visible in Azure Monitor</li>
+<li>Dashboard displays current metrics</li>
+<li>Team acknowledges understanding of alerts</li>
+</ul>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-0">Phase 0</a>
+    <span>›</span>
+    <span>Task 2: Azure Cost Management Budgets</span>
+</div>
+
+<h2 id="phase-0-task-2">Phase 0, Task 2: Implement Azure Cost Management Budgets</h2>
+
+<h3>What This Is</h3>
+<p>Azure Cost Management Budgets is a built-in financial governance tool that sets spending limits and sends proactive alerts BEFORE you exceed your budget. It's like a credit card spending alert, but for your cloud infrastructure.</p>
+
+<h3>What It Does</h3>
+<ul>
+<li><strong>Sets monthly/quarterly/annual budgets</strong> at subscription or resource group level</li>
+<li><strong>Tracks actual spending</strong> vs. forecasted spending</li>
+<li><strong>Sends email alerts</strong> at 50%, 80%, 100% of budget</li>
+<li><strong>Provides cost trend analysis</strong> and spending forecasts</li>
+<li><strong>Integrates with action groups</strong> for automated responses (optional)</li>
+<li><strong>Supports resource tags</strong> for cost allocation by team/project</li>
+</ul>
+
+<h3>Why You Need This</h3>
+
+<div class="callout callout-warning">
+<p><strong>Real-world scenarios prevented:</strong></p>
+<ul>
+<li>😱 "Our Azure bill jumped from $300 to $3,000 this month!" → Budget alert at $400 would have caught this</li>
+<li>💸 Forgot to turn off staging environment over holidays → Budget alert prevents waste</li>
+<li>🚨 Someone accidentally deployed 50 VMs instead of 5 → Immediate alert catches it</li>
+</ul>
+</div>
+
+<div class="task-meta">
+    <div class="task-meta-item">
+        <strong>Setup</strong>
+        2 hours
+    </div>
+    <div class="task-meta-item">
+        <strong>Testing</strong>
+        30 minutes
+    </div>
+    <div class="task-meta-item">
+        <strong>Total</strong>
+        3 hours
+    </div>
+    <div class="task-meta-item">
+        <strong>Cost Impact</strong>
+        <span class="badge badge-success">FREE</span>
+    </div>
+</div>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Analyze Current Spending</h4>
+
+<p><strong>1.1: Review Last 3 Months of Spending</strong></p>
+<pre><code class="language-bash"># Get cost for last 3 months (production resource group)
+az consumption usage list \
+  --start-date $(date -d "90 days ago" +%Y-%m-%d) \
+  --end-date $(date +%Y-%m-%d) \
+  --query "[?contains(instanceId, 'group-risqai-production')].{date:usageStart, cost:pretaxCost}" \
+  --output table
+
+# Get cost breakdown by service
+az cost-management query \
+  --type ActualCost \
+  --dataset-grouping name="ServiceName" type="Dimension" \
+  --timeframe MonthToDate</code></pre>
+
+<p><strong>1.2: Calculate Budget Amounts</strong></p>
+<p>Based on current assessment ($305-335/month) and Phase 0-1 increases (+$15-45/month):</p>
+<ul>
+<li>Production budget: <strong>$400/month</strong> (includes headroom for spikes)</li>
+<li>Staging budget: <strong>$150/month</strong> (lower usage)</li>
+<li>Total subscription budget: <strong>$600/month</strong></li>
+</ul>
+
+<hr>
+
+<h4>Step 2: Create Resource Group Budgets</h4>
+
+<p><strong>2.1: Production Resource Group Budget</strong></p>
+<pre><code class="language-bash"># Create monthly budget for production
+az consumption budget create \
+  --budget-name budget-production-monthly \
+  --amount 400 \
+  --category Cost \
+  --time-grain Monthly \
+  --start-date 2025-11-01 \
+  --end-date 2026-12-31 \
+  --resource-group group-risqai-production \
+  --notifications \
+    threshold=50 \
+    operator=GreaterThan \
+    contactEmails="[\"devops@risqai.com\",\"finance@risqai.com\"]" \
+    contactRoles="[\"Owner\",\"Contributor\"]" \
+  --notifications \
+    threshold=80 \
+    operator=GreaterThan \
+    contactEmails="[\"devops@risqai.com\",\"finance@risqai.com\",\"cto@risqai.com\"]" \
+  --notifications \
+    threshold=100 \
+    operator=GreaterThan \
+    contactEmails="[\"devops@risqai.com\",\"finance@risqai.com\",\"cto@risqai.com\",\"ceo@risqai.com\"]"</code></pre>
+
+<hr>
+
+<h4>Step 3: Implement Cost Allocation Tags</h4>
+
+<p><strong>3.1: Tag Existing Resources</strong></p>
+<pre><code class="language-bash"># Tag production resources
+az resource tag \
+  --tags environment=production cost-center=engineering owner=devops project=risqai-platform created-by=manual \
+  --ids $(az resource list --resource-group group-risqai-production --query "[].id" -o tsv)
+
+# Tag staging resources
+az resource tag \
+  --tags environment=staging cost-center=engineering owner=devops project=risqai-platform created-by=manual \
+  --ids $(az resource list --resource-group group-risqai-staging --query "[].id" -o tsv)</code></pre>
+
+<p><strong>3.2: Verify Tags Applied</strong></p>
+<pre><code class="language-bash"># List all resources with tags
+az resource list \
+  --resource-group group-risqai-production \
+  --query "[].{name:name, type:type, tags:tags}" \
+  --output table</code></pre>
+
+<hr>
+
+<div class="checklist">
+<h4>Success Metrics</h4>
+<ul>
+<li>All budgets created (production, staging, subscription)</li>
+<li>All resources tagged with required tags</li>
+<li>Budget alerts configured for 50%, 80%, 100%</li>
+<li>Weekly cost reports scheduled</li>
+<li>Team trained on cost analysis dashboard</li>
+<li>Alert email received when budget threshold crossed</li>
+</ul>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-0">Phase 0</a>
+    <span>›</span>
+    <span>Task 3: Container Registry Lifecycle Policies</span>
+</div>
+
+<h2 id="phase-0-task-3">Phase 0, Task 3: Container Registry Lifecycle Policies</h2>
+
+<h3>What This Is</h3>
+<p>Azure Container Registry (ACR) Lifecycle Policies automatically delete old, unused, or untagged container images based on rules you define. Think of it as an automated cleanup service that prevents your registry from becoming a junk drawer.</p>
+
+<h3>Why You Need This</h3>
+
+<p><strong>Without lifecycle policies:</strong></p>
+<ul>
+<li>📦 ACR fills up with 100+ old images you'll never use</li>
+<li>💸 Paying $0.10/GB/month for images from 6 months ago</li>
+<li>🔒 Old images contain security vulnerabilities (outdated dependencies)</li>
+<li>🐌 Slower image pulls due to large registry size</li>
+</ul>
+
+<p><strong>With lifecycle policies:</strong></p>
+<ul>
+<li>✅ Only keep last 10 images per repository</li>
+<li>✅ Automatically remove untagged images weekly</li>
+<li>✅ Reduce storage costs by 50-70%</li>
+<li>✅ Cleaner registry, easier to manage</li>
+</ul>
+
+<div class="callout callout-success">
+<p><strong>Example:</strong> Your <code>app-risqai-backend-prod</code> repository has 47 images dating back 4 months. You only ever use the latest 5. Policy keeps last 10, deletes 37 images → Saves ~3.7 GB × $0.10 = <strong>$0.37/month per repo</strong>.</p>
+</div>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Audit Current Container Registry</h4>
+
+<p><strong>1.1: List All Repositories</strong></p>
+<pre><code class="language-bash"># Production ACR
+az acr repository list \
+  --name risqaiprod \
+  --output table
+
+# Staging ACR
+az acr repository list \
+  --name risqaistg \
+  --output table</code></pre>
+
+<p><strong>1.2: Count Images Per Repository</strong></p>
+<pre><code class="language-bash"># Show all tags for backend production images
+az acr repository show-tags \
+  --name risqaiprod \
+  --repository app-risqai-backend-prod \
+  --output table
+
+# Count total images
+az acr repository show-tags \
+  --name risqaiprod \
+  --repository app-risqai-backend-prod \
+  --output json | jq 'length'</code></pre>
+
+<hr>
+
+<h4>Step 2: Create Image Retention Policy</h4>
+
+<p><strong>2.1: Keep Last 10 Images Per Repository</strong></p>
+<pre><code class="language-bash"># Create ACR task to purge old images daily
+az acr task create \
+  --name purge-old-backend-images \
+  --registry risqaiprod \
+  --cmd "acr purge \
+    --filter 'app-risqai-backend-prod:.*' \
+    --keep 10 \
+    --ago 30d \
+    --untagged" \
+  --schedule "0 0 * * *" \
+  --timeout 3600 \
+  --context /dev/null
+
+# Explanation:
+# --filter 'app-risqai-backend-prod:.*' = Match all tags in this repo
+# --keep 10 = Keep newest 10 images
+# --ago 30d = Only delete images older than 30 days
+# --untagged = Also delete untagged manifests
+# --schedule "0 0 * * *" = Run daily at midnight UTC</code></pre>
+
+<hr>
+
+<h4>Step 3: Create Untagged Image Cleanup Policy</h4>
+
+<p><strong>3.1: Remove Untagged Images Weekly</strong></p>
+<pre><code class="language-bash"># Remove untagged (dangling) images every Sunday at 2 AM
+az acr task create \
+  --name purge-untagged-images \
+  --registry risqaiprod \
+  --cmd "acr purge \
+    --filter '.*:.*' \
+    --untagged \
+    --ago 7d" \
+  --schedule "0 2 * * 0" \
+  --timeout 1800 \
+  --context /dev/null</code></pre>
+
+<hr>
+
+<h3>Verification & Testing</h3>
+
+<p><strong>Test 1: Dry Run (See What Would Be Deleted)</strong></p>
+<pre><code class="language-bash"># Run purge task manually with --dry-run
+az acr task run \
+  --name purge-old-backend-images \
+  --registry risqaiprod \
+  --set CMD="acr purge --filter 'app-risqai-backend-prod:.*' --keep 10 --ago 30d --dry-run"
+
+# Review output to see which images would be deleted</code></pre>
+
+<p><strong>Test 2: Verify Task Schedule</strong></p>
+<pre><code class="language-bash"># List all ACR tasks
+az acr task list \
+  --registry risqaiprod \
+  --output table
+
+# Show task details
+az acr task show \
+  --name purge-old-backend-images \
+  --registry risqaiprod \
+  --query "{name:name, status:status, schedule:trigger.timerTriggers[0].schedule}" \
+  --output table</code></pre>
+
+<hr>
+
+<div class="checklist">
+<h4>Success Metrics</h4>
+<ul>
+<li>ACR tasks created for production and staging</li>
+<li>Dry run executed successfully (no errors)</li>
+<li>Storage usage reduced by > 20% after first run</li>
+<li>Task execution history shows successful runs</li>
+<li>Protected tags remain intact (stable, v1.x.x)</li>
+<li>Documentation created for team</li>
+</ul>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-0">Phase 0</a>
+    <span>›</span>
+    <span>Task 4: Verify PostgreSQL Backups</span>
+</div>
+
+<h2 id="phase-0-task-4">Phase 0, Task 4: Verify PostgreSQL Backups</h2>
+
+<h3>What This Is</h3>
+<p>PostgreSQL Flexible Server includes <strong>automated backups</strong> by default. This task verifies that backups are configured correctly, tests the restore process, and documents recovery procedures. Think of it as a fire drill for your database.</p>
+
+<h3>Why You Need This</h3>
+
+<div class="callout callout-danger">
+<p><strong>Disaster scenarios prevented:</strong></p>
+<ul>
+<li>🗑️ Accidental <code>DROP TABLE</code> → Restore to 5 minutes before disaster</li>
+<li>🐛 Bad deployment corrupts data → Rollback database to before deployment</li>
+<li>🔥 Primary database zone fails → Restore to different zone</li>
+<li>👾 Ransomware encrypts database → Restore from clean backup</li>
+</ul>
+</div>
+
+<div class="callout callout-success">
+<p><strong>Real-world example:</strong> Developer accidentally runs <code>DELETE FROM users WHERE true</code> instead of <code>WHERE id = 123</code>. Database backup from 10 minutes ago recovers all user data with zero loss.</p>
+</div>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Verify Backup Configuration</h4>
+
+<p><strong>1.1: Check Current Backup Settings (Production)</strong></p>
+<pre><code class="language-bash"># Show backup configuration
+az postgres flexible-server show \
+  --name db-risqai-production \
+  --resource-group group-risqai-production \
+  --query "{name:name, backupRetentionDays:backup.backupRetentionDays, geoRedundantBackup:backup.geoRedundantBackup, earliestRestoreDate:backup.earliestRestoreDate}" \
+  --output table</code></pre>
+
+<hr>
+
+<h4>Step 2: Configure Optimal Backup Settings</h4>
+
+<p><strong>2.1: Increase Backup Retention to 35 Days</strong></p>
+<pre><code class="language-bash"># Increase retention to maximum (35 days)
+az postgres flexible-server update \
+  --name db-risqai-production \
+  --resource-group group-risqai-production \
+  --backup-retention 35
+
+# Verify change
+az postgres flexible-server show \
+  --name db-risqai-production \
+  --resource-group group-risqai-production \
+  --query "backup.backupRetentionDays" \
+  --output tsv</code></pre>
+
+<hr>
+
+<h4>Step 3: Test Point-in-Time Restore (Staging Environment)</h4>
+
+<p><strong>3.1: Note Current Time (Before Test)</strong></p>
+<pre><code class="language-bash"># Record current timestamp
+RESTORE_POINT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+echo "Restore point: $RESTORE_POINT"
+
+# Example output: 2025-10-09T14:30:00Z</code></pre>
+
+<p><strong>3.2: Restore Database to Point Before Change</strong></p>
+<pre><code class="language-bash"># Restore staging database to before the test table was created
+# This creates a NEW server, doesn't overwrite existing one
+
+az postgres flexible-server restore \
+  --name db-risqay-staging-restored \
+  --resource-group group-risqai-staging \
+  --source-server db-risqay-staging \
+  --restore-time "$RESTORE_POINT"
+
+# This takes 15-30 minutes, be patient</code></pre>
+
+<hr>
+
+<div class="checklist">
+<h4>Verification Checklist</h4>
+<ul>
+<li>Backup retention set to 35 days (production)</li>
+<li>Backup retention set to 7-14 days (staging)</li>
+<li>Earliest restore date is recent (< retention period)</li>
+<li>Test restore completed successfully</li>
+<li>Restored data verified for accuracy</li>
+<li>Restore procedures documented</li>
+<li>Team trained on restore process</li>
+<li>Monthly restore testing scheduled</li>
+</ul>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <span>Phase 1: Foundational Improvements</span>
+</div>
+
+<h2 id="phase-1"><span class="phase-badge phase-1">Phase 1: Foundational Improvements</span> (Weeks 2-5)</h2>
+
+<div class="task-header">
+    <p><strong>Goal:</strong> Establish observability, reliability, and performance optimization</p>
+    <div class="task-meta">
+        <div class="task-meta-item">
+            <strong>Total Time</strong>
+            2-3 weeks
+        </div>
+        <div class="task-meta-item">
+            <strong>Total Cost</strong>
+            +$40-80/month
+        </div>
+        <div class="task-meta-item">
+            <strong>Risk Level</strong>
+            <span class="badge badge-warning">Low to Medium</span>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-1">Phase 1</a>
+    <span>›</span>
+    <span>Task 1: Enable Application Insights</span>
+</div>
+
+<h2 id="phase-1-task-1">Phase 1, Task 1: Enable Application Insights</h2>
+
+<h3>What This Is</h3>
+<p>Azure Application Insights is a powerful Application Performance Management (APM) service that automatically instruments your application to collect detailed telemetry data. It's like having X-ray vision into your application's performance, errors, and user behavior.</p>
+
+<h3>What It Does</h3>
+
+<p><strong>Automatic Collection:</strong></p>
+<ul>
+<li>HTTP request rates, response times, failure rates</li>
+<li>Database query performance and dependencies</li>
+<li>Exception stack traces with code context</li>
+<li>CPU, memory, I/O metrics per request</li>
+<li>Custom events and metrics you define</li>
+</ul>
+
+<p><strong>Advanced Features:</strong></p>
+<ul>
+<li><strong>Distributed tracing:</strong> Follow a request across multiple services</li>
+<li><strong>Live metrics:</strong> Real-time performance dashboard</li>
+<li><strong>Smart detection:</strong> AI-powered anomaly detection</li>
+<li><strong>Application map:</strong> Visualize service dependencies</li>
+<li><strong>Usage analytics:</strong> Track feature usage and user flows</li>
+</ul>
+
+<h3>Why You Need This</h3>
+
+<p><strong>Before Application Insights:</strong></p>
+<ul>
+<li>😰 "API is slow" → Which endpoint? Which query? Which user?</li>
+<li>🐛 User reports error → No stack trace, can't reproduce</li>
+<li>📊 "How many users hit this endpoint?" → No idea</li>
+<li>⏱️ "Why is this page slow?" → Check every service manually</li>
+</ul>
+
+<p><strong>After Application Insights:</strong></p>
+<ul>
+<li>✅ "API /api/analyze is slow" → See database query taking 5 seconds → Optimize query</li>
+<li>✅ Exception logged with full stack trace → Fix bug in 10 minutes instead of 2 hours</li>
+<li>✅ Dashboard shows 10,000 requests/day to /api/analyze → Plan capacity</li>
+<li>✅ See that 80% of time is spent in OpenAI API call → Add caching layer</li>
+</ul>
+
+<div class="callout callout-success">
+<p><strong>Real-world impact:</strong></p>
+<ul>
+<li>Reduced MTTR (Mean Time To Resolution) by 70%</li>
+<li>Identified and fixed performance issues before users noticed</li>
+<li>Optimized slow endpoints, improving user satisfaction</li>
+<li>Provided data-driven insights for product decisions</li>
+</ul>
+</div>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Create Application Insights Resource</h4>
+
+<p><strong>1.1: Create Application Insights in Azure</strong></p>
+<pre><code class="language-bash"># Create Application Insights resource
+az monitor app-insights component create \
+  --app app-insights-risqai-prod \
+  --location eastus \
+  --resource-group group-risqai-production \
+  --application-type Node.JS \
+  --retention-time 90
+
+# Get connection string (save this!)
+az monitor app-insights component show \
+  --app app-insights-risqai-prod \
+  --resource-group group-risqai-production \
+  --query "connectionString" \
+  --output tsv</code></pre>
+
+<p><strong>1.2: Store Connection String in Azure Key Vault</strong></p>
+<pre><code class="language-bash"># Add connection string to Key Vault (secure storage)
+az keyvault secret set \
+  --vault-name risqai-keyv-production \
+  --name APPLICATION-INSIGHTS-CONNECTION-STRING \
+  --value "InstrumentationKey=XXXX;IngestionEndpoint=https://....;LiveEndpoint=https://..."
+
+# Verify stored
+az keyvault secret show \
+  --vault-name risqai-keyv-production \
+  --name APPLICATION-INSIGHTS-CONNECTION-STRING \
+  --query "value" \
+  --output tsv</code></pre>
+
+<hr>
+
+<h4>Step 2: Integrate Application Insights SDK into Backend</h4>
+
+<p><strong>2.1: Install Application Insights Package</strong></p>
+<pre><code class="language-bash"># Navigate to backend directory
+cd backend
+
+# Install Application Insights SDK
+npm install applicationinsights@^2.9.0
+
+# Update package.json
+npm install --save applicationinsights</code></pre>
+
+<p><strong>2.2: Create Application Insights Configuration File</strong></p>
+<p>Create file: <code>backend/config/applicationInsights.ts</code></p>
+
+<pre><code class="language-typescript">import * as appInsights from 'applicationinsights';
+
+/**
+ * Initialize Application Insights for telemetry collection
+ */
+export function initializeApplicationInsights() {
+  const connectionString = process.env.APPLICATIONINSIGHTS_CONNECTION_STRING;
+
+  if (!connectionString) {
+    console.warn('⚠️  Application Insights connection string not found.');
+    return null;
+  }
+
+  // Configure Application Insights
+  appInsights.setup(connectionString)
+    .setAutoDependencyCorrelation(true)
+    .setAutoCollectRequests(true)
+    .setAutoCollectPerformance(true, true)
+    .setAutoCollectExceptions(true)
+    .setAutoCollectDependencies(true)
+    .setSendLiveMetrics(true);
+
+  appInsights.start();
+
+  console.log('✅ Application Insights initialized successfully');
+
+  return appInsights.defaultClient;
+}</code></pre>
+
+<hr>
+
+<h3>Verification & Testing</h3>
+
+<p><strong>Test 1: Check Application Insights Portal</strong></p>
+<p>Navigate to Azure Portal → Application Insights → app-insights-risqai-prod</p>
+
+<p><strong>Check these tabs:</strong></p>
+<ol>
+<li><strong>Live Metrics:</strong> Should see real-time requests within 1-2 minutes</li>
+<li><strong>Failures:</strong> Any errors/exceptions will appear here</li>
+<li><strong>Performance:</strong> API response times and dependencies</li>
+<li><strong>Application Map:</strong> Visual diagram of your services</li>
+</ol>
+
+<hr>
+
+<div class="checklist">
+<h4>Success Metrics</h4>
+<ul>
+<li>Application Insights resource created</li>
+<li>SDK integrated and deployed to production</li>
+<li>Live Metrics showing data within 5 minutes</li>
+<li>Custom metrics and events tracked</li>
+<li>Dashboards created and shared with team</li>
+<li>Alerts configured for performance and errors</li>
+<li>Team trained on querying telemetry data</li>
+<li>Documentation completed</li>
+</ul>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <span>Phase 2: Security & Resilience</span>
+</div>
+
+<h2 id="phase-2"><span class="phase-badge phase-2">Phase 2: Security & Resilience</span> (Weeks 6-12)</h2>
+
+<div class="task-header">
+    <p><strong>Goal:</strong> Implement enterprise-grade security, high availability, and disaster recovery</p>
+    <div class="task-meta">
+        <div class="task-meta-item">
+            <strong>Total Time</strong>
+            4-6 weeks
+        </div>
+        <div class="task-meta-item">
+            <strong>Total Cost</strong>
+            +$200-350/month
+        </div>
+        <div class="task-meta-item">
+            <strong>Risk Level</strong>
+            <span class="badge badge-danger">Medium to High</span>
+        </div>
+    </div>
+</div>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-2">Phase 2</a>
+    <span>›</span>
+    <span>Task 1: Enable PostgreSQL High Availability</span>
+</div>
+
+<h2 id="phase-2-task-1">Phase 2, Task 1: Enable PostgreSQL High Availability</h2>
+
+<h3>What This Is</h3>
+<p>PostgreSQL Flexible Server High Availability (HA) provides automatic failover to a standby replica in a different availability zone. It's your insurance policy against database downtime.</p>
+
+<h3>Why You Need This</h3>
+
+<div class="callout callout-danger">
+<p><strong>Without HA:</strong></p>
+<ul>
+<li>Single point of failure - database down = application down</li>
+<li>Maintenance requires downtime</li>
+<li>Zone failure = complete outage</li>
+<li>RTO (Recovery Time Objective): 15-30 minutes</li>
+</ul>
+</div>
+
+<div class="callout callout-success">
+<p><strong>With HA:</strong></p>
+<ul>
+<li>Automatic failover in 60-120 seconds</li>
+<li>Zero-downtime maintenance</li>
+<li>Protection against zone failures</li>
+<li>RTO: <strong>2 minutes</strong></li>
+</ul>
+</div>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Enable High Availability</h4>
+
+<pre><code class="language-bash"># Enable HA with zone-redundant standby
+az postgres flexible-server update \
+  --name db-risqai-production \
+  --resource-group group-risqai-production \
+  --high-availability ZoneRedundant \
+  --standby-availability-zone 2
+
+# This takes 10-15 minutes to complete
+
+# Verify HA is enabled
+az postgres flexible-server show \
+  --name db-risqai-production \
+  --resource-group group-risqai-production \
+  --query "{ha:highAvailability.mode, standbyZone:highAvailability.standbyAvailabilityZone}" \
+  --output table</code></pre>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-2">Phase 2</a>
+    <span>›</span>
+    <span>Task 2: Enable Microsoft Defender for Cloud</span>
+</div>
+
+<h2 id="phase-2-task-2">Phase 2, Task 2: Enable Microsoft Defender for Cloud</h2>
+
+<h3>What This Is</h3>
+<p>Microsoft Defender for Cloud is a comprehensive security posture management and threat protection solution. It continuously monitors your resources for security vulnerabilities and provides actionable recommendations.</p>
+
+<h3>What It Does</h3>
+<ul>
+<li><strong>Container Security:</strong> Scans images for vulnerabilities</li>
+<li><strong>Database Protection:</strong> Detects SQL injection and suspicious activities</li>
+<li><strong>Threat Detection:</strong> AI-powered anomaly detection</li>
+<li><strong>Compliance Dashboard:</strong> Track regulatory compliance (SOC 2, ISO 27001)</li>
+<li><strong>Security Score:</strong> Overall security posture rating</li>
+</ul>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Enable Defender Plans</h4>
+
+<pre><code class="language-bash"># Enable Defender for Containers
+az security pricing create \
+  --name Containers \
+  --tier Standard
+
+# Enable Defender for Databases (PostgreSQL)
+az security pricing create \
+  --name OpenSourceRelationalDatabases \
+  --tier Standard
+
+# Enable Defender for Key Vault
+az security pricing create \
+  --name KeyVaults \
+  --tier Standard</code></pre>
+
+<hr>
+
+<div class="breadcrumb">
+    <a href="#top">🏠 Home</a>
+    <span>›</span>
+    <a href="#phase-2">Phase 2</a>
+    <span>›</span>
+    <span>Task 3: Implement WAF with Azure Front Door</span>
+</div>
+
+<h2 id="phase-2-task-3">Phase 2, Task 3: Implement WAF with Azure Front Door</h2>
+
+<h3>What This Is</h3>
+<p>Azure Front Door with Web Application Firewall (WAF) provides global load balancing, DDoS protection, and application-layer security. It's your first line of defense against web attacks.</p>
+
+<h3>What It Does</h3>
+<ul>
+<li><strong>OWASP Top 10 Protection:</strong> SQL injection, XSS, CSRF</li>
+<li><strong>Bot Protection:</strong> Block malicious bots and scrapers</li>
+<li><strong>Rate Limiting:</strong> Prevent abuse and DDoS attacks</li>
+<li><strong>Geo-Filtering:</strong> Block traffic from specific countries</li>
+<li><strong>Custom Rules:</strong> Create application-specific security policies</li>
+</ul>
+
+<hr>
+
+<h3>Implementation Steps</h3>
+
+<h4>Step 1: Create Azure Front Door</h4>
+
+<pre><code class="language-bash"># Create Front Door profile
+az afd profile create \
+  --profile-name frontdoor-risqai-prod \
+  --resource-group group-risqai-production \
+  --sku Standard_AzureFrontDoor
+
+# Create endpoint
+az afd endpoint create \
+  --endpoint-name risqai-app \
+  --profile-name frontdoor-risqai-prod \
+  --resource-group group-risqai-production \
+  --enabled-state Enabled</code></pre>
+
+<hr>
+
+<h4>Step 2: Configure WAF Policy</h4>
+
+<pre><code class="language-bash"># Create WAF policy
+az network front-door waf-policy create \
+  --name waf-risqai-prod \
+  --resource-group group-risqai-production \
+  --sku Standard_AzureFrontDoor \
+  --mode Prevention
+
+# Enable managed rule sets (OWASP 3.2)
+az network front-door waf-policy managed-rules add \
+  --policy-name waf-risqai-prod \
+  --resource-group group-risqai-production \
+  --type Microsoft_DefaultRuleSet \
+  --version 2.1
+
+# Enable bot protection
+az network front-door waf-policy managed-rules add \
+  --policy-name waf-risqai-prod \
+  --resource-group group-risqai-production \
+  --type Microsoft_BotManagerRuleSet \
+  --version 1.0</code></pre>
+
+<hr>
+
+<div class="callout callout-success">
+<h4>🎉 Congratulations!</h4>
+<p>You've completed the implementation of Phases 0-2! Your infrastructure now has:</p>
+<ul>
+<li>✅ Comprehensive monitoring and alerting</li>
+<li>✅ Cost management and budget controls</li>
+<li>✅ Automated backup and disaster recovery</li>
+<li>✅ Application performance insights</li>
+<li>✅ High availability for critical services</li>
+<li>✅ Enterprise-grade security with Defender and WAF</li>
+</ul>
+<p><strong>Next Steps:</strong> Continue to Phase 3 for advanced features like multi-region deployment and Infrastructure as Code.</p>
+</div>
+
+        </div>
+
+        <div class="footer">
+            <p><strong>Azure Infrastructure Implementation Guide</strong> | Phases 0-2: Quick Wins, Foundation & Security</p>
+            <p style="margin-top: 8px;">Created: October 9, 2025 | Document Version: 1.0</p>
+            <p style="margin-top: 16px; font-size: 0.75rem; opacity: 0.7;">
+                This guide provides detailed implementation steps for improving Azure infrastructure reliability, security, and operational excellence.
+            </p>
+        </div>
+    </div>
+
+    <!-- Back to Top Button -->
+    <a href="#top" class="back-to-top" title="Back to Top">
+        ↑
+    </a>
+</body>
+</html>

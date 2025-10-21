@@ -140,7 +140,7 @@ router.post('/check-permission', async (req, res) => {
  * Health check for live logs system
  * GET /api/live-logs-management/health
  */
-router.get('/health', (req, res) => {
+router.get('/health', (_req, res) => {
   const isAvailable = process.env.NODE_ENV !== 'production';
 
   res.json({

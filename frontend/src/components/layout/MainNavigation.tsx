@@ -102,8 +102,8 @@ export const MainNavigation = ({ className }: { className?: string }) => {
   const location = useLocation();
   const pathname = location.pathname;
   const liveLogsPermission = useLiveLogsPermission();
-  const { data: userData } = useAuth();
-  console.log("From Main Navigation. UserData: ", userData)
+  const userData = useAuth();
+  console.log("From Main Navigation. UserData: ", userData.data)
 
   const isActive = (path: string) => {
     if (path === '/dashboard' && pathname === '/dashboard') {

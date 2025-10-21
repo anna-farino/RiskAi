@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subscription Upgrade Plan - Option 2: SetupIntent Flow</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .pros {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .cons {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .flow-step {
+            background: #e7f3ff;
+            border-left: 4px solid #0066cc;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+        .highlight-add {
+            background: #d4edda;
+            color: #155724;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        .highlight-change {
+            background: #fff3cd;
+            color: #856404;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        .highlight-remove {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 2px 4px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+        .filename {
+            background: #555;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px 5px 0 0;
+            font-weight: bold;
+            margin-bottom: -15px;
+            margin-top: 20px;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔄 Subscription Upgrade Plan: Option 2 - SetupIntent Flow</h1>
+
+    <div class="section">
+        <h2>📋 Overview</h2>
+        <p>This plan collects payment method <strong>before</strong> upgrading the subscription, then updates the existing subscription (keeping the same subscription ID and billing date).</p>
+
+        <div class="pros">
+            <h3>✅ Pros</h3>
+            <ul>
+                <li>Updates existing subscription (same ID preserved)</li>
+                <li>Keeps original billing date</li>
+                <li>Only one subscription exists at any time</li>
+                <li>Clean subscription history</li>
+            </ul>
+        </div>
+
+        <div class="cons">
+            <h3>❌ Cons</h3>
+            <ul>
+                <li>Cannot use existing CheckoutForm component</li>
+                <li>Need to build custom payment flow with Payment Element</li>
+                <li>More complex frontend state management</li>
+                <li>Need to handle SetupIntent confirmation</li>
+                <li>More moving parts = more potential bugs</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔄 Complete Flow</h2>
+
+        <div class="flow-step">
+            <strong>Step 1:</strong> User with free subscription clicks "Upgrade"
+        </div>
+
+        <div class="flow-step">
+            <strong>Step 2:</strong> Backend creates SetupIntent (no charge, just collects payment method)
+        </div>
+
+        <div class="flow-step">
+            <strong>Step 3:</strong> Frontend shows Payment Element to collect card details
+        </div>
+
+        <div class="flow-step">
+            <strong>Step 4:</strong> User enters card → Frontend confirms SetupIntent
+        </div>
+
+        <div class="flow-step">
+            <strong>Step 5:</strong> Payment method saved → Frontend calls backend upgrade endpoint
+        </div>
+
+        <div class="flow-step">
+            <strong>Step 6:</strong> Backend updates subscription from Free to Pro (charges immediately)
+        </div>
+
+        <div class="flow-step">
+            <strong>Step 7:</strong> Success! Same subscription, now Pro tier
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🔧 Backend Changes</h2>
+
+        <h3>1. Create New Handler: create-setup-intent.ts</h3>
+        <div class="filename">backend/handlers/stripe/create-setup-intent.ts</div>
+        <pre><code>import { stripe } from 'backend/utils/stripe-config';
+import { Response } from 'express';
+import { FullRequest } from 'backend/middleware';
+
+export default async function handleCreateSetupIntent(
+  req: FullRequest,
+  res: Response
+) {
+  try {
+    const { email } = req.user;
+
+    // Find existing customer
+    const customerResult = await stripe.customers.search({
+      query: `email:"${email}"`
+    });
+
+    if (!customerResult.data || customerResult.data.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const customer = customerResult.data[0];
+
+    // Create SetupIntent to collect payment method
+    const setupIntent = await stripe.setupIntents.create({
+      customer: customer.id,
+      payment_method_types: ['card'],
+      metadata: {
+        purpose: 'subscription_upgrade',
+        customer_email: email,
+      },
+    });
+
+    res.json({
+      clientSecret: setupIntent.client_secret,
+      customerId: customer.id,
+    });
+
+  } catch (error) {
+    console.error('Error creating setup intent:', error);
+    res.status(500).json({
+      error: 'Failed to create setup intent',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+}</code></pre>
+
+        <h3>2. Create New Handler: upgrade-subscription.ts</h3>
+        <div class="filename">backend/handlers/stripe/upgrade-subscription.ts</div>
+        <pre><code>import { stripe } from 'backend/utils/stripe-config';
+import { Response } from 'express';
+import { FullRequest } from 'backend/middleware';
+
+const FREE_PRICE_ID = 'price_1SIai04uGyk26FKnKrY7JcZ5';
+const PRO_PRICE_ID = 'price_1SIZwt4uGyk26FKnXAd3TWtW';
+
+export default async function handleUpgradeSubscription(
+  req: FullRequest,
+  res: Response
+) {
+  try {
+    const { email } = req.user;
+    const { paymentMethodId } = req.body;
+
+    if (!paymentMethodId) {
+      return res.status(400).json({ error: 'Payment method required' });
+    }
+
+    // Find customer
+    const customerResult = await stripe.customers.search({
+      query: `email:"${email}"`
+    });
+
+    if (!customerResult.data || customerResult.data.length === 0) {
+      return res.status(404).json({ error: 'Customer not found' });
+    }
+
+    const customer = customerResult.data[0];
+
+    // Find active free subscription
+    const subscriptions = await stripe.subscriptions.list({
+      customer: customer.id,
+      status: 'active',
+      limit: 1
+    });
+
+    if (subscriptions.data.length === 0) {
+      return res.status(404).json({ error: 'No active subscription found' });
+    }
+
+    const subscription = subscriptions.data[0];
+
+    // Verify it's a free subscription
+    const freeItem = subscription.items.data.find(
+      item => item.price.id === FREE_PRICE_ID
+    );
+
+    if (!freeItem) {
+      return res.status(400).json({
+        error: 'Subscription is not on free plan'
+      });
+    }
+
+    // Set the payment method as default for the customer
+    await stripe.customers.update(customer.id, {
+      invoice_settings: {
+        default_payment_method: paymentMethodId,
+      },
+    });
+
+    // Update subscription: remove free item, add pro item
+    const updatedSubscription = await stripe.subscriptions.update(
+      subscription.id,
+      {
+        items: [
+          {
+            id: freeItem.id,
+            deleted: true,
+          },
+          {
+            price: PRO_PRICE_ID,
+          },
+        ],
+        proration_behavior: 'create_prorations',
+        default_payment_method: paymentMethodId,
+      }
+    );
+
+    console.log(`✅ Upgraded subscription ${subscription.id} from Free to Pro`);
+
+    res.json({
+      success: true,
+      subscription: {
+        id: updatedSubscription.id,
+        status: updatedSubscription.status,
+        current_period_end: updatedSubscription.current_period_end,
+      },
+    });
+
+  } catch (error) {
+    console.error('Error upgrading subscription:', error);
+    res.status(500).json({
+      error: 'Failed to upgrade subscription',
+      details: error instanceof Error ? error.message : String(error)
+    });
+  }
+}</code></pre>
+
+        <h3>3. Modify checkout-session.ts (Remove upgrade logic)</h3>
+        <div class="filename">backend/handlers/stripe/checkout-session.ts</div>
+        <pre><code class="highlight-remove">// REMOVE this entire block (lines 43-69):
+if (freeItem) {
+  // Upgrade existing subscription from free to pro
+  const updatedSubscription = await stripe.subscriptions.update(...)
+  ...
+}
+
+<span class="highlight-add">// REPLACE with this:
+if (freeItem) {
+  // User should use the upgrade flow, not checkout
+  return res.status(400).json({
+    error: 'Please use the upgrade flow to upgrade from free to pro',
+    useUpgradeFlow: true,
+  });
+}</span></code></pre>
+
+        <h3>4. Add Routes</h3>
+        <div class="filename">backend/router/index.ts</div>
+        <pre><code class="highlight-add">import handleCreateSetupIntent from 'backend/handlers/stripe/create-setup-intent';
+import handleUpgradeSubscription from 'backend/handlers/stripe/upgrade-subscription';
+
+// ... in PROTECTED ROUTES section:
+router.post("/create-setup-intent", handleCreateSetupIntent)
+router.post("/upgrade-subscription", handleUpgradeSubscription)</code></pre>
+    </div>
+
+    <div class="section">
+        <h2>💻 Frontend Changes</h2>
+
+        <h3>1. Create New Component: UpgradePaymentForm.tsx</h3>
+        <div class="filename">frontend/src/components/UpgradePaymentForm.tsx</div>
+        <pre><code>import { useState } from 'react';
+import {
+  PaymentElement,
+  useStripe,
+  useElements
+} from '@stripe/react-stripe-js';
+import { Button } from './ui/button';
+import { useAuth } from '@/hooks/use-auth';
+import { useFetch } from '@/hooks/use-fetch';
+
+interface UpgradePaymentFormProps {
+  onSuccess: () => void;
+  onCancel: () => void;
+}
+
+export default function UpgradePaymentForm({
+  onSuccess,
+  onCancel
+}: UpgradePaymentFormProps) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fetchWithAuth = useFetch();
+  const userData = useAuth();
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // 1. Confirm SetupIntent (saves payment method)
+      const { error: setupError, setupIntent } = await stripe.confirmSetup({
+        elements,
+        redirect: 'if_required',
+      });
+
+      if (setupError) {
+        setError(setupError.message || 'Payment setup failed');
+        setIsLoading(false);
+        return;
+      }
+
+      // 2. Call backend to upgrade subscription
+      const response = await fetchWithAuth('/api/upgrade-subscription', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paymentMethodId: setupIntent.payment_method,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Upgrade failed');
+      }
+
+      console.log('✅ Subscription upgraded successfully');
+      onSuccess();
+
+    } catch (err) {
+      console.error('Upgrade error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div>
+        <h3 className="text-lg font-medium text-white mb-2">
+          Add Payment Method
+        </h3>
+        <p className="text-sm text-slate-400 mb-4">
+          Enter your card details to upgrade to Pro
+        </p>
+      </div>
+
+      <PaymentElement />
+
+      {error && (
+        <div className="text-red-500 text-sm bg-red-500/10 border border-red-500/20 p-3 rounded">
+          {error}
+        </div>
+      )}
+
+      <div className="flex gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onCancel}
+          disabled={isLoading}
+          className="flex-1"
+        >
+          Cancel
+        </Button>
+        <Button
+          type="submit"
+          disabled={isLoading || !stripe || !elements}
+          className="flex-1"
+        >
+          {isLoading ? 'Processing...' : 'Upgrade to Pro'}
+        </Button>
+      </div>
+    </form>
+  );
+}</code></pre>
+
+        <h3>2. Modify Settings.tsx</h3>
+        <div class="filename">frontend/src/pages/dashboard/Settings.tsx</div>
+        <pre><code class="highlight-add">import { Elements } from '@stripe/react-stripe-js';
+import UpgradePaymentForm from '@/components/UpgradePaymentForm';
+
+export default function Settings() {
+  // ... existing state ...
+  const [setupIntent, setSetupIntent] = useState&lt;string | null&gt;(null);
+  const [showUpgradeForm, setShowUpgradeForm] = useState(false);
+
+  <span class="highlight-change">// CHANGE getClientSecret to getSetupIntent
+  async function getSetupIntent() {
+    const result = await fetchWithAuth(`/api/create-setup-intent`, {
+      method: 'POST'
+    });
+    const data = await result.json();
+    setSetupIntent(data.clientSecret);
+    setShowUpgradeForm(true);
+  }</span>
+
+  function handleUpgradeSuccess() {
+    setShowUpgradeForm(false);
+    setSetupIntent(null);
+    userData.refetch();
+    setUpgradeOpen(false);
+  }
+
+  function handleUpgradeCancel() {
+    setShowUpgradeForm(false);
+    setSetupIntent(null);
+    setUpgradeOpen(false);
+  }
+
+  return (
+    &lt;div className="flex flex-col gap-4"&gt;
+      {/* ... existing UI ... */}
+
+      {userData.data?.subscription === "free" && (
+        &lt;&gt;
+          &lt;CustomAlertDialog
+            title="Upgrade Subscription?"
+            description="Upgrade to unlock premium features."
+            <span class="highlight-change">action={getSetupIntent}  {/* CHANGED */}</span>
+            open={upgradeOpen}
+            setOpen={setUpgradeOpen}
+          &gt;
+            &lt;Button variant="outline" size="sm"&gt;
+              Upgrade
+            &lt;/Button&gt;
+          &lt;/CustomAlertDialog&gt;
+        &lt;/&gt;
+      )}
+
+      <span class="highlight-add">{/* NEW: Show upgrade form when ready */}
+      {showUpgradeForm && setupIntent && (
+        &lt;div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"&gt;
+          &lt;div className="bg-slate-900 p-6 rounded-lg max-w-md w-full"&gt;
+            &lt;Elements
+              stripe={stripe}
+              options={{
+                clientSecret: setupIntent,
+                appearance: {
+                  theme: 'night',
+                  variables: {
+                    colorPrimary: '#BF00FF',
+                    colorBackground: '#0f172a',
+                    // ... your existing appearance config
+                  },
+                },
+              }}
+            &gt;
+              &lt;UpgradePaymentForm
+                onSuccess={handleUpgradeSuccess}
+                onCancel={handleUpgradeCancel}
+              /&gt;
+            &lt;/Elements&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      )}</span>
+
+      <span class="highlight-remove">{/* REMOVE: Old CheckoutForm */}
+      {clientSecret && (
+        &lt;CheckoutProvider ... &gt;
+          &lt;CheckoutForm /&gt;
+        &lt;/CheckoutProvider&gt;
+      )}</span>
+    &lt;/div&gt;
+  );
+}</code></pre>
+    </div>
+
+    <div class="section">
+        <h2>📊 File Changes Summary</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>backend/handlers/stripe/create-setup-intent.ts</code></td>
+                    <td>🆕 New</td>
+                    <td>Creates SetupIntent to collect payment method</td>
+                </tr>
+                <tr>
+                    <td><code>backend/handlers/stripe/upgrade-subscription.ts</code></td>
+                    <td>🆕 New</td>
+                    <td>Handles subscription upgrade after payment method collected</td>
+                </tr>
+                <tr>
+                    <td><code>backend/handlers/stripe/checkout-session.ts</code></td>
+                    <td>✏️ Modify</td>
+                    <td>Remove upgrade logic, redirect to upgrade flow</td>
+                </tr>
+                <tr>
+                    <td><code>backend/router/index.ts</code></td>
+                    <td>✏️ Modify</td>
+                    <td>Add new routes for SetupIntent and upgrade</td>
+                </tr>
+                <tr>
+                    <td><code>frontend/src/components/UpgradePaymentForm.tsx</code></td>
+                    <td>🆕 New</td>
+                    <td>Custom payment form for upgrades (replaces CheckoutForm)</td>
+                </tr>
+                <tr>
+                    <td><code>frontend/src/pages/dashboard/Settings.tsx</code></td>
+                    <td>✏️ Modify</td>
+                    <td>Use upgrade flow instead of checkout flow</td>
+                </tr>
+                <tr>
+                    <td><code>frontend/src/components/CheckoutForm.tsx</code></td>
+                    <td>🗑️ Can Remove</td>
+                    <td>No longer needed (replaced by UpgradePaymentForm)</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>⚠️ Important Considerations</h2>
+
+        <div class="warning">
+            <h3>🔍 Testing Checklist</h3>
+            <ul>
+                <li>Test with valid card (4242 4242 4242 4242)</li>
+                <li>Test with declined card (4000 0000 0000 0002)</li>
+                <li>Test with card requiring 3D Secure (4000 0027 6000 3184)</li>
+                <li>Verify subscription ID stays the same</li>
+                <li>Verify billing date doesn't change</li>
+                <li>Test error handling (network errors, invalid cards)</li>
+                <li>Test canceling mid-flow (should not break anything)</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>🐛 Potential Issues</h3>
+            <ul>
+                <li><strong>Race conditions:</strong> User might click upgrade multiple times</li>
+                <li><strong>Payment failure:</strong> SetupIntent confirms but subscription update fails</li>
+                <li><strong>Network issues:</strong> Connection drops between steps</li>
+                <li><strong>State management:</strong> Modal doesn't close on success/error</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <h3>🔒 Security Notes</h3>
+            <ul>
+                <li>Routes must be protected with auth middleware ✅ (done)</li>
+                <li>Verify customer owns the subscription before upgrading</li>
+                <li>Validate paymentMethodId exists and belongs to customer</li>
+                <li>Rate limit the upgrade endpoint to prevent abuse</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>🎯 Comparison: What Changes vs Option 1</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Aspect</th>
+                    <th>Option 1 (New Sub)</th>
+                    <th>Option 2 (Update Sub)</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Subscription ID</td>
+                    <td>New ID created</td>
+                    <td>Same ID preserved ✅</td>
+                </tr>
+                <tr>
+                    <td>Billing Date</td>
+                    <td>Resets to today</td>
+                    <td>Stays the same ✅</td>
+                </tr>
+                <tr>
+                    <td>Frontend Changes</td>
+                    <td>None (uses CheckoutForm)</td>
+                    <td>New component + modal</td>
+                </tr>
+                <tr>
+                    <td>Backend Changes</td>
+                    <td>1 file (webhook)</td>
+                    <td>3 files (2 handlers + routes)</td>
+                </tr>
+                <tr>
+                    <td>Complexity</td>
+                    <td>Low</td>
+                    <td>Medium-High</td>
+                </tr>
+                <tr>
+                    <td>Error Handling</td>
+                    <td>Simple (Stripe handles)</td>
+                    <td>Complex (multi-step)</td>
+                </tr>
+                <tr>
+                    <td>Testing</td>
+                    <td>Straightforward</td>
+                    <td>More scenarios to test</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>✅ Next Steps If Approved</h2>
+        <ol>
+            <li>Create new backend handlers (create-setup-intent.ts, upgrade-subscription.ts)</li>
+            <li>Modify checkout-session.ts to reject upgrades</li>
+            <li>Add routes to router/index.ts</li>
+            <li>Create UpgradePaymentForm.tsx component</li>
+            <li>Modify Settings.tsx to use upgrade flow</li>
+            <li>Test thoroughly with various cards</li>
+            <li>Add error handling and loading states</li>
+            <li>Deploy and monitor</li>
+        </ol>
+    </div>
+
+</body>
+</html>

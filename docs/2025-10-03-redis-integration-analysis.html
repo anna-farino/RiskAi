@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Redis Integration Analysis - 2025-10-03</title>
+
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css" rel="stylesheet" />
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #3498db;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: #34495e;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .date-badge {
+            display: inline-block;
+            background: #3498db;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            margin-bottom: 20px;
+        }
+
+        .toc {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 30px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: #2c3e50;
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #3498db;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: #2980b9;
+            text-decoration: underline;
+        }
+
+        .info-box {
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+
+        .info-box.summary {
+            background: #e8f4f8;
+            border-color: #3498db;
+        }
+
+        .info-box.warning {
+            background: #fff3cd;
+            border-color: #ffc107;
+        }
+
+        .info-box.success {
+            background: #d4edda;
+            border-color: #28a745;
+        }
+
+        .info-box.danger {
+            background: #f8d7da;
+            border-color: #dc3545;
+        }
+
+        .pros-cons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .pros, .cons {
+            padding: 20px;
+            border-radius: 5px;
+        }
+
+        .pros {
+            background: #d4edda;
+            border: 2px solid #28a745;
+        }
+
+        .cons {
+            background: #f8d7da;
+            border: 2px solid #dc3545;
+        }
+
+        .pros h4, .cons h4 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .pros h4 {
+            color: #155724;
+        }
+
+        .cons h4 {
+            color: #721c24;
+        }
+
+        ul, ol {
+            margin: 15px 0;
+            padding-left: 30px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        tr:hover {
+            background: #e9ecef;
+        }
+
+        code:not([class*="language-"]) {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            color: #e83e8c;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        pre[class*="language-"] {
+            margin: 20px 0;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .comparison-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .comparison-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .comparison-card h4 {
+            color: #3498db;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 30px 0;
+        }
+
+        .recommendation h3 {
+            color: white;
+            margin-top: 0;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .badge.high-priority {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge.medium-priority {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge.low-priority {
+            background: #6c757d;
+            color: white;
+        }
+
+        .badge.recommended {
+            background: #28a745;
+            color: white;
+        }
+
+        .architecture-diagram {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            .pros-cons {
+                grid-template-columns: 1fr;
+            }
+
+            h1 {
+                font-size: 1.8em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Redis Integration Analysis for Azure Container Apps</h1>
+        <span class="date-badge">2025-10-03</span>
+
+        <div class="info-box summary">
+            <h3>📋 Executive Summary</h3>
+            <p><strong>TL;DR:</strong> Your application currently uses in-memory rate limiting and Socket.IO, which don't share state across Azure Container Apps replicas (1-10 instances). Redis would solve this, but consider <strong>Valkey</strong> (open-source Redis fork) or <strong>PostgreSQL-based solutions</strong> first to avoid licensing complexity and costs.</p>
+            <p><strong>Critical Issue:</strong> With <code>--max-replicas 10</code>, your rate limiting is currently ineffective—users can bypass limits by hitting different replicas.</p>
+        </div>
+
+        <div class="toc">
+            <h3>📑 Table of Contents</h3>
+            <ul>
+                <li><a href="#current-architecture">1. Current Architecture Analysis</a></li>
+                <li><a href="#redis-use-cases">2. Redis Use Cases for Your Application</a></li>
+                <li><a href="#pros-cons">3. Detailed Pros & Cons</a></li>
+                <li><a href="#alternatives">4. Alternatives Comparison</a></li>
+                <li><a href="#implementation">5. Implementation Requirements</a></li>
+                <li><a href="#cost-analysis">6. Cost Analysis</a></li>
+                <li><a href="#recommendations">7. Final Recommendations</a></li>
+            </ul>
+        </div>
+
+        <h2 id="current-architecture">1. Current Architecture Analysis</h2>
+
+        <h3>1.1 Infrastructure</h3>
+        <div class="architecture-diagram">
+<pre>
+Azure Container Apps (Staging)
+├── Min Replicas: 1
+├── Max Replicas: 10
+├── Auto-scaling: Based on HTTP traffic
+└── Deployment: GitHub Actions → Azure Container Registry → Container Apps
+
+Backend Stack:
+├── Node.js 20 (Express.js)
+├── PostgreSQL (Neon serverless - dev, Azure PostgreSQL - prod/staging)
+├── Auth0 (JWT authentication)
+├── Socket.IO (staging only, disabled in production)
+└── Docker Container (Puppeteer, Chrome, Xvfb, CycleTLS)
+</pre>
+        </div>
+
+        <h3>1.2 Current State Management</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Current Implementation</th>
+                    <th>Multi-Replica Compatible?</th>
+                    <th>Issue</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Rate Limiting</strong></td>
+                    <td>express-rate-limit (memory store)</td>
+                    <td>❌ No</td>
+                    <td>Each replica has independent counters</td>
+                </tr>
+                <tr>
+                    <td><strong>Socket.IO</strong></td>
+                    <td>In-memory adapter</td>
+                    <td>❌ No</td>
+                    <td>Messages only reach clients on same replica</td>
+                </tr>
+                <tr>
+                    <td><strong>Session Storage</strong></td>
+                    <td>None (JWT stateless)</td>
+                    <td>✅ Yes</td>
+                    <td>No issue (stateless)</td>
+                </tr>
+                <tr>
+                    <td><strong>Database</strong></td>
+                    <td>PostgreSQL</td>
+                    <td>✅ Yes</td>
+                    <td>No issue (centralized)</td>
+                </tr>
+                <tr>
+                    <td><strong>Scraping Cache</strong></td>
+                    <td>None</td>
+                    <td>N/A</td>
+                    <td>No caching = slower responses</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>1.3 Observed Files & Configuration</h3>
+
+        <h4>Rate Limiting Configuration</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/utils/rate-limit-config.ts
+export const rateLimitConfig = {
+  windowMs: 15 * 60 * 1000,  // 15 minutes
+  limit: 30,                  // 30 requests per window
+  message: "Too many requests. Try again later.",
+  trustProxy: true,
+
+  // ⚠️ PROBLEM: This only counts requests on THIS replica
+  keyGenerator: (req, res) => {
+    let clientIP = req.ip || req.connection.remoteAddress;
+    const xForwardedFor = req.headers['x-forwarded-for'];
+    if (xForwardedFor) {
+      const ips = xForwardedFor.split(',').map(ip => ip.trim());
+      clientIP = ips[0] || clientIP;
+    }
+    return clientIP || 'default-key';
+  }
+}</code></pre>
+
+        <div class="info-box warning">
+            <h4>⚠️ Current Rate Limiting Problem</h4>
+            <p>With 10 replicas, a user can potentially make <strong>300 requests in 15 minutes</strong> (30 per replica × 10 replicas) instead of the intended 30.</p>
+        </div>
+
+        <h4>Socket.IO Configuration</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/services/live-logs/socket-server.ts
+export function initializeSocketIO(httpServer: HttpServer): SocketIOServer {
+  io = new SocketIOServer(httpServer, {
+    cors: {
+      origin: process.env.FRONTEND_URL || 'https://preview.risqai.co',
+      credentials: true
+    },
+    path: '/socket.io/',
+    transports: ['websocket', 'polling']
+  });
+
+  // ⚠️ PROBLEM: No Redis adapter means broadcasts only reach
+  // clients connected to THIS replica
+  io.on('connection', (socket: Socket) => {
+    socket.join('live-logs');
+    // Broadcasts only go to clients on this specific replica
+  });
+}</code></pre>
+
+        <div class="info-box warning">
+            <h4>⚠️ Current Socket.IO Problem</h4>
+            <p>When you broadcast a log message, only clients connected to the <strong>same replica</strong> receive it. Other clients miss updates.</p>
+        </div>
+
+        <h2 id="redis-use-cases">2. Redis Use Cases for Your Application</h2>
+
+        <h3>2.1 Distributed Rate Limiting <span class="badge high-priority">HIGH PRIORITY</span></h3>
+
+        <p><strong>Problem:</strong> With <code>--max-replicas 10</code>, your current memory-based rate limiting doesn't share state across replicas.</p>
+
+        <p><strong>Solution with Redis:</strong></p>
+        <pre class="line-numbers"><code class="language-typescript">// Install: npm install rate-limit-redis redis
+import { rateLimit } from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { createClient } from 'redis';
+
+const redisClient = createClient({
+  url: process.env.REDIS_URL, // Azure Cache for Redis connection string
+  socket: {
+    tls: true,
+    rejectUnauthorized: true
+  }
+});
+
+await redisClient.connect();
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  // ✅ NOW: All replicas share the same Redis counter
+  store: new RedisStore({
+    client: redisClient,
+    prefix: 'rl:' // Rate limit prefix
+  }),
+  keyGenerator: (req) => {
+    // Extract IP from Azure Container Apps headers
+    return req.headers['x-forwarded-for']?.split(',')[0] || req.ip;
+  }
+});
+
+app.use('/api', limiter);</code></pre>
+
+        <p><strong>Impact:</strong></p>
+        <ul>
+            <li>✅ Consistent rate limiting across all 10 replicas</li>
+            <li>✅ Prevents abuse via replica distribution</li>
+            <li>✅ Accurate enforcement of 30 requests/15min limit</li>
+            <li>⚠️ Adds latency: ~1-3ms per request (Redis round-trip)</li>
+            <li>⚠️ Single point of failure (mitigated with Redis cluster)</li>
+        </ul>
+
+        <h3>2.2 Socket.IO Multi-Replica Support <span class="badge medium-priority">MEDIUM PRIORITY</span></h3>
+
+        <p><strong>Problem:</strong> Socket.IO broadcasts only reach clients on the same replica. Your live-logs system is broken with multiple replicas.</p>
+
+        <p><strong>Solution with Redis:</strong></p>
+        <pre class="line-numbers"><code class="language-typescript">// Install: npm install @socket.io/redis-adapter redis
+import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
+
+const pubClient = createClient({ url: process.env.REDIS_URL });
+const subClient = pubClient.duplicate();
+
+await Promise.all([pubClient.connect(), subClient.connect()]);
+
+const io = new Server(httpServer, {
+  cors: { /* ... */ },
+  // ✅ Redis adapter enables cross-replica communication
+  adapter: createAdapter(pubClient, subClient)
+});
+
+// Now broadcasts reach ALL clients across ALL replicas
+io.to('live-logs').emit('log-entry', {
+  message: 'This reaches clients on all 10 replicas!',
+  timestamp: new Date().toISOString()
+});</code></pre>
+
+        <p><strong>Alternative: Azure Service Bus Adapter</strong></p>
+        <pre class="line-numbers"><code class="language-bash"># Azure-native alternative to Redis
+npm install @socket.io/azure-service-bus-adapter</code></pre>
+
+        <p><strong>Alternative: Sticky Sessions (No Redis Required)</strong></p>
+        <div class="info-box success">
+            <h4>💡 Simpler Approach: Enable Sticky Sessions</h4>
+            <p>Azure Container Apps supports session affinity, which routes all requests from a client to the same replica.</p>
+            <pre class="line-numbers"><code class="language-bash"># Enable in Azure Container Apps
+az containerapp update \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --enable-session-affinity true</code></pre>
+            <p><strong>Pros:</strong> No Redis needed, simpler architecture</p>
+            <p><strong>Cons:</strong> Uneven load distribution, client loses connection if replica goes down</p>
+        </div>
+
+        <h3>2.3 Scraping Result Caching <span class="badge low-priority">LOW PRIORITY</span></h3>
+
+        <p><strong>Current State:</strong> Your global scraper runs every 3 hours and queries PostgreSQL for every request.</p>
+
+        <p><strong>Opportunity:</strong> Cache frequently accessed scraping results in Redis.</p>
+
+        <pre class="line-numbers"><code class="language-typescript">// Example: Cache article listings
+import { createClient } from 'redis';
+
+const redis = createClient({ url: process.env.REDIS_URL });
+await redis.connect();
+
+async function getArticles(filters: any) {
+  const cacheKey = `articles:${JSON.stringify(filters)}`;
+
+  // Try cache first
+  const cached = await redis.get(cacheKey);
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  // Query PostgreSQL if cache miss
+  const articles = await db.select().from(articlesTable).where(/* ... */);
+
+  // Cache for 5 minutes
+  await redis.setEx(cacheKey, 300, JSON.stringify(articles));
+
+  return articles;
+}</code></pre>
+
+        <p><strong>When to Use:</strong></p>
+        <ul>
+            <li>✅ High-traffic read endpoints (article listings, dashboards)</li>
+            <li>✅ Expensive database queries that don't change frequently</li>
+            <li>❌ Don't cache: Real-time data, user-specific data, frequently changing data</li>
+        </ul>
+
+        <h3>2.4 Distributed Locking for Schedulers <span class="badge low-priority">LOW PRIORITY</span></h3>
+
+        <p><strong>Current State:</strong> Your global scheduler runs on server startup. With multiple replicas, it could run 10 times simultaneously.</p>
+
+        <pre class="line-numbers"><code class="language-typescript">// backend/services/global-scheduler.ts
+// ⚠️ POTENTIAL ISSUE: This runs on every replica
+export async function initializeGlobalScheduler() {
+  setInterval(async () => {
+    await runUnifiedGlobalScraping(); // Could run 10x!
+  }, THREE_HOURS);
+}</code></pre>
+
+        <p><strong>Solution with Redis:</strong></p>
+        <pre class="line-numbers"><code class="language-typescript">import Redlock from 'redlock';
+import { createClient } from 'redis';
+
+const redis = createClient({ url: process.env.REDIS_URL });
+const redlock = new Redlock([redis]);
+
+export async function initializeGlobalScheduler() {
+  setInterval(async () => {
+    // Only ONE replica acquires the lock and runs the scraper
+    try {
+      await redlock.using(['locks:global-scraper'], 5000, async (signal) => {
+        console.log('🔒 Lock acquired, running global scraper');
+        await runUnifiedGlobalScraping();
+      });
+    } catch (err) {
+      // Another replica is already running it
+      console.log('⏭️  Skipping: Another replica has the lock');
+    }
+  }, THREE_HOURS);
+}</code></pre>
+
+        <p><strong>Note:</strong> You could also use PostgreSQL advisory locks for this (no Redis needed).</p>
+
+        <h2 id="pros-cons">3. Detailed Pros & Cons</h2>
+
+        <div class="pros-cons">
+            <div class="pros">
+                <h4>✅ Pros of Adding Redis</h4>
+                <ul>
+                    <li><strong>Consistent Rate Limiting:</strong> Critical for security and abuse prevention across replicas</li>
+                    <li><strong>Socket.IO Broadcasting:</strong> Live-logs system works correctly with multiple replicas</li>
+                    <li><strong>Performance:</strong> Sub-millisecond read/write operations (avg 0.5-2ms)</li>
+                    <li><strong>Proven Technology:</strong> Industry standard for distributed state management</li>
+                    <li><strong>Azure Integration:</strong> Managed service (Azure Cache for Redis) with automatic backups, patching, monitoring</li>
+                    <li><strong>Scalability:</strong> Handles millions of operations per second</li>
+                    <li><strong>Pub/Sub Built-in:</strong> Perfect for Socket.IO adapter pattern</li>
+                    <li><strong>TTL Support:</strong> Automatic expiration for caching (no manual cleanup)</li>
+                    <li><strong>Data Structures:</strong> Strings, hashes, lists, sets, sorted sets—more than just key-value</li>
+                </ul>
+            </div>
+
+            <div class="cons">
+                <h4>❌ Cons of Adding Redis</h4>
+                <ul>
+                    <li><strong>Cost:</strong> $55-$5,000+/month for Azure Cache for Redis (see cost section)</li>
+                    <li><strong>Operational Complexity:</strong> Another service to monitor, maintain, troubleshoot</li>
+                    <li><strong>Licensing Concerns:</strong> Redis 7.4+ uses SSPL license (restrictive for cloud providers)</li>
+                    <li><strong>Network Latency:</strong> Adds 1-3ms per operation (vs in-memory: 0.01ms)</li>
+                    <li><strong>Single Point of Failure:</strong> If Redis goes down, rate limiting and Socket.IO break</li>
+                    <li><strong>Connection Pooling:</strong> Need to manage connection limits (Azure: 256-40,000 depending on tier)</li>
+                    <li><strong>Memory Constraints:</strong> Redis is in-memory only—expensive at scale</li>
+                    <li><strong>Data Persistence:</strong> Not designed for long-term storage (use PostgreSQL for that)</li>
+                    <li><strong>Debugging:</strong> Harder to debug distributed state issues vs local state</li>
+                    <li><strong>Over-Engineering Risk:</strong> May be overkill if you stick with 1-2 replicas</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="info-box danger">
+            <h4>🚨 Critical Cons to Consider</h4>
+            <ul>
+                <li><strong>Vendor Lock-in:</strong> Using Azure Cache for Redis ties you to Azure's pricing and terms</li>
+                <li><strong>SSPL License:</strong> Redis changed to Server Side Public License in 2024, which restricts commercial cloud offerings. Valkey (fork) remains BSD-licensed.</li>
+                <li><strong>Failure Mode:</strong> If Redis becomes unavailable, your entire application may fail unless you implement graceful degradation</li>
+            </ul>
+        </div>
+
+        <h2 id="alternatives">4. Alternatives Comparison</h2>
+
+        <div class="comparison-grid">
+            <div class="comparison-card">
+                <h4>🔴 Redis (SSPL)</h4>
+                <p><strong>License:</strong> SSPL (restrictive)</p>
+                <p><strong>Performance:</strong> ⭐⭐⭐⭐⭐</p>
+                <p><strong>Cost:</strong> $55-$5,000+/month</p>
+                <p><strong>Maturity:</strong> Industry standard</p>
+                <p><strong>Best For:</strong> High-performance, proven use cases</p>
+                <p><strong>Concern:</strong> Licensing changes, vendor lock-in</p>
+            </div>
+
+            <div class="comparison-card">
+                <h4>🟢 Valkey (BSD-3)</h4>
+                <p><strong>License:</strong> BSD-3 (open source)</p>
+                <p><strong>Performance:</strong> ⭐⭐⭐⭐⭐</p>
+                <p><strong>Cost:</strong> Self-hosted or managed</p>
+                <p><strong>Maturity:</strong> Redis 7.2 fork (2024)</p>
+                <p><strong>Best For:</strong> Open-source alternative to Redis</p>
+                <p><strong>Azure Support:</strong> Use Azure Container Instances or self-host</p>
+                <span class="badge recommended">RECOMMENDED</span>
+            </div>
+
+            <div class="comparison-card">
+                <h4>🐉 Dragonfly</h4>
+                <p><strong>License:</strong> BSL 1.1 (converts to Apache 2.0)</p>
+                <p><strong>Performance:</strong> ⭐⭐⭐⭐⭐+</p>
+                <p><strong>Cost:</strong> Self-hosted or managed</p>
+                <p><strong>Maturity:</strong> Newer (2022+)</p>
+                <p><strong>Best For:</strong> Extreme performance needs (29x faster than Redis on 48 vCPUs)</p>
+                <p><strong>Trade-off:</strong> Less mature, smaller ecosystem</p>
+            </div>
+
+            <div class="comparison-card">
+                <h4>🐘 PostgreSQL-Based</h4>
+                <p><strong>License:</strong> PostgreSQL (permissive)</p>
+                <p><strong>Performance:</strong> ⭐⭐⭐</p>
+                <p><strong>Cost:</strong> $0 (you already have it!)</p>
+                <p><strong>Maturity:</strong> Extremely mature</p>
+                <p><strong>Best For:</strong> Avoiding new dependencies</p>
+                <p><strong>Trade-off:</strong> Slower than Redis (~10-20ms vs 1-3ms)</p>
+                <span class="badge recommended">SIMPLEST</span>
+            </div>
+
+            <div class="comparison-card">
+                <h4>🔵 Azure Service Bus</h4>
+                <p><strong>License:</strong> Proprietary (Azure)</p>
+                <p><strong>Performance:</strong> ⭐⭐⭐⭐</p>
+                <p><strong>Cost:</strong> $0.05 per million operations</p>
+                <p><strong>Maturity:</strong> Azure-native</p>
+                <p><strong>Best For:</strong> Socket.IO adapter (Azure-native)</p>
+                <p><strong>Trade-off:</strong> Azure lock-in, not for rate limiting</p>
+            </div>
+
+            <div class="comparison-card">
+                <h4>📍 Sticky Sessions</h4>
+                <p><strong>License:</strong> N/A (Azure feature)</p>
+                <p><strong>Performance:</strong> ⭐⭐⭐⭐⭐</p>
+                <p><strong>Cost:</strong> $0</p>
+                <p><strong>Maturity:</strong> Built-in</p>
+                <p><strong>Best For:</strong> Socket.IO (eliminates need for Redis adapter)</p>
+                <p><strong>Trade-off:</strong> Uneven load, connection loss on replica failure</p>
+                <span class="badge recommended">EASIEST</span>
+            </div>
+        </div>
+
+        <h3>4.1 Detailed Alternative: PostgreSQL for Rate Limiting</h3>
+
+        <pre class="line-numbers"><code class="language-typescript">// Use your existing PostgreSQL database for rate limiting
+// Install: npm install rate-limit-postgresql
+import { PostgresStore } from 'rate-limit-postgresql';
+import { pool } from './db/db'; // Your existing pool
+
+// Create rate limit table (one-time migration)
+await pool.query(`
+  CREATE TABLE IF NOT EXISTS rate_limit (
+    key TEXT PRIMARY KEY,
+    value INTEGER,
+    reset_time TIMESTAMPTZ
+  );
+  CREATE INDEX IF NOT EXISTS idx_reset_time ON rate_limit(reset_time);
+`);
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  store: new PostgresStore({
+    client: pool,
+    tableName: 'rate_limit',
+    expireMs: 15 * 60 * 1000
+  })
+});</code></pre>
+
+        <p><strong>Pros:</strong></p>
+        <ul>
+            <li>✅ No new infrastructure or costs</li>
+            <li>✅ Uses your existing PostgreSQL connection</li>
+            <li>✅ Data persists across restarts</li>
+            <li>✅ No additional licensing concerns</li>
+        </ul>
+
+        <p><strong>Cons:</strong></p>
+        <ul>
+            <li>⚠️ Slower: 10-20ms per request (vs 1-3ms for Redis)</li>
+            <li>⚠️ Adds load to PostgreSQL (though minimal for rate limiting)</li>
+            <li>⚠️ Not suitable for Socket.IO adapter (Socket.IO requires Pub/Sub)</li>
+        </ul>
+
+        <h3>4.2 Hybrid Approach <span class="badge recommended">RECOMMENDED</span></h3>
+
+        <div class="info-box success">
+            <h4>💡 Best of Both Worlds</h4>
+            <p><strong>Strategy:</strong> Use different solutions for different problems</p>
+            <ul>
+                <li><strong>Rate Limiting:</strong> PostgreSQL (you already have it, performance is acceptable)</li>
+                <li><strong>Socket.IO:</strong> Enable sticky sessions (no Redis needed, Azure built-in feature)</li>
+                <li><strong>Caching:</strong> Start without it, add Valkey later if needed</li>
+                <li><strong>Distributed Locks:</strong> PostgreSQL advisory locks (no Redis needed)</li>
+            </ul>
+            <p><strong>Result:</strong> Zero additional infrastructure, zero additional costs, solves all current problems</p>
+        </div>
+
+        <h2 id="implementation">5. Implementation Requirements</h2>
+
+        <h3>5.1 If You Choose Redis/Valkey</h3>
+
+        <h4>Step 1: Provision Azure Cache for Redis</h4>
+        <pre class="line-numbers"><code class="language-bash"># Create Azure Cache for Redis (Basic C0 tier for testing)
+az redis create \
+  --name risqai-redis-staging \
+  --resource-group group-risqai-staging \
+  --location eastus \
+  --sku Basic \
+  --vm-size C0 \
+  --enable-non-ssl-port false
+
+# Get connection string
+az redis list-keys \
+  --name risqai-redis-staging \
+  --resource-group group-risqai-staging</code></pre>
+
+        <h4>Step 2: Update Environment Variables</h4>
+        <pre class="line-numbers"><code class="language-bash"># Add to Azure Container Apps environment variables
+az containerapp update \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --set-env-vars \
+    REDIS_URL="rediss://risqai-redis-staging.redis.cache.windows.net:6380,password=YOUR_KEY,ssl=true"</code></pre>
+
+        <h4>Step 3: Update Code</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/utils/redis-client.ts
+import { createClient } from 'redis';
+
+let redisClient: ReturnType<typeof createClient> | null = null;
+
+export async function getRedisClient() {
+  if (redisClient) return redisClient;
+
+  if (!process.env.REDIS_URL) {
+    throw new Error('REDIS_URL environment variable is required');
+  }
+
+  redisClient = createClient({
+    url: process.env.REDIS_URL,
+    socket: {
+      tls: true,
+      rejectUnauthorized: true,
+      connectTimeout: 10000
+    }
+  });
+
+  redisClient.on('error', (err) => {
+    console.error('Redis connection error:', err);
+  });
+
+  await redisClient.connect();
+  console.log('✅ Connected to Redis');
+
+  return redisClient;
+}
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  if (redisClient) {
+    await redisClient.quit();
+  }
+});</code></pre>
+
+        <h4>Step 4: Update Rate Limiting</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/utils/rate-limit-config.ts
+import { RedisStore } from 'rate-limit-redis';
+import { getRedisClient } from './redis-client';
+
+const redisClient = await getRedisClient();
+
+export const rateLimitConfig = {
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  store: new RedisStore({
+    client: redisClient,
+    prefix: 'rl:'
+  }),
+  keyGenerator: (req: Request) => {
+    return req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
+  }
+};</code></pre>
+
+        <h4>Step 5: Update Socket.IO (Optional)</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/services/live-logs/socket-server.ts
+import { createAdapter } from '@socket.io/redis-adapter';
+import { getRedisClient } from '../../utils/redis-client';
+
+export async function initializeSocketIO(httpServer: HttpServer) {
+  const io = new Server(httpServer, { /* ... */ });
+
+  // Add Redis adapter for multi-replica support
+  const pubClient = await getRedisClient();
+  const subClient = pubClient.duplicate();
+  await subClient.connect();
+
+  io.adapter(createAdapter(pubClient, subClient));
+
+  // Now broadcasts work across all replicas!
+  return io;
+}</code></pre>
+
+        <h4>Step 6: Update package.json</h4>
+        <pre class="line-numbers"><code class="language-json">{
+  "dependencies": {
+    "redis": "^4.7.0",
+    "rate-limit-redis": "^4.2.0",
+    "@socket.io/redis-adapter": "^8.3.0"
+  }
+}</code></pre>
+
+        <h4>Step 7: Update Dockerfile (Add Redis Health Check)</h4>
+        <pre class="line-numbers"><code class="language-dockerfile"># No changes needed to Dockerfile—Redis is external service
+# But add health check to startup command
+
+CMD ["sh", "-c", "
+  echo 'Testing Redis connection...' && \
+  node -e \"require('redis').createClient({url: process.env.REDIS_URL}).connect().then(() => console.log('✅ Redis OK')).catch(err => {console.error('❌ Redis failed:', err); process.exit(1);})\" && \
+  npx drizzle-kit migrate --config=../drizzle.config.ts && \
+  node dist/index.js
+"]</code></pre>
+
+        <h3>5.2 If You Choose PostgreSQL Approach (RECOMMENDED)</h3>
+
+        <h4>Step 1: Create Migration for Rate Limiting</h4>
+        <pre class="line-numbers"><code class="language-sql">-- Create migration: backend/db/migrations/0041_add_rate_limit_table.sql
+CREATE TABLE IF NOT EXISTS rate_limit (
+  key TEXT PRIMARY KEY,
+  value INTEGER NOT NULL DEFAULT 0,
+  reset_time TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX idx_rate_limit_reset_time ON rate_limit(reset_time);
+
+-- Automatically clean up expired entries
+CREATE OR REPLACE FUNCTION cleanup_expired_rate_limits()
+RETURNS void AS $$
+BEGIN
+  DELETE FROM rate_limit WHERE reset_time < NOW();
+END;
+$$ LANGUAGE plpgsql;</code></pre>
+
+        <h4>Step 2: Update Rate Limiting (No New Dependencies!)</h4>
+        <pre class="line-numbers"><code class="language-typescript">// backend/utils/rate-limit-config.ts
+import { pool } from '../db/db';
+
+// Custom PostgreSQL store for express-rate-limit
+class PostgresRateLimitStore {
+  async increment(key: string): Promise<{ totalHits: number; resetTime: Date }> {
+    const windowMs = 15 * 60 * 1000;
+    const resetTime = new Date(Date.now() + windowMs);
+
+    const result = await pool.query(`
+      INSERT INTO rate_limit (key, value, reset_time)
+      VALUES ($1, 1, $2)
+      ON CONFLICT (key) DO UPDATE
+      SET value = rate_limit.value + 1,
+          reset_time = CASE
+            WHEN rate_limit.reset_time < NOW() THEN $2
+            ELSE rate_limit.reset_time
+          END
+      RETURNING value, reset_time
+    `, [key, resetTime]);
+
+    return {
+      totalHits: result.rows[0].value,
+      resetTime: result.rows[0].reset_time
+    };
+  }
+
+  async decrement(key: string): Promise<void> {
+    await pool.query(
+      'UPDATE rate_limit SET value = GREATEST(0, value - 1) WHERE key = $1',
+      [key]
+    );
+  }
+
+  async resetKey(key: string): Promise<void> {
+    await pool.query('DELETE FROM rate_limit WHERE key = $1', [key]);
+  }
+}
+
+export const rateLimitConfig = {
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  store: new PostgresRateLimitStore(),
+  keyGenerator: (req: Request) => {
+    return req.headers['x-forwarded-for']?.split(',')[0] || req.ip || 'unknown';
+  }
+};</code></pre>
+
+        <h4>Step 3: Enable Sticky Sessions for Socket.IO</h4>
+        <pre class="line-numbers"><code class="language-bash"># Enable sticky sessions in Azure Container Apps
+az containerapp update \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --set-env-vars SESSION_AFFINITY=true</code></pre>
+
+        <p><strong>Result:</strong> Zero new infrastructure, works with your existing PostgreSQL database!</p>
+
+        <h3>5.3 Testing Strategy</h3>
+
+        <h4>Test Rate Limiting Across Replicas</h4>
+        <pre class="line-numbers"><code class="language-bash"># Test script to verify rate limiting works across replicas
+#!/bin/bash
+
+# Make 50 requests (should hit different replicas with round-robin)
+for i in {1..50}; do
+  curl -H "X-Forwarded-For: 1.2.3.4" https://preview.risqai.co/api/test
+  echo " - Request $i"
+done
+
+# Expected: Get rate limited at request 31 (not 310!)</code></pre>
+
+        <h4>Test Socket.IO Across Replicas</h4>
+        <pre class="line-numbers"><code class="language-javascript">// Open two browser tabs and run this in console
+const socket1 = io('https://preview.risqai.co', { auth: { email: 'test@example.com' }});
+socket1.on('log-entry', msg => console.log('Tab 1:', msg));
+
+// In second tab
+const socket2 = io('https://preview.risqai.co', { auth: { email: 'test@example.com' }});
+socket2.on('log-entry', msg => console.log('Tab 2:', msg));
+
+// Expected with Redis: Both tabs receive messages
+// Expected with sticky sessions: Both tabs receive messages
+// Current (broken): Only one tab receives messages</code></pre>
+
+        <h2 id="cost-analysis">6. Cost Analysis</h2>
+
+        <h3>6.1 Azure Cache for Redis Pricing (East US, 2025)</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Tier</th>
+                    <th>Cache Size</th>
+                    <th>Connections</th>
+                    <th>Cost/Month</th>
+                    <th>Best For</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Basic C0</strong></td>
+                    <td>250 MB</td>
+                    <td>256</td>
+                    <td><strong>~$55</strong></td>
+                    <td>Dev/Test, Low Traffic</td>
+                </tr>
+                <tr>
+                    <td><strong>Basic C1</strong></td>
+                    <td>1 GB</td>
+                    <td>1,000</td>
+                    <td><strong>~$110</strong></td>
+                    <td>Small Production</td>
+                </tr>
+                <tr>
+                    <td><strong>Standard C1</strong></td>
+                    <td>1 GB (Replicated)</td>
+                    <td>1,000</td>
+                    <td><strong>~$220</strong></td>
+                    <td>Production (HA)</td>
+                </tr>
+                <tr>
+                    <td><strong>Standard C2</strong></td>
+                    <td>2.5 GB (Replicated)</td>
+                    <td>2,000</td>
+                    <td><strong>~$440</strong></td>
+                    <td>Growing Production</td>
+                </tr>
+                <tr>
+                    <td><strong>Premium P1</strong></td>
+                    <td>6 GB (Cluster)</td>
+                    <td>7,500</td>
+                    <td><strong>~$1,250</strong></td>
+                    <td>Enterprise</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="info-box warning">
+            <h4>💰 Cost Considerations</h4>
+            <ul>
+                <li><strong>Basic tier:</strong> No SLA, single node, no replication—NOT recommended for production</li>
+                <li><strong>Standard tier:</strong> 99.9% SLA, automatic replication—recommended minimum for production</li>
+                <li><strong>Premium tier:</strong> Clustering, persistence, VNet support—overkill for most use cases</li>
+            </ul>
+            <p><strong>For staging:</strong> Basic C0 ($55/month) is sufficient</p>
+            <p><strong>For production:</strong> Standard C1 ($220/month) minimum</p>
+        </div>
+
+        <h3>6.2 Alternative Costs</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Solution</th>
+                    <th>Monthly Cost</th>
+                    <th>Setup Effort</th>
+                    <th>Maintenance</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>PostgreSQL (existing)</strong></td>
+                    <td>$0</td>
+                    <td>Low (1-2 hours)</td>
+                    <td>Minimal</td>
+                </tr>
+                <tr>
+                    <td><strong>Sticky Sessions</strong></td>
+                    <td>$0</td>
+                    <td>Very Low (5 min)</td>
+                    <td>None</td>
+                </tr>
+                <tr>
+                    <td><strong>Azure Service Bus</strong></td>
+                    <td>$0.05 per million ops (~$10-50/month)</td>
+                    <td>Medium (4-6 hours)</td>
+                    <td>Low</td>
+                </tr>
+                <tr>
+                    <td><strong>Self-hosted Valkey</strong></td>
+                    <td>$50-200 (Azure Container Instance)</td>
+                    <td>High (8-12 hours)</td>
+                    <td>High (you manage it)</td>
+                </tr>
+                <tr>
+                    <td><strong>Azure Cache for Redis</strong></td>
+                    <td>$55-$220+ (Basic to Standard)</td>
+                    <td>Low (2-4 hours)</td>
+                    <td>Minimal (Azure manages)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>6.3 ROI Analysis</h3>
+
+        <div class="info-box summary">
+            <h4>📊 When Redis/Valkey is Worth It</h4>
+            <ul>
+                <li>✅ <strong>High traffic:</strong> 1M+ requests/day where PostgreSQL becomes a bottleneck</li>
+                <li>✅ <strong>Real-time features:</strong> Pub/Sub, leaderboards, real-time analytics</li>
+                <li>✅ <strong>Strict performance SLAs:</strong> Sub-5ms response time requirements</li>
+                <li>✅ <strong>Complex caching:</strong> Need advanced data structures (sorted sets, hyperloglog)</li>
+            </ul>
+
+            <h4>❌ When It's NOT Worth It (Your Current State)</h4>
+            <ul>
+                <li>❌ <strong>Low traffic:</strong> &lt;100K requests/day—PostgreSQL is fine</li>
+                <li>❌ <strong>Limited budget:</strong> $220/month for Standard tier is expensive for staging</li>
+                <li>❌ <strong>Simple use cases:</strong> Just rate limiting and Socket.IO—alternatives exist</li>
+                <li>❌ <strong>Single replica:</strong> If you reduce to 1-2 replicas, Redis becomes unnecessary</li>
+            </ul>
+        </div>
+
+        <h2 id="recommendations">7. Final Recommendations</h2>
+
+        <div class="recommendation">
+            <h3>🎯 Recommended Approach: Hybrid Strategy (Zero Cost)</h3>
+
+            <h4>Phase 1: Immediate Fixes (This Week)</h4>
+            <ol>
+                <li>
+                    <strong>Rate Limiting:</strong> Implement PostgreSQL-based rate limiting
+                    <ul>
+                        <li>Cost: $0 (use existing database)</li>
+                        <li>Effort: 2-3 hours</li>
+                        <li>Performance: Acceptable (10-20ms per request)</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Socket.IO:</strong> Enable sticky sessions in Azure Container Apps
+                    <ul>
+                        <li>Cost: $0</li>
+                        <li>Effort: 5 minutes</li>
+                        <li>Trade-off: Uneven load distribution (acceptable for staging)</li>
+                    </ul>
+                </li>
+                <li>
+                    <strong>Scheduler:</strong> Use PostgreSQL advisory locks to prevent duplicate runs
+                    <ul>
+                        <li>Cost: $0</li>
+                        <li>Effort: 1 hour</li>
+                    </ul>
+                </li>
+            </ol>
+
+            <h4>Phase 2: Monitor & Evaluate (Next 1-2 Months)</h4>
+            <ul>
+                <li>Monitor PostgreSQL query times for rate limiting</li>
+                <li>Check Socket.IO connection stability with sticky sessions</li>
+                <li>Measure actual traffic patterns and replica distribution</li>
+                <li>Identify any performance bottlenecks</li>
+            </ul>
+
+            <h4>Phase 3: Consider Redis/Valkey (If Needed)</h4>
+            <p><strong>Only add Redis/Valkey if:</strong></p>
+            <ul>
+                <li>PostgreSQL rate limiting exceeds 20ms consistently</li>
+                <li>Traffic grows to 1M+ requests/day</li>
+                <li>Sticky sessions cause connection issues</li>
+                <li>You need advanced caching features</li>
+            </ul>
+
+            <p><strong>If you do add it, choose:</strong></p>
+            <ul>
+                <li><strong>Staging:</strong> Azure Cache for Redis Basic C0 ($55/month)</li>
+                <li><strong>Production:</strong> Azure Cache for Redis Standard C1 ($220/month)</li>
+                <li><strong>Open Source:</strong> Self-hosted Valkey if you want to avoid licensing concerns</li>
+            </ul>
+        </div>
+
+        <h3>7.1 Decision Tree</h3>
+
+        <pre class="line-numbers"><code class="language-text">Do you have 1M+ requests/day?
+├── NO → Use PostgreSQL for rate limiting + sticky sessions for Socket.IO
+│        Cost: $0, Performance: Good enough
+│
+└── YES → Do you need sub-5ms response times?
+    ├── NO → Still use PostgreSQL (it handles 7,000+ req/sec)
+    │
+    └── YES → Add Redis/Valkey
+        ├── Prefer managed service? → Azure Cache for Redis ($220/month)
+        ├── Prefer open source? → Self-hosted Valkey ($50-200/month)
+        └── Need extreme performance? → Dragonfly (29x faster than Redis)
+
+Do you need Socket.IO across replicas?
+├── Can you use sticky sessions? → YES → Enable sticky sessions ($0)
+├── Need cross-replica broadcasts? → Consider Azure Service Bus ($10-50/month)
+└── Need Redis anyway? → Use Redis adapter</code></pre>
+
+        <h3>7.2 Implementation Priority</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Priority</th>
+                    <th>Task</th>
+                    <th>Effort</th>
+                    <th>Impact</th>
+                    <th>Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="background: #d4edda;">
+                    <td><span class="badge high-priority">HIGH</span></td>
+                    <td><strong>Fix rate limiting with PostgreSQL</strong></td>
+                    <td>2-3 hours</td>
+                    <td>Critical security fix</td>
+                    <td>$0</td>
+                </tr>
+                <tr style="background: #d4edda;">
+                    <td><span class="badge high-priority">HIGH</span></td>
+                    <td><strong>Enable sticky sessions</strong></td>
+                    <td>5 minutes</td>
+                    <td>Fixes Socket.IO</td>
+                    <td>$0</td>
+                </tr>
+                <tr style="background: #fff3cd;">
+                    <td><span class="badge medium-priority">MEDIUM</span></td>
+                    <td><strong>Add scheduler locking (PostgreSQL advisory locks)</strong></td>
+                    <td>1 hour</td>
+                    <td>Prevents duplicate scraping</td>
+                    <td>$0</td>
+                </tr>
+                <tr style="background: #e9ecef;">
+                    <td><span class="badge low-priority">LOW</span></td>
+                    <td><strong>Evaluate Redis after monitoring</strong></td>
+                    <td>4-6 hours</td>
+                    <td>Only if PostgreSQL is slow</td>
+                    <td>$55-220/month</td>
+                </tr>
+                <tr style="background: #e9ecef;">
+                    <td><span class="badge low-priority">LOW</span></td>
+                    <td><strong>Add caching (if needed)</strong></td>
+                    <td>8-12 hours</td>
+                    <td>Performance optimization</td>
+                    <td>$0 (PostgreSQL) or $55+ (Redis)</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>7.3 Key Takeaways</h3>
+
+        <div class="info-box success">
+            <ul>
+                <li>✅ <strong>Don't over-engineer:</strong> PostgreSQL + sticky sessions solve your immediate problems at zero cost</li>
+                <li>✅ <strong>Redis is NOT required:</strong> Your traffic doesn't justify the cost and complexity yet</li>
+                <li>✅ <strong>Fix rate limiting urgently:</strong> Current implementation is broken with multiple replicas</li>
+                <li>✅ <strong>Monitor first, optimize later:</strong> Add Redis/Valkey only if PostgreSQL becomes a bottleneck</li>
+                <li>✅ <strong>Consider Valkey over Redis:</strong> If you do need Redis, Valkey avoids licensing concerns</li>
+                <li>✅ <strong>Test in staging:</strong> If trying Redis, start with Basic C0 tier ($55/month) in staging</li>
+            </ul>
+        </div>
+
+        <hr style="margin: 40px 0; border: none; border-top: 2px solid #e0e0e0;">
+
+        <div style="text-align: center; color: #666; font-size: 0.9em;">
+            <p><strong>Document Created:</strong> 2025-10-03</p>
+            <p><strong>Application:</strong> RisqAI Backend (Azure Container Apps)</p>
+            <p><strong>Next Review:</strong> After implementing Phase 1 and monitoring for 1-2 months</p>
+        </div>
+    </div>
+
+    <!-- Prism.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+</body>
+</html>

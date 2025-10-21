@@ -4,7 +4,12 @@ import { User } from "@shared/db/schema/user"
 import { useFetch } from "@/hooks/use-fetch";
 
 export type Role = 'admin' | 'user'
-export type UserWithPerm = User & { permissions: string[] } & { role: Role }
+export type UserWithPerm = User
+  & { permissions: string[] }
+  & { role: Role }
+  & { subscription: string }
+  & { hasPromoCode?: boolean }
+  & { promoInfo?: { description?: string } }
 
 export function useAuth() {
   const { isAuthenticated, user: auth0User } = useAuth0();

@@ -8,16 +8,21 @@ import attachOrganizationToRequest from './utils/attach-org';
 type CustomRequest = Request &  { log: (...args: any[]) => void }
 
 export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
-  //const payload = req.auth
+
+  //const userAuth0 = req.auth?.payload['user/user'] as string || req.auth?.payload['user'] as string
   const email = req.auth?.payload['user/email'] as string || req.auth?.payload['email'] as string
   const email_verified = req.auth?.payload['user/email_verified'] || req.auth?.payload['email_verified']
+  const organizationId = req.auth?.payload['user/organization_id'] || req.auth?.payload['organization_id'] || '' 
   const sub = req.auth?.payload.sub
 
+  //const payload = req.auth
   //req.log("payload", payload)
+  //req.log("userAuth0", userAuth0)
   //req.log("email: ", email)
   //req.log("sub: ", sub)
+  //req.log("Organization id from payload: ", organizationId)
 
-  console.log("auth0middleware...")
+  //console.log("auth0middleware...")
 
   if (!sub) {
     req.log("❌ [AUTH0-MIDDLEWARE] User id not provided")
@@ -39,7 +44,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
   let userToReturn: User;
 
   if (auth0id) {
-    console.log("auth0id...")
+    //console.log("auth0id...")
     try {
       const [ user ] = await db
         .select()
@@ -55,6 +60,12 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
         await db
           .update(users)
           .set({ email })
+          .where(eq(users.id,user.id))
+      }
+      if (organizationId != "Missing organization" && user.organizationId != organizationId) {
+        await db
+          .update(users)
+          .set({ organizationId: organizationId as string})
           .where(eq(users.id,user.id))
       }
 
@@ -81,6 +92,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
               email: email,
               name: email,
               password: '',
+              organizationId: organizationId && organizationId !== "Missing organization" ? organizationId as string : null
             })
             .onConflictDoUpdate({
               target: users.id,
@@ -88,6 +100,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
                 email: email,
                 name: email,
                 password: '',
+                organizationId: organizationId && organizationId !== "Missing organization" ? organizationId as string : null
               }
             })
             .returning()
@@ -110,7 +123,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
         return
       }
     } else {
-      console.log("auth0id not found. Creating one...")
+      //console.log("auth0id not found. Creating one...")
       userToReturn = userFromEmail 
       await db
         .insert(auth0Ids)
@@ -126,14 +139,16 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
   (req as unknown as FullRequest).user = userToReturn;
 
   try {
+
     const userId = userToReturn.id.toString();
-    console.log("About to attach permissions and roles to request...")
     await attachPermissionsAndRoleToRequest(userId, req)
-    console.log("About to attach orgainzation to request")
     await attachOrganizationToRequest(userToReturn, req)
+
   } catch(error) {
+
     console.error("auth0middleware ERROR: ", error)
     throw error
+
   }
   next()
 }

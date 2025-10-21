@@ -1,0 +1,42 @@
+# Azure Infrastructure Audit - Redaction Summary
+Generated: October 8, 2025
+
+## Sensitive Information Redacted:
+
+### Azure Identifiers
+- Tenant ID: [REDACTED-TENANT-ID]
+- Subscription ID: [REDACTED-SUBSCRIPTION-ID]
+- Workspace IDs: [REDACTED-WORKSPACE-ID-PROD], [REDACTED-WORKSPACE-ID-STAGING]
+
+### Organization Information
+- Company domain: [COMPANY-DOMAIN]
+- Company name: [COMPANY-NAME]
+- User emails: [USER]@[COMPANY-DOMAIN]
+- Repository paths: [ORG]/[REPO], [ORG]/[REPO-WEBSITE]
+
+### Azure Resource Identifiers
+- Production Container App FQDN: [FQDN-ID-PROD]
+- Staging Container App FQDN: [FQDN-ID-STAGING]
+- Production Frontend FQDN: [FQDN-ID-FRONTEND-PROD]
+- Staging Frontend FQDN: [FQDN-ID-FRONTEND-STAGING]
+- Landing Page FQDN: [FQDN-ID-LANDING]
+- Staging Container Registry: [ACR-ID-STAGING]
+- Staging Workspace Name: [WORKSPACE-NAME-STAGING]
+
+### Git Information
+- Commit SHAs: [COMMIT-SHA], [COMMIT-SHA-SHORT]
+
+## Files Generated:
+- 2025-10-08-azure-infrastructure-audit.md (29 KB) - Redacted Markdown
+- 2025-10-08-azure-infrastructure-audit.html (36 KB) - Redacted HTML
+- 2025-10-08-azure-infrastructure-audit.md.backup (29 KB) - Original with sensitive data
+
+## Technical Content Preserved:
+✅ Azure service names and configurations
+✅ Architecture diagrams and patterns
+✅ Resource specifications (CPU, memory, SKUs)
+✅ Security recommendations
+✅ Cost optimization opportunities
+✅ Roadmap and maturity assessments
+
+All technical value maintained while protecting sensitive identifiers.

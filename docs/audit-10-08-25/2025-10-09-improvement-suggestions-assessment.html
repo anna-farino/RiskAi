@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Infrastructure Improvement Suggestions Assessment - RisqAI Platform</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #0078d4;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            border-bottom: 4px solid #0078d4;
+            padding-bottom: 15px;
+        }
+
+        h2 {
+            color: #0078d4;
+            font-size: 2em;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            padding-left: 15px;
+            border-left: 5px solid #0078d4;
+        }
+
+        h3 {
+            color: #106ebe;
+            font-size: 1.5em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        h4 {
+            color: #323130;
+            font-size: 1.2em;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+
+        .meta-info {
+            background: #f3f2f1;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            font-size: 0.95em;
+        }
+
+        .meta-info strong {
+            color: #0078d4;
+        }
+
+        .executive-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+
+        .executive-summary h2 {
+            color: white;
+            border-left: 5px solid white;
+            margin-top: 0;
+        }
+
+        .executive-summary strong {
+            color: #ffd700;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background: #0078d4;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e1e1e1;
+        }
+
+        tr:hover {
+            background: #f5f5f5;
+        }
+
+        tr:nth-child(even) {
+            background: #fafafa;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .badge-easy {
+            background: #c3e6cb;
+            color: #155724;
+        }
+
+        .badge-medium {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-hard {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .badge-very-hard {
+            background: #d6d8db;
+            color: #383d41;
+        }
+
+        .badge-high {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-medium-value {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-low {
+            background: #dc3545;
+            color: white;
+        }
+
+        .suggestion-card {
+            background: white;
+            border: 2px solid #e1e1e1;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 25px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .suggestion-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .suggestion-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .suggestion-title {
+            font-size: 1.4em;
+            color: #0078d4;
+            font-weight: 700;
+        }
+
+        .section-content {
+            margin: 15px 0;
+        }
+
+        .section-label {
+            font-weight: 700;
+            color: #323130;
+            margin-bottom: 5px;
+            display: block;
+        }
+
+        code {
+            background: #f5f5f5;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #d63384;
+        }
+
+        pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+        }
+
+        pre code {
+            background: transparent;
+            color: #abb2bf;
+            padding: 0;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .cost-positive {
+            color: #dc3545;
+            font-weight: 600;
+        }
+
+        .cost-negative {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .cost-neutral {
+            color: #6c757d;
+            font-weight: 600;
+        }
+
+        .recommendation {
+            background: #e7f3ff;
+            border-left: 4px solid #0078d4;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .recommendation strong {
+            color: #0078d4;
+        }
+
+        .phase-section {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+
+        .phase-section h3 {
+            color: white;
+            margin-top: 0;
+        }
+
+        /* Fix table styling inside phase sections */
+        .phase-section table {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .phase-section th {
+            background: rgba(0, 0, 0, 0.3);
+            color: white;
+        }
+
+        .phase-section td {
+            color: #333;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .phase-section tr:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .phase-section tr:nth-child(even) {
+            background: rgba(0, 0, 0, 0.1);
+        }
+
+        .phase-section tr:nth-child(even):hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .toc {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc li {
+            margin: 8px 0;
+        }
+
+        .toc a {
+            color: #0078d4;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .toc a:hover {
+            text-decoration: underline;
+        }
+
+        .icon {
+            margin-right: 8px;
+        }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .stat-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            display: block;
+            margin: 10px 0;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.95;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid #e1e1e1;
+            margin: 40px 0;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+                font-size: 11pt;
+                line-height: 1.5;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 0;
+                max-width: 100%;
+            }
+
+            .suggestion-card {
+                page-break-inside: avoid;
+                box-shadow: none;
+                border: 1px solid var(--border-color, #e1e1e1);
+            }
+
+            .suggestion-card:hover {
+                transform: none;
+                box-shadow: none;
+            }
+
+            h1 {
+                font-size: 24pt;
+                page-break-after: avoid;
+                border-bottom: 3px solid #0078d4;
+            }
+
+            h2 {
+                font-size: 18pt;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 30pt;
+            }
+
+            h3 {
+                font-size: 14pt;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 20pt;
+            }
+
+            h4 {
+                font-size: 12pt;
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+
+            .meta-info {
+                page-break-after: avoid;
+            }
+
+            .executive-summary {
+                page-break-inside: avoid;
+                background: white !important;
+                color: #333 !important;
+                border: 2px solid #667eea;
+                page-break-after: always;
+            }
+
+            .executive-summary h2 {
+                color: #667eea !important;
+            }
+
+            .summary-stats {
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 10px;
+                page-break-inside: avoid;
+            }
+
+            .stat-card {
+                background: white !important;
+                color: #333 !important;
+                border: 1px solid #667eea;
+                page-break-inside: avoid;
+            }
+
+            .toc {
+                page-break-after: always;
+                background: #f8f9fa;
+                border: 1px solid #e1e1e1;
+            }
+
+            .phase-section {
+                page-break-inside: avoid;
+                background: white !important;
+                color: #333 !important;
+                border: 2px solid #f093fb;
+                margin: 20px 0;
+            }
+
+            .phase-section h3 {
+                color: #f093fb !important;
+            }
+
+            .phase-section table {
+                background: white !important;
+            }
+
+            .phase-section th {
+                background: #f8f9fa !important;
+                color: #333 !important;
+            }
+
+            .phase-section td {
+                color: #333 !important;
+            }
+
+            table {
+                page-break-inside: avoid;
+                font-size: 9pt;
+                border: 1px solid #e1e1e1;
+            }
+
+            pre {
+                page-break-inside: avoid;
+                background: #f5f5f5 !important;
+                color: #333 !important;
+                border: 1px solid #e1e1e1;
+                padding: 10pt;
+                font-size: 8pt;
+            }
+
+            pre code {
+                color: #333 !important;
+            }
+
+            .recommendation {
+                page-break-inside: avoid;
+                background: #f0f9ff !important;
+                border: 1px solid #0078d4;
+            }
+
+            .badge {
+                border: 1px solid currentColor;
+            }
+
+            .cost-positive {
+                color: #dc3545;
+            }
+
+            .cost-negative {
+                color: #28a745;
+            }
+
+            .cost-neutral {
+                color: #6c757d;
+            }
+
+            a {
+                color: #0078d4;
+                text-decoration: none;
+            }
+
+            a[href]:after {
+                content: " (" attr(href) ")";
+                font-size: 8pt;
+                color: #6c757d;
+            }
+
+            a[href^="#"]:after {
+                content: "";
+            }
+
+            /* Page numbering */
+            @page {
+                margin: 2cm;
+                @bottom-right {
+                    content: "Page " counter(page) " of " counter(pages);
+                }
+            }
+
+            /* Ensure sections stay together */
+            .suggestion-card,
+            .recommendation,
+            table {
+                orphans: 3;
+                widows: 3;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 2em;
+            }
+
+            h2 {
+                font-size: 1.5em;
+            }
+
+            table {
+                font-size: 0.85em;
+            }
+
+            .suggestion-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Azure Infrastructure Improvement Suggestions Assessment</h1>
+
+        <div class="meta-info">
+            <strong>Generated:</strong> October 9, 2025<br>
+            <strong>Project:</strong> RisqAI Platform<br>
+            <strong>Based on:</strong> Azure Infrastructure Audit Report (October 8, 2025)
+        </div>
+
+        <div class="executive-summary">
+            <h2>Executive Summary</h2>
+            <p>
+                This document provides a comprehensive assessment of all improvement suggestions identified in the Azure Infrastructure Audit. Each suggestion is evaluated for:
+            </p>
+            <ul>
+                <li><strong>What it does:</strong> Technical explanation of the modification</li>
+                <li><strong>Purpose:</strong> Business and technical value</li>
+                <li><strong>Difficulty:</strong> Implementation complexity (Easy/Medium/Hard/Very Hard)</li>
+                <li><strong>Worth:</strong> Value assessment (High/Medium/Low)</li>
+                <li><strong>Time Estimate:</strong> Expected implementation duration</li>
+                <li><strong>Cost Impact:</strong> Monthly cost implications</li>
+                <li><strong>Dependencies:</strong> Prerequisites and blockers</li>
+            </ul>
+
+            <div class="summary-stats">
+                <div class="stat-card">
+                    <span class="stat-label">Total Suggestions</span>
+                    <span class="stat-value">18</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Quick Wins (≤1 week)</span>
+                    <span class="stat-value">4</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Short-term (1-4 weeks)</span>
+                    <span class="stat-value">5</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Medium-term (1-3 months)</span>
+                    <span class="stat-value">5</span>
+                </div>
+                <div class="stat-card">
+                    <span class="stat-label">Long-term (3+ months)</span>
+                    <span class="stat-value">4</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="toc">
+            <h2>Table of Contents</h2>
+            <ol>
+                <li><a href="#detailed-assessment">Detailed Assessment</a>
+                    <ul>
+                        <li><a href="#observability">Observability & Monitoring</a></li>
+                        <li><a href="#scaling">Scaling & Performance</a></li>
+                        <li><a href="#resilience">Resilience & High Availability</a></li>
+                        <li><a href="#security">Security Hardening</a></li>
+                        <li><a href="#iac">Infrastructure as Code</a></li>
+                        <li><a href="#cost">Cost Optimization</a></li>
+                    </ul>
+                </li>
+                <li><a href="#ranked-plan">Ranked Implementation Plan</a></li>
+                <li><a href="#prioritized-roadmap">Prioritized Roadmap</a></li>
+                <li><a href="#cost-analysis">Cost Analysis</a></li>
+            </ol>
+        </div>
+
+        <hr>
+
+        <h2 id="detailed-assessment">Detailed Assessment</h2>
+
+        <h3 id="observability">1. Observability & Monitoring</h3>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">1.1 Enable Application Insights</div>
+                <div>
+                    <span class="badge badge-medium">Medium</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Adds Azure Application Insights SDK to the backend Node.js application</li>
+                    <li>Automatically collects telemetry: requests, dependencies, exceptions, custom metrics</li>
+                    <li>Provides distributed tracing across microservices</li>
+                    <li>Creates real-time performance dashboards</li>
+                    <li>Enables intelligent detection of anomalies</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Purpose:</span>
+                <ul>
+                    <li><strong>Debugging:</strong> Quickly identify root causes of errors and performance issues</li>
+                    <li><strong>Performance monitoring:</strong> Track API response times, database query performance</li>
+                    <li><strong>User experience:</strong> Monitor actual user interactions and bottlenecks</li>
+                    <li><strong>Proactive alerting:</strong> Detect issues before users report them</li>
+                    <li><strong>Business intelligence:</strong> Track feature usage and user behavior</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 2-3 days
+                <ul>
+                    <li>Day 1: Setup and basic integration</li>
+                    <li>Day 2: Custom metrics, testing</li>
+                    <li>Day 3: Dashboards and documentation</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$10-30/month</span>
+                <ul>
+                    <li>First 5GB/month is free</li>
+                    <li>Current scale likely under free tier initially</li>
+                </ul>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement immediately - High value, low effort. Critical for production debugging.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">1.2 Configure Azure Monitor Alerts</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Creates automated alert rules based on metrics and logs</li>
+                    <li>Sends notifications via email, SMS, webhooks, or Azure Action Groups</li>
+                    <li>Triggers automated responses (auto-scaling, runbooks)</li>
+                    <li>Tracks alert history and resolution</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Critical Alerts to Configure:</span>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Alert</th>
+                            <th>Condition</th>
+                            <th>Severity</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Container CPU > 90%</td>
+                            <td>10 min sustained</td>
+                            <td>Critical</td>
+                            <td>Email + Scale up</td>
+                        </tr>
+                        <tr>
+                            <td>Container Memory > 95%</td>
+                            <td>5 min sustained</td>
+                            <td>Critical</td>
+                            <td>Email + Restart</td>
+                        </tr>
+                        <tr>
+                            <td>Database connections > 80%</td>
+                            <td>15 min sustained</td>
+                            <td>Warning</td>
+                            <td>Email team</td>
+                        </tr>
+                        <tr>
+                            <td>HTTP 5xx errors > 5%</td>
+                            <td>5 min window</td>
+                            <td>Critical</td>
+                            <td>Email + PagerDuty</td>
+                        </tr>
+                        <tr>
+                            <td>Key Vault access denied</td>
+                            <td>Any occurrence</td>
+                            <td>Critical</td>
+                            <td>Email security team</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1-2 days
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$2-5/month</span> (Free for first 10 alert rules)
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement immediately - Essential safety net, nearly free.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">1.3 Extend Log Retention to 90 Days</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-medium-value">MEDIUM Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Increases Log Analytics workspace retention from 30 to 90 days</li>
+                    <li>Optionally archives older logs to Azure Blob Storage</li>
+                    <li>Implements tiered storage for cost optimization</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Purpose:</span>
+                <ul>
+                    <li><strong>Compliance:</strong> Many regulations require 90+ days of logs</li>
+                    <li><strong>Security investigations:</strong> Longer lookback for breach analysis</li>
+                    <li><strong>Trend analysis:</strong> Better historical data for capacity planning</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1-2 hours
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$15-30/month</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement soon - Good for compliance, reasonable cost.
+            </div>
+        </div>
+
+        <hr>
+
+        <h3 id="scaling">2. Scaling & Performance</h3>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">2.1 Configure Container Apps Auto-Scaling</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Adds horizontal pod autoscaling rules to Azure Container Apps</li>
+                    <li>Automatically scales replicas based on CPU, memory, or HTTP requests</li>
+                    <li>Sets minimum and maximum replica counts</li>
+                    <li>Implements scale-to-zero for staging (optional)</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Recommended Configuration (Production):</span>
+                <ul>
+                    <li>Min Replicas: 2</li>
+                    <li>Max Replicas: 10</li>
+                    <li>Scale Rule: CPU > 70% → Add 1 replica</li>
+                    <li>Scale Rule: HTTP requests > 1000/min → Add 1 replica</li>
+                    <li>Scale Rule: Memory > 80% → Add 1 replica</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1 day
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-neutral">~$0 (cost-neutral)</span> - Pay only for what you use
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement immediately - Critical for production reliability.
+            </div>
+        </div>
+
+        <hr>
+
+        <h3 id="resilience">3. Resilience & High Availability</h3>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">3.1 Enable PostgreSQL High Availability</div>
+                <div>
+                    <span class="badge badge-medium">Medium</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Enables zone-redundant HA for PostgreSQL Flexible Server</li>
+                    <li>Creates a standby replica in a different availability zone</li>
+                    <li>Automatic failover in case of zone failure (<2 min)</li>
+                    <li>Synchronous replication for zero data loss</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Purpose:</span>
+                <ul>
+                    <li><strong>Availability:</strong> 99.99% SLA (vs 99.9% without HA)</li>
+                    <li><strong>Disaster recovery:</strong> Automatic failover on zone failure</li>
+                    <li><strong>Data protection:</strong> Zero RPO (Recovery Point Objective)</li>
+                    <li><strong>Maintenance:</strong> Zero-downtime updates</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1 day (mostly waiting for initial sync)
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$150/month</span> (100% increase for production database)
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement within 1-2 months - Essential for production maturity.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">3.2 Implement Azure Backup for PostgreSQL</div>
+                <div>
+                    <span class="badge badge-medium">Medium</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Configures automated backup to Azure Backup vault</li>
+                    <li>Enables point-in-time restore (PITR) for any time within retention</li>
+                    <li>Creates long-term retention backups (beyond default 35 days)</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1-2 days
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$5-10/month</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Verify and document immediately - Built-in backups already active.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">3.3 Implement Health Probes and Auto-Restart</div>
+                <div>
+                    <span class="badge badge-medium">Medium</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Configures liveness and readiness probes in Container Apps</li>
+                    <li>Automatically restarts unhealthy containers</li>
+                    <li>Removes unhealthy replicas from load balancer</li>
+                    <li>Implements graceful shutdown</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 2-3 days
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-neutral">Free</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement within 2-4 weeks - Important reliability improvement.
+            </div>
+        </div>
+
+        <hr>
+
+        <h3 id="security">4. Security Hardening</h3>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">4.1 Implement Virtual Network (VNet) Integration</div>
+                <div>
+                    <span class="badge badge-hard">Hard</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Creates private Virtual Networks for production and staging</li>
+                    <li>Moves Container Apps, PostgreSQL, and Key Vault to private endpoints</li>
+                    <li>Blocks all public internet access to backend resources</li>
+                    <li>Configures Network Security Groups (NSG) for traffic control</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Purpose:</span>
+                <ul>
+                    <li><strong>Security:</strong> Eliminate public attack surface</li>
+                    <li><strong>Compliance:</strong> Meet security requirements for private data</li>
+                    <li><strong>Network isolation:</strong> Segment environments and resources</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 2-3 weeks
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$60-100/month</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>⏰ Recommendation:</strong> Implement in 3-6 months - Important but complex, requires planning.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">4.2 Enable Microsoft Defender for Cloud</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Enables security monitoring across all Azure resources</li>
+                    <li>Provides threat detection and vulnerability scanning</li>
+                    <li>Generates security recommendations and alerts</li>
+                    <li>Includes Defender for Containers, Databases, and Key Vault</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Defender Plans:</span>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Plan</th>
+                            <th>Purpose</th>
+                            <th>Monthly Cost</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Defender for Containers</td>
+                            <td>Container image scanning, runtime protection</td>
+                            <td>~$14/month</td>
+                        </tr>
+                        <tr>
+                            <td>Defender for Databases</td>
+                            <td>PostgreSQL threat detection</td>
+                            <td>~$30/month</td>
+                        </tr>
+                        <tr>
+                            <td>Defender for Key Vault</td>
+                            <td>Key Vault monitoring</td>
+                            <td>~$5/month</td>
+                        </tr>
+                        <tr>
+                            <td>Defender for Resource Manager</td>
+                            <td>Control plane protection</td>
+                            <td>~$5/month</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1-2 days
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$50-70/month</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement within 1 month - Important security layer.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">4.3 Implement Web Application Firewall (WAF)</div>
+                <div>
+                    <span class="badge badge-medium">Medium</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Adds Azure Front Door with integrated WAF</li>
+                    <li>Protects against OWASP Top 10 vulnerabilities</li>
+                    <li>Implements rate limiting and bot protection</li>
+                    <li>Provides DDoS protection at application layer</li>
+                    <li>Global load balancing and CDN</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 3-5 days
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">+$70-120/month</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement within 3-6 months - Important security layer.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">4.4 Implement Azure Policy for Governance</div>
+                <div>
+                    <span class="badge badge-medium">Medium</span>
+                    <span class="badge badge-medium-value">MEDIUM Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Creates and assigns Azure Policies to enforce standards</li>
+                    <li>Automatically audits resource compliance</li>
+                    <li>Prevents creation of non-compliant resources</li>
+                    <li>Enforces tagging, encryption, and naming conventions</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 1-2 weeks
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-neutral">Free</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>⏰ Recommendation:</strong> Implement in 3-6 months - Important for maturity, not urgent.
+            </div>
+        </div>
+
+        <hr>
+
+        <h3 id="iac">5. Infrastructure as Code</h3>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">5.1 Migrate to Terraform or Bicep</div>
+                <div>
+                    <span class="badge badge-very-hard">Very Hard</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Converts all Azure resources to Infrastructure as Code (IaC)</li>
+                    <li>Version controls infrastructure changes in Git</li>
+                    <li>Enables automated infrastructure deployments</li>
+                    <li>Provides infrastructure documentation through code</li>
+                    <li>Allows easy environment replication</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Purpose:</span>
+                <ul>
+                    <li><strong>Reproducibility:</strong> Recreate entire infrastructure from code</li>
+                    <li><strong>Disaster recovery:</strong> Quick recovery from catastrophic failures</li>
+                    <li><strong>Version control:</strong> Track and review infrastructure changes</li>
+                    <li><strong>Automation:</strong> Deploy infrastructure via CI/CD</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 4-6 weeks
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-positive">~$1/month</span> (storage for state file)
+            </div>
+
+            <div class="recommendation">
+                <strong>⏰ Recommendation:</strong> Implement in 6-12 months - High value but requires significant effort.
+            </div>
+        </div>
+
+        <hr>
+
+        <h3 id="cost">6. Cost Optimization</h3>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">6.1 Implement Container Registry Image Lifecycle Policies</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-medium-value">MEDIUM Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Automatically deletes old container images from ACR</li>
+                    <li>Keeps only recent N images per repository</li>
+                    <li>Removes untagged images</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 2-3 hours
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-negative">-$10-15/month</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement within 1 month - Easy win.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">6.2 Review and Right-Size Container Resources</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-medium-value">MEDIUM Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Analyzes actual CPU and memory usage</li>
+                    <li>Adjusts Container App resource allocations</li>
+                    <li>Optimizes cost vs performance</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 4 hours
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-negative">-$20-40/month</span> (depending on over-provisioning)
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Review quarterly - Ongoing optimization.
+            </div>
+        </div>
+
+        <div class="suggestion-card">
+            <div class="suggestion-header">
+                <div class="suggestion-title">6.3 Implement Azure Cost Management Budgets</div>
+                <div>
+                    <span class="badge badge-easy">Easy</span>
+                    <span class="badge badge-high">HIGH Value</span>
+                </div>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">What it does:</span>
+                <ul>
+                    <li>Sets spending limits per resource group or subscription</li>
+                    <li>Sends alerts when thresholds are exceeded</li>
+                    <li>Provides cost forecasts and trends</li>
+                    <li>Enables cost allocation by tags</li>
+                </ul>
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Time Estimate:</span> 2-3 hours
+            </div>
+
+            <div class="section-content">
+                <span class="section-label">Cost Impact:</span>
+                <span class="cost-neutral">Free</span>
+            </div>
+
+            <div class="recommendation">
+                <strong>✅ Recommendation:</strong> Implement immediately - Critical for cost control.
+            </div>
+        </div>
+
+        <hr>
+
+        <h2 id="ranked-plan">Ranked Implementation Plan</h2>
+
+        <div class="phase-section">
+            <h3>Phase 0: Quick Wins (0-1 week)</h3>
+            <p><strong>Total effort:</strong> 2-3 days | <strong>Total cost impact:</strong> -$5 to +$15/month | <strong>Total value:</strong> HIGH</p>
+
+            <table style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Suggestion</th>
+                        <th>Difficulty</th>
+                        <th>Time</th>
+                        <th>Cost Impact</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>1</td>
+                        <td>Configure Azure Monitor Alerts</td>
+                        <td>Easy</td>
+                        <td>1-2 days</td>
+                        <td>+$2-5/month</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Azure Cost Management Budgets</td>
+                        <td>Easy</td>
+                        <td>2-3 hours</td>
+                        <td>Free</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Container Registry Lifecycle Policies</td>
+                        <td>Easy</td>
+                        <td>2-3 hours</td>
+                        <td>-$10-15/month</td>
+                        <td>MEDIUM</td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>Verify PostgreSQL Backups</td>
+                        <td>Easy</td>
+                        <td>1-2 hours</td>
+                        <td>Free</td>
+                        <td>HIGH</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 15px;"><strong>Rationale:</strong> Low effort, immediate value. Essential safety nets for production.</p>
+        </div>
+
+        <div class="phase-section" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+            <h3>Phase 1: Foundational Improvements (1-4 weeks)</h3>
+            <p><strong>Total effort:</strong> 2-3 weeks | <strong>Total cost impact:</strong> +$40-80/month | <strong>Total value:</strong> HIGH</p>
+
+            <table style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Suggestion</th>
+                        <th>Difficulty</th>
+                        <th>Time</th>
+                        <th>Cost Impact</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>5</td>
+                        <td>Enable Application Insights</td>
+                        <td>Medium</td>
+                        <td>2-3 days</td>
+                        <td>+$10-30/month</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>Configure Container Apps Auto-Scaling</td>
+                        <td>Easy</td>
+                        <td>1 day</td>
+                        <td>~$0</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td>Extend Log Retention to 90 Days</td>
+                        <td>Easy</td>
+                        <td>1-2 hours</td>
+                        <td>+$15-30/month</td>
+                        <td>MEDIUM</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td>Right-Size Container Resources</td>
+                        <td>Easy</td>
+                        <td>4 hours</td>
+                        <td>-$20-40/month</td>
+                        <td>MEDIUM</td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td>Implement Health Probes</td>
+                        <td>Medium</td>
+                        <td>2-3 days</td>
+                        <td>Free</td>
+                        <td>HIGH</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 15px;"><strong>Rationale:</strong> High-impact improvements. Significantly improve observability and reliability.</p>
+        </div>
+
+        <div class="phase-section" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);">
+            <h3>Phase 2: Security & Resilience (1-3 months)</h3>
+            <p><strong>Total effort:</strong> 6-8 weeks | <strong>Total cost impact:</strong> +$200-250/month | <strong>Total value:</strong> HIGH</p>
+
+            <table style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Suggestion</th>
+                        <th>Difficulty</th>
+                        <th>Time</th>
+                        <th>Cost Impact</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>10</td>
+                        <td>Enable PostgreSQL High Availability</td>
+                        <td>Medium</td>
+                        <td>1 day</td>
+                        <td>+$150/month</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>11</td>
+                        <td>Enable Microsoft Defender for Cloud</td>
+                        <td>Easy</td>
+                        <td>1-2 days</td>
+                        <td>+$50-70/month</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>12</td>
+                        <td>Implement WAF with Azure Front Door</td>
+                        <td>Medium</td>
+                        <td>3-5 days</td>
+                        <td>+$70-120/month</td>
+                        <td>HIGH</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 15px;"><strong>Rationale:</strong> Critical for production maturity. Required for enterprise SLAs.</p>
+        </div>
+
+        <div class="phase-section" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);">
+            <h3>Phase 3: Advanced Infrastructure (3-6 months)</h3>
+            <p><strong>Total effort:</strong> 8-12 weeks | <strong>Total cost impact:</strong> +$60-100/month | <strong>Total value:</strong> HIGH</p>
+
+            <table style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Suggestion</th>
+                        <th>Difficulty</th>
+                        <th>Time</th>
+                        <th>Cost Impact</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>13</td>
+                        <td>Implement VNet Integration</td>
+                        <td>Hard</td>
+                        <td>2-3 weeks</td>
+                        <td>+$60-100/month</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>14</td>
+                        <td>Implement Azure Policy</td>
+                        <td>Medium</td>
+                        <td>1-2 weeks</td>
+                        <td>Free</td>
+                        <td>MEDIUM</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 15px;"><strong>Rationale:</strong> Major architectural changes. Foundation for advanced features.</p>
+        </div>
+
+        <div class="phase-section" style="background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); color: #333;">
+            <h3>Phase 4: Long-Term Maturity (6-12 months)</h3>
+            <p><strong>Total effort:</strong> 12-16 weeks | <strong>Total cost impact:</strong> Variable | <strong>Total value:</strong> HIGH (long-term)</p>
+
+            <table style="margin-top: 15px;">
+                <thead>
+                    <tr>
+                        <th>Priority</th>
+                        <th>Suggestion</th>
+                        <th>Difficulty</th>
+                        <th>Time</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>15</td>
+                        <td>Migrate to Infrastructure as Code</td>
+                        <td>Very Hard</td>
+                        <td>4-6 weeks</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>16</td>
+                        <td>Multi-Region Deployment</td>
+                        <td>Very Hard</td>
+                        <td>6-8 weeks</td>
+                        <td>HIGH</td>
+                    </tr>
+                    <tr>
+                        <td>17</td>
+                        <td>Implement Azure Sentinel (SIEM)</td>
+                        <td>Hard</td>
+                        <td>2-3 weeks</td>
+                        <td>MEDIUM</td>
+                    </tr>
+                    <tr>
+                        <td>18</td>
+                        <td>Advanced Observability & Dashboards</td>
+                        <td>Medium</td>
+                        <td>2-3 weeks</td>
+                        <td>MEDIUM</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 15px;"><strong>Rationale:</strong> Enterprise-grade maturity. Enables advanced capabilities.</p>
+        </div>
+
+        <hr>
+
+        <h2 id="cost-analysis">Cost Analysis</h2>
+
+        <h3>Current Monthly Costs (Estimated)</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>SKU/Tier</th>
+                    <th>Quantity</th>
+                    <th>Estimated Cost</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td colspan="4"><strong>Container Apps</strong></td>
+                </tr>
+                <tr>
+                    <td>- Production</td>
+                    <td>0.5 vCPU, 1Gi</td>
+                    <td>~730 hours</td>
+                    <td>$35-50</td>
+                </tr>
+                <tr>
+                    <td>- Staging</td>
+                    <td>0.5 vCPU, 1Gi</td>
+                    <td>~730 hours</td>
+                    <td>$35-50</td>
+                </tr>
+                <tr>
+                    <td colspan="4"><strong>PostgreSQL</strong></td>
+                </tr>
+                <tr>
+                    <td>- Production</td>
+                    <td>Standard_D2ds_v5</td>
+                    <td>1 server</td>
+                    <td>$150</td>
+                </tr>
+                <tr>
+                    <td>- Staging</td>
+                    <td>Standard_B2s</td>
+                    <td>1 server</td>
+                    <td>$30</td>
+                </tr>
+                <tr>
+                    <td>Container Registry</td>
+                    <td>Standard</td>
+                    <td>2 registries</td>
+                    <td>$20</td>
+                </tr>
+                <tr>
+                    <td>Key Vault</td>
+                    <td>Standard</td>
+                    <td>2 vaults</td>
+                    <td>$2</td>
+                </tr>
+                <tr>
+                    <td>Log Analytics</td>
+                    <td>30-day retention</td>
+                    <td>~10GB/month</td>
+                    <td>$25</td>
+                </tr>
+                <tr>
+                    <td>Static Web Apps</td>
+                    <td>Free tier</td>
+                    <td>3 apps</td>
+                    <td>$0</td>
+                </tr>
+                <tr>
+                    <td>Bandwidth</td>
+                    <td>Egress</td>
+                    <td>~100GB</td>
+                    <td>$8</td>
+                </tr>
+                <tr style="background: #0078d4; color: white; font-weight: bold;">
+                    <td colspan="3">Total</td>
+                    <td>~$305-335/month</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>Projected Costs After Phase 1 (Month 2)</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Change</th>
+                    <th>New Cost</th>
+                    <th>Delta</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Container Apps</td>
+                    <td>Right-sized, auto-scaling</td>
+                    <td>$50-80</td>
+                    <td class="cost-positive">-$5 to +$10</td>
+                </tr>
+                <tr>
+                    <td>PostgreSQL</td>
+                    <td>No change</td>
+                    <td>$180</td>
+                    <td class="cost-neutral">$0</td>
+                </tr>
+                <tr>
+                    <td>Application Insights</td>
+                    <td>Added</td>
+                    <td>$10-30</td>
+                    <td class="cost-positive">+$10-30</td>
+                </tr>
+                <tr>
+                    <td>Log Analytics</td>
+                    <td>90-day retention</td>
+                    <td>$40-55</td>
+                    <td class="cost-positive">+$15-30</td>
+                </tr>
+                <tr>
+                    <td>Azure Monitor Alerts</td>
+                    <td>Added</td>
+                    <td>$2-5</td>
+                    <td class="cost-positive">+$2-5</td>
+                </tr>
+                <tr>
+                    <td>Container Registry</td>
+                    <td>Lifecycle policies</td>
+                    <td>$10-15</td>
+                    <td class="cost-negative">-$5 to -$10</td>
+                </tr>
+                <tr>
+                    <td>Other</td>
+                    <td>No change</td>
+                    <td>$35</td>
+                    <td class="cost-neutral">$0</td>
+                </tr>
+                <tr style="background: #0078d4; color: white; font-weight: bold;">
+                    <td>Total</td>
+                    <td></td>
+                    <td>~$327-385/month</td>
+                    <td>+$17-50/month</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="recommendation" style="margin-top: 20px;">
+            <strong>ROI Phase 1:</strong> Cost increase of 5-15%, but value increase of 300%+ through improved observability, reliability, and cost control.
+        </div>
+
+        <h3>Projected Costs After Phase 2 (Month 4)</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Change</th>
+                    <th>New Cost</th>
+                    <th>Delta</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Container Apps</td>
+                    <td>Auto-scaled</td>
+                    <td>$50-100</td>
+                    <td class="cost-positive">+$0-30</td>
+                </tr>
+                <tr>
+                    <td>PostgreSQL</td>
+                    <td>HA enabled (prod)</td>
+                    <td>$330</td>
+                    <td class="cost-positive">+$150</td>
+                </tr>
+                <tr>
+                    <td>Application Insights</td>
+                    <td>Running</td>
+                    <td>$10-30</td>
+                    <td class="cost-neutral">$0</td>
+                </tr>
+                <tr>
+                    <td>Log Analytics</td>
+                    <td>90 days</td>
+                    <td>$40-55</td>
+                    <td class="cost-neutral">$0</td>
+                </tr>
+                <tr>
+                    <td>Microsoft Defender</td>
+                    <td>Enabled</td>
+                    <td>$50-70</td>
+                    <td class="cost-positive">+$50-70</td>
+                </tr>
+                <tr>
+                    <td>Azure Front Door + WAF</td>
+                    <td>Added</td>
+                    <td>$70-120</td>
+                    <td class="cost-positive">+$70-120</td>
+                </tr>
+                <tr>
+                    <td>Other</td>
+                    <td>No change</td>
+                    <td>$47-60</td>
+                    <td class="cost-neutral">$0</td>
+                </tr>
+                <tr style="background: #0078d4; color: white; font-weight: bold;">
+                    <td>Total</td>
+                    <td></td>
+                    <td>~$597-765/month</td>
+                    <td>+$270-430/month</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="recommendation" style="margin-top: 20px;">
+            <strong>ROI Phase 2:</strong> Cost increase of 80-130%, achieving enterprise-grade security and 99.99% availability. Required for enterprise customers and compliance.
+        </div>
+
+        <hr>
+
+        <h2>Conclusion</h2>
+
+        <p>
+            The Azure Infrastructure Audit identified <strong>18 major improvement opportunities</strong> across observability, security, resilience, and cost optimization. This assessment provides a clear roadmap for implementation:
+        </p>
+
+        <h3>Key Findings:</h3>
+        <ul>
+            <li><strong>4 quick wins</strong> can be implemented in 1 week with minimal cost</li>
+            <li><strong>5 foundational improvements</strong> will significantly enhance production readiness in 1 month</li>
+            <li><strong>5 security and resilience upgrades</strong> will achieve enterprise-grade maturity in 3-6 months</li>
+            <li><strong>4 long-term initiatives</strong> will establish world-class DevOps practices in 6-12 months</li>
+        </ul>
+
+        <h3>Cost Impact Summary:</h3>
+        <ul>
+            <li><strong>Short-term (3 months):</strong> +$270-430/month (80-130% increase)</li>
+            <li><strong>Long-term (12 months):</strong> +$342-515/month (105-155% increase)</li>
+            <li><strong>ROI:</strong> Essential for production reliability, security compliance, and enterprise customers</li>
+        </ul>
+
+        <h3>Recommended Approach:</h3>
+        <ol>
+            <li><strong>Start with Phase 0 (Quick Wins)</strong> - Immediate value, minimal risk</li>
+            <li><strong>Focus on Phase 1 (Foundation)</strong> - High-impact observability improvements</li>
+            <li><strong>Invest in Phase 2 (Security & Resilience)</strong> - Required for production maturity</li>
+            <li><strong>Plan Phase 3-4</strong> - Strategic improvements for long-term success</li>
+        </ol>
+
+        <p style="margin-top: 30px; padding: 20px; background: #e7f3ff; border-left: 4px solid #0078d4; border-radius: 4px;">
+            <strong>By following this roadmap, RisqAI will achieve enterprise-grade reliability, security, and operational excellence on Azure while maintaining cost-effectiveness and minimizing disruption.</strong>
+        </p>
+
+        <hr>
+
+        <div class="meta-info" style="margin-top: 40px;">
+            <strong>Document Version:</strong> 1.0<br>
+            <strong>Last Updated:</strong> October 9, 2025<br>
+            <strong>Next Review:</strong> January 9, 2026 (Quarterly)<br>
+            <strong>Owner:</strong> DevOps Team
+        </div>
+    </div>
+</body>
+</html>
