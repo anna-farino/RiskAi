@@ -550,12 +550,12 @@ export default function TechStackPage() {
         </div>
 
         {/* Threat severity buttons - only render div if there are threats */}
-        {((item.criticalCount && item.criticalCount > 0) || 
-          (item.highCount && item.highCount > 0) || 
-          (item.mediumCount && item.mediumCount > 0) || 
-          (item.lowCount && item.lowCount > 0)) && (
+        {((item.criticalCount ?? 0) > 0 || 
+          (item.highCount ?? 0) > 0 || 
+          (item.mediumCount ?? 0) > 0 || 
+          (item.lowCount ?? 0) > 0) && (
         <div className="flex items-center gap-2 mr-4">
-          {item.criticalCount && item.criticalCount > 0 && (
+          {(item.criticalCount ?? 0) > 0 && (
             <button
               onClick={() => {
                 const filterParam = encodeURIComponent(`${type}:${item.name}:critical`);
@@ -568,7 +568,7 @@ export default function TechStackPage() {
               <span className="text-muted-foreground">Critical Threats</span>
             </button>
           )}
-          {item.highCount && item.highCount > 0 && (
+          {(item.highCount ?? 0) > 0 && (
             <button
               onClick={() => {
                 const filterParam = encodeURIComponent(`${type}:${item.name}:high`);
@@ -581,7 +581,7 @@ export default function TechStackPage() {
               <span className="text-muted-foreground">High Threats</span>
             </button>
           )}
-          {item.mediumCount && item.mediumCount > 0 && (
+          {(item.mediumCount ?? 0) > 0 && (
             <button
               onClick={() => {
                 const filterParam = encodeURIComponent(`${type}:${item.name}:medium`);
@@ -594,7 +594,7 @@ export default function TechStackPage() {
               <span className="text-muted-foreground">Medium Threats</span>
             </button>
           )}
-          {item.lowCount && item.lowCount > 0 && (
+          {(item.lowCount ?? 0) > 0 && (
             <button
               onClick={() => {
                 const filterParam = encodeURIComponent(`${type}:${item.name}:low`);
@@ -608,10 +608,10 @@ export default function TechStackPage() {
             </button>
           )}
           {/* Show "See all Threats" if any threats exist */}
-          {((item.criticalCount && item.criticalCount > 0) || 
-            (item.highCount && item.highCount > 0) || 
-            (item.mediumCount && item.mediumCount > 0) || 
-            (item.lowCount && item.lowCount > 0)) && (
+          {((item.criticalCount ?? 0) > 0 || 
+            (item.highCount ?? 0) > 0 || 
+            (item.mediumCount ?? 0) > 0 || 
+            (item.lowCount ?? 0) > 0) && (
             <button
               onClick={() => {
                 const filterParam = encodeURIComponent(`${type}:${item.name}`);
