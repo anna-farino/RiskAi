@@ -1,5 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useRoute } from "wouter";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { useRelevanceTrigger } from "@/hooks/use-relevance-trigger";
@@ -30,11 +31,28 @@ export default function ThreatHome() {
   const { toast } = useToast();
   const fetchWithAuth = useFetch();
   
+  // Get URL parameters for entity filtering
+  const [, params] = useRoute("/dashboard/threat-tracker");
+  const urlParams = new URLSearchParams(window.location.search);
+  const entityFilterParam = urlParams.get("entityFilter");
+  
+  // Parse entity filter if present
+  const [entityFilter, setEntityFilter] = useState<{ type: string; name: string } | null>(() => {
+    if (entityFilterParam) {
+      const decoded = decodeURIComponent(entityFilterParam);
+      const [type, ...nameParts] = decoded.split(":");
+      if (type && nameParts.length > 0) {
+        return { type, name: nameParts.join(":") };
+      }
+    }
+    return null;
+  });
+  
   // Trigger relevance score calculation when user enters the page
   useRelevanceTrigger();
 
-  // Filter state
-  const [searchTerm, setSearchTerm] = useState<string>("");
+  // Filter state - initialize searchTerm with entity name if filtered
+  const [searchTerm, setSearchTerm] = useState<string>(entityFilter?.name || "");
   const [threatLevel, setThreatLevel] = useState<string>("All");
   const [dateRange, setDateRange] = useState<string>("Today");
   const [sortOrder, setSortOrder] = useState<string>("Relevance");
@@ -425,6 +443,12 @@ export default function ThreatHome() {
     setSortOrder("Newest First");
     setFromDate("");
     setToDate("");
+    setEntityFilter(null);
+    // Clear URL parameter if present
+    if (entityFilterParam) {
+      const newUrl = window.location.pathname;
+      window.history.pushState({}, '', newUrl);
+    }
   };
 
   // Function to handle marking for capsule
@@ -658,6 +682,38 @@ export default function ThreatHome() {
               <span className="text-xs text-slate-400">Found Articles</span>
             </div>
           </div>
+
+          {/* Entity Filter Banner */}
+          {entityFilter && (
+            <div className="mb-4 p-3 bg-gradient-to-r from-purple-500/20 to-transparent border border-purple-500/30 rounded-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-purple-400" />
+                  <span className="text-sm text-purple-300">
+                    Showing threats related to:
+                  </span>
+                  <Badge className="bg-purple-500/30 text-purple-200 border-purple-500/50">
+                    {entityFilter.type}: {entityFilter.name}
+                  </Badge>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setEntityFilter(null);
+                    setSearchTerm("");
+                    // Clear URL parameter
+                    const newUrl = window.location.pathname;
+                    window.history.pushState({}, '', newUrl);
+                  }}
+                  className="h-7 px-2 text-xs text-purple-300 hover:text-white hover:bg-purple-500/20"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Clear Filter
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* 3-Column Compact Layout */}
           <div className="grid gap-4 lg:grid-cols-3">
