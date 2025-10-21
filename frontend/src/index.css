@@ -124,25 +124,6 @@ body {
   @apply max-w-7xl mx-auto p-8;
 }
 
-/* Smooth toggle switch animations - targeting Radix UI Switch component */
-button[data-state="checked"],
-button[data-state="unchecked"] {
-  transition: background-color 0.4s cubic-bezier(0.4, 0, 0.2, 1), 
-              border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-/* Smooth thumb sliding animation */
-button[data-state="checked"] span,
-button[data-state="unchecked"] span {
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1) !important;
-}
-
-/* Add subtle scale effect on toggle click */
-button[data-state="checked"]:active,
-button[data-state="unchecked"]:active {
-  transform: scale(0.98);
-  transition: transform 0.1s ease-out;
-}
 
 .card {
   @apply p-8;
