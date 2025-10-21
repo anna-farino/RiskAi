@@ -276,17 +276,32 @@ export default function TechStackPage() {
       queryClient.setQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack'], (old) => {
         if (!old) return old;
         
-        // Map singular type to plural key name
-        const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+        // Properly map type to category key
+        let categoryKey: keyof TechStackResponse;
+        if (type === 'vendor') {
+          categoryKey = 'vendors';
+        } else if (type === 'client') {
+          categoryKey = 'clients';
+        } else if (type === 'software') {
+          categoryKey = 'software';
+        } else if (type === 'hardware') {
+          categoryKey = 'hardware';
+        } else {
+          return old;
+        }
         
-        return {
+        const newData = {
           ...old,
-          [categoryKey]: old[categoryKey]?.map((item: TechStackItem) => 
-            item.id === itemId 
-              ? { ...item, isActive } 
-              : item
-          ) || []
+          [categoryKey]: old[categoryKey]?.map((item: TechStackItem) => {
+            if (item.id === itemId) {
+              // Create a new object with updated isActive
+              return { ...item, isActive };
+            }
+            return item;
+          }) || []
         };
+        
+        return newData;
       });
       
       // Return context with snapshot
@@ -346,9 +361,20 @@ export default function TechStackPage() {
             clients: old.clients?.map(item => ({ ...item, isActive })) || []
           };
         } else {
-          // Update specific category
-          // Map singular type to plural key name
-          const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+          // Update specific category - handle proper type mapping
+          let categoryKey: keyof TechStackResponse;
+          if (type === 'vendor') {
+            categoryKey = 'vendors';
+          } else if (type === 'client') {
+            categoryKey = 'clients';
+          } else if (type === 'software') {
+            categoryKey = 'software';
+          } else if (type === 'hardware') {
+            categoryKey = 'hardware';
+          } else {
+            return old;
+          }
+          
           return {
             ...old,
             [categoryKey]: old[categoryKey]?.map((item: TechStackItem) => ({ ...item, isActive })) || []
@@ -475,8 +501,8 @@ export default function TechStackPage() {
       return level.charAt(0).toUpperCase() + level.slice(1);
     };
 
-    // Use the isActive field from the item, defaulting to true if not set
-    const isActive = item.isActive ?? true;
+    // Use the isActive field directly from the item
+    const isActive = item.isActive === true;
 
     return (
       <div 
