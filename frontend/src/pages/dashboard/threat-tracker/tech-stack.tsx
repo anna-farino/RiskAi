@@ -185,11 +185,9 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
-    },
     onSuccess: () => {
+      // Invalidate and refetch after successful mutation
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       toast({
         title: "Item added",
         description: "Technology stack item has been added successfully"
@@ -242,11 +240,9 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
-    },
     onSuccess: () => {
+      // Invalidate and refetch after successful mutation
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       toast({
         title: "Item removed",
         description: "Technology stack item has been permanently removed"
@@ -318,11 +314,9 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
-    },
     onSuccess: (data) => {
+      // Invalidate and refetch after successful mutation
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       toast({
         title: data.isActive ? "Item enabled" : "Item disabled",
         description: `Technology stack item has been ${data.isActive ? 'enabled' : 'disabled'}`
@@ -396,11 +390,9 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
-    },
     onSuccess: (data, variables) => {
+      // Invalidate and refetch after successful mutation
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       const typeLabel = variables.type || 'all';
       toast({
         title: variables.isActive ? "Items enabled" : "Items disabled",
@@ -464,11 +456,9 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSettled: () => {
-      // Always refetch after error or success to ensure data consistency
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
-    },
     onSuccess: (data, variables) => {
+      // Invalidate and refetch after successful mutation
+      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       const typeLabel = variables.type || 'all';
       toast({
         title: "Items deleted",
