@@ -315,8 +315,8 @@ export default function TechStackPage() {
       });
     },
     onSuccess: (data) => {
-      // Invalidate and refetch after successful mutation
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      // Don't invalidate queries to preserve optimistic update
+      // The optimistic update already has the correct state
       toast({
         title: data.isActive ? "Item enabled" : "Item disabled",
         description: `Technology stack item has been ${data.isActive ? 'enabled' : 'disabled'}`
@@ -391,8 +391,8 @@ export default function TechStackPage() {
       });
     },
     onSuccess: (data, variables) => {
-      // Invalidate and refetch after successful mutation
-      queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      // Don't invalidate queries to preserve optimistic update
+      // The optimistic update already has the correct state
       const typeLabel = variables.type || 'all';
       toast({
         title: variables.isActive ? "Items enabled" : "Items disabled",
