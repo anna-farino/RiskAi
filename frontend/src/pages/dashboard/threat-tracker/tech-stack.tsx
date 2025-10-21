@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -473,6 +473,12 @@ export default function TechStackPage() {
     type: 'software' | 'hardware' | 'vendor' | 'client' 
   }) => {
     const navigate = useNavigate();
+    const [localIsActive, setLocalIsActive] = useState(item.isActive === true);
+    
+    // Sync local state when item.isActive changes from server/optimistic update
+    useEffect(() => {
+      setLocalIsActive(item.isActive === true);
+    }, [item.isActive]);
     
     const getThreatColor = (level: string) => {
       switch(level) {
@@ -488,8 +494,8 @@ export default function TechStackPage() {
       return level.charAt(0).toUpperCase() + level.slice(1);
     };
 
-    // Use the isActive field directly from the item
-    const isActive = item.isActive === true;
+    // Use local state for immediate UI feedback
+    const isActive = localIsActive;
 
     return (
       <div 
@@ -571,6 +577,9 @@ export default function TechStackPage() {
                   <Switch
                     checked={isActive}
                     onCheckedChange={(checked) => {
+                      // Update local state immediately for instant visual feedback
+                      setLocalIsActive(checked);
+                      // Then trigger the mutation (optimistic update will sync later)
                       toggleItem.mutate({ 
                         itemId: item.id, 
                         type, 
