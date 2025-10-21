@@ -139,8 +139,57 @@ export default function TechStackPage() {
       if (!response.ok) throw new Error('Failed to add item');
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ type, name, version, priority }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack']);
+      
+      // Optimistically update the cache
+      queryClient.setQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack'], (old) => {
+        if (!old) return old;
+        
+        const newItem: TechStackItem = {
+          id: `temp-${Date.now()}`, // Temporary ID
+          name,
+          version: version || null,
+          priority: priority || null,
+          isActive: true,
+          company: null,
+          manufacturer: null,
+          model: null,
+          source: 'manual',
+          threats: null
+        };
+        
+        // Map singular type to plural key name
+        const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+        return {
+          ...old,
+          [categoryKey]: [...(old[categoryKey] || []), newItem]
+        };
+      });
+      
+      // Return context with snapshot
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
+      }
+      toast({
+        title: "Failed to add item",
+        description: "There was an error adding the item to your tech stack",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+    },
+    onSuccess: () => {
       toast({
         title: "Item added",
         description: "Technology stack item has been added successfully"
@@ -159,8 +208,45 @@ export default function TechStackPage() {
       if (!response.ok) throw new Error('Failed to remove item');
       return response.json();
     },
-    onSuccess: () => {
+    onMutate: async ({ itemId, type }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack']);
+      
+      // Optimistically remove the item from cache
+      queryClient.setQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack'], (old) => {
+        if (!old) return old;
+        
+        // Map singular type to plural key name
+        const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+        
+        return {
+          ...old,
+          [categoryKey]: old[categoryKey]?.filter((item: TechStackItem) => item.id !== itemId) || []
+        };
+      });
+      
+      // Return context with snapshot
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
+      }
+      toast({
+        title: "Failed to remove item",
+        description: "There was an error removing the item from your tech stack",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+    },
+    onSuccess: () => {
       toast({
         title: "Item removed",
         description: "Technology stack item has been permanently removed"
@@ -179,8 +265,49 @@ export default function TechStackPage() {
       if (!response.ok) throw new Error('Failed to toggle item');
       return response.json();
     },
-    onSuccess: (data) => {
+    onMutate: async ({ itemId, type, isActive }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack']);
+      
+      // Optimistically update the item's isActive state
+      queryClient.setQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack'], (old) => {
+        if (!old) return old;
+        
+        // Map singular type to plural key name
+        const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+        
+        return {
+          ...old,
+          [categoryKey]: old[categoryKey]?.map((item: TechStackItem) => 
+            item.id === itemId 
+              ? { ...item, isActive } 
+              : item
+          ) || []
+        };
+      });
+      
+      // Return context with snapshot
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
+      }
+      toast({
+        title: "Failed to toggle item",
+        description: "There was an error updating the item status",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+    },
+    onSuccess: (data) => {
       toast({
         title: data.isActive ? "Item enabled" : "Item disabled",
         description: `Technology stack item has been ${data.isActive ? 'enabled' : 'disabled'}`
@@ -199,8 +326,55 @@ export default function TechStackPage() {
       if (!response.ok) throw new Error('Failed to bulk toggle items');
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onMutate: async ({ type, isActive }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack']);
+      
+      // Optimistically update all items or specific category
+      queryClient.setQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack'], (old) => {
+        if (!old) return old;
+        
+        if (!type || type === 'all') {
+          // Update all categories
+          return {
+            software: old.software?.map(item => ({ ...item, isActive })) || [],
+            hardware: old.hardware?.map(item => ({ ...item, isActive })) || [],
+            vendors: old.vendors?.map(item => ({ ...item, isActive })) || [],
+            clients: old.clients?.map(item => ({ ...item, isActive })) || []
+          };
+        } else {
+          // Update specific category
+          // Map singular type to plural key name
+          const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+          return {
+            ...old,
+            [categoryKey]: old[categoryKey]?.map((item: TechStackItem) => ({ ...item, isActive })) || []
+          };
+        }
+      });
+      
+      // Return context with snapshot
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
+      }
+      toast({
+        title: "Failed to bulk toggle items",
+        description: "There was an error updating the items",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+    },
+    onSuccess: (data, variables) => {
       const typeLabel = variables.type || 'all';
       toast({
         title: variables.isActive ? "Items enabled" : "Items disabled",
@@ -220,8 +394,55 @@ export default function TechStackPage() {
       if (!response.ok) throw new Error('Failed to bulk delete items');
       return response.json();
     },
-    onSuccess: (data, variables) => {
+    onMutate: async ({ type }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+      
+      // Snapshot the previous value
+      const previousData = queryClient.getQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack']);
+      
+      // Optimistically remove all items or specific category
+      queryClient.setQueryData<TechStackResponse>(['/api/threat-tracker/tech-stack'], (old) => {
+        if (!old) return old;
+        
+        if (!type || type === 'all') {
+          // Clear all categories
+          return {
+            software: [],
+            hardware: [],
+            vendors: [],
+            clients: []
+          };
+        } else {
+          // Clear specific category
+          // Map singular type to plural key name
+          const categoryKey = (type === 'vendor' ? 'vendors' : type === 'client' ? 'clients' : type) as keyof TechStackResponse;
+          return {
+            ...old,
+            [categoryKey]: []
+          };
+        }
+      });
+      
+      // Return context with snapshot
+      return { previousData };
+    },
+    onError: (err, variables, context) => {
+      // Rollback to previous state on error
+      if (context?.previousData) {
+        queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
+      }
+      toast({
+        title: "Failed to delete items",
+        description: "There was an error deleting the items",
+        variant: "destructive"
+      });
+    },
+    onSettled: () => {
+      // Always refetch after error or success to ensure data consistency
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
+    },
+    onSuccess: (data, variables) => {
       const typeLabel = variables.type || 'all';
       toast({
         title: "Items deleted",
