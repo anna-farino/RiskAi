@@ -5,7 +5,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx index.ts",
-    "build": "esbuild index.ts --platform=node --bundle --format=cjs --outdir=dist --external:argon2 --external:puppeteer-extra --external:puppeteer-extra-plugin-stealth --external:drizzle-orm --external:drizzle-orm/pg-core --external:drizzle-zod --external:drizzle-kit --external:zod --external:cycletls --external:ghost-cursor --external:rebrowser-puppeteer --external:multer --external:xlsx --tsconfig=tsconfig.json --resolve-extensions=.ts,.js",
+    "build": "esbuild index.ts --platform=node --bundle --format=cjs --outdir=dist --external:argon2 --external:puppeteer-extra --external:puppeteer-extra-plugin-stealth --external:drizzle-orm --external:drizzle-orm/pg-core --external:drizzle-zod --external:drizzle-kit --external:zod --external:cycletls --external:ghost-cursor --external:rebrowser-puppeteer --external:multer --external:xlsx --external:p-limit --external:@mongodb-js/zstd --tsconfig=tsconfig.json --resolve-extensions=.ts,.js",
     "start": "node dist/index.js"
   },
   "dependencies": {
@@ -52,6 +52,7 @@
     "on-finished": "^2.4.1",
     "openai": "^4.87.3",
     "otp-generator": "^4.0.1",
+    "p-limit": "^3.1.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "puppeteer": "^24.9.0",
