@@ -958,13 +958,13 @@ export const storage: IStorage = {
       
       // Fetch entity names and threat data in parallel
       const [softwareMap, companyMap, hardwareMap, threatActorsMap, cvesMap, threatKeywordsMap] = await Promise.all([
-        // Fetch software names
+        // Fetch software names and malware status
         allSoftwareIds.size > 0 
-          ? db.select({ id: software.id, name: software.name })
+          ? db.select({ id: software.id, name: software.name, isMalware: software.isMalware })
               .from(software)
               .where(inArray(software.id, Array.from(allSoftwareIds)))
-              .then(rows => new Map(rows.map(r => [r.id, r.name])))
-          : new Map<string, string | null>(),
+              .then(rows => new Map(rows.map(r => [r.id, { name: r.name, isMalware: r.isMalware }])))
+          : new Map<string, { name: string | null; isMalware: boolean | null }>(),
         
         // Fetch company names  
         allCompanyIds.size > 0
@@ -1070,9 +1070,18 @@ export const storage: IStorage = {
         scrapeDate: row.article.scrapedAt || new Date(),
         userId: userId || null,
         markedForCapsule: false,
-        // Map entity IDs to names for display
+        // Map entity IDs to names for display, separate malware
         matchedSoftware: (row.matchedSoftware || [])
-          .map(id => softwareMap.get(id))
+          .map(id => {
+            const softwareInfo = softwareMap.get(id);
+            return softwareInfo && !softwareInfo.isMalware ? softwareInfo.name : null;
+          })
+          .filter(name => name != null) as string[],
+        matchedMalware: (row.matchedSoftware || [])
+          .map(id => {
+            const softwareInfo = softwareMap.get(id);
+            return softwareInfo && softwareInfo.isMalware ? softwareInfo.name : null;
+          })
           .filter(name => name != null) as string[],
         matchedCompanies: (row.matchedCompanies || [])
           .map(id => companyMap.get(id))

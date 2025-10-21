@@ -12,6 +12,7 @@ import {
   Send,
   ChevronDown,
   ChevronUp,
+  Bug,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ThreatArticle } from "@shared/db/schema/threat-tracker";
@@ -29,6 +30,7 @@ interface ExtendedThreatArticle extends ThreatArticle {
   matchedSoftware?: string[];
   matchedCompanies?: string[];
   matchedHardware?: string[];
+  matchedMalware?: string[]; // New field for malware
   threatSeverityScore?: string | number | null;
   threatLevel?: string | null;
   threatMetadata?: any;
@@ -358,7 +360,8 @@ export function ThreatArticleCard({
               {/* Threat Indicators - Show below tech stack pills */}
               {((article.matchedThreatActors && article.matchedThreatActors.length > 0) ||
                 (article.matchedCves && article.matchedCves.length > 0) ||
-                (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0)) && (
+                (article.matchedThreatKeywords && article.matchedThreatKeywords.length > 0) ||
+                (article.matchedMalware && article.matchedMalware.length > 0)) && (
                 <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-slate-800">
                   {/* Threat Actors */}
                   {article.matchedThreatActors && article.matchedThreatActors.slice(0, expandedThreats ? undefined : 2).map((actor, index) => (
@@ -370,6 +373,19 @@ export function ThreatArticleCard({
                     >
                       <Shield className="h-3 w-3 mr-1 flex-shrink-0" />
                       {actor}
+                    </Badge>
+                  ))}
+                  
+                  {/* Malware - Display with distinct visual indicators */}
+                  {article.matchedMalware && article.matchedMalware.slice(0, expandedThreats ? undefined : 2).map((malware, index) => (
+                    <Badge
+                      key={`malware-${index}-${malware}`}
+                      variant="outline"
+                      className="text-xs font-medium transition-colors truncate max-w-32 leading-4 bg-red-600/20 text-red-300 border-red-600/40 animate-pulse-slow"
+                      title={`Malware: ${malware}`}
+                    >
+                      <Bug className="h-3 w-3 mr-1 flex-shrink-0" />
+                      {malware}
                     </Badge>
                   ))}
                   
@@ -403,10 +419,12 @@ export function ThreatArticleCard({
                   {(() => {
                     const totalThreatIndicators = 
                       (article.matchedThreatActors?.length || 0) + 
+                      (article.matchedMalware?.length || 0) +
                       (article.matchedCves?.length || 0) + 
                       (article.matchedThreatKeywords?.length || 0);
                     const shownThreatIndicators = expandedThreats ? totalThreatIndicators :
                       Math.min(2, article.matchedThreatActors?.length || 0) + 
+                      Math.min(2, article.matchedMalware?.length || 0) +
                       Math.min(2, article.matchedCves?.length || 0) + 
                       Math.min(2, article.matchedThreatKeywords?.length || 0);
                     const additionalThreatCount = totalThreatIndicators - shownThreatIndicators;
