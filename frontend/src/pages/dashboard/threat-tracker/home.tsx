@@ -1,6 +1,6 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState, useEffect, useMemo, useRef } from "react";
-import { useRoute } from "wouter";
+import { useLocation } from "react-router-dom";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { useRelevanceTrigger } from "@/hooks/use-relevance-trigger";
@@ -30,10 +30,10 @@ import { ThreatArticleCard } from "./components/threat-article-card";
 export default function ThreatHome() {
   const { toast } = useToast();
   const fetchWithAuth = useFetch();
+  const location = useLocation();
   
   // Get URL parameters for entity filtering
-  const [, params] = useRoute("/dashboard/threat-tracker");
-  const urlParams = new URLSearchParams(window.location.search);
+  const urlParams = new URLSearchParams(location.search);
   const entityFilterParam = urlParams.get("entityFilter");
   
   // Parse entity filter if present
