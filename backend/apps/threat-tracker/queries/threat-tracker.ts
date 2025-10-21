@@ -900,6 +900,8 @@ export const storage: IStorage = {
             ))
             .limit(1);
           
+          console.log(`[Threat-Tracker] Entity lookup for ${type}:${trimmedName} found:`, companyEntity.length > 0 ? companyEntity[0].id : 'NOT FOUND');
+          
           if (companyEntity.length > 0) {
             entityFound = true;
             entityConditions.push(sql`
@@ -964,6 +966,7 @@ export const storage: IStorage = {
       // Articles must match at least one tech stack entity (or the specific filtered entity)
       if (entityConditions.length > 0) {
         conditions.push(sql`(${sql.join(entityConditions, sql` OR `)})`);
+        console.log(`[Threat-Tracker] Added ${entityConditions.length} entity conditions to query`);
       }
 
       // Optional: Add threat indicator filter only if specifically requested
@@ -1014,6 +1017,9 @@ export const storage: IStorage = {
       }
 
       // Apply conditions and build complete query
+      console.log(`[Threat-Tracker] Total conditions to apply: ${conditions.length}`);
+      console.log(`[Threat-Tracker] Query limit: ${pageSize}, offset: ${(pageNum - 1) * pageSize}`);
+      
       const finalQuery =
         conditions.length > 0
           ? baseQuery
@@ -1028,6 +1034,8 @@ export const storage: IStorage = {
 
       // Execute the query
       const result = await finalQuery.execute();
+      
+      console.log(`[Threat-Tracker] Query returned ${result.length} articles for entity filter:`, entityFilter);
       
       // Collect all entity IDs to fetch names
       const allSoftwareIds = new Set<string>();
@@ -1185,25 +1193,10 @@ export const storage: IStorage = {
         matchedThreatKeywords: threatKeywordsMap.get(row.article.id) || [],
       }));
 
-      // Filter articles to require BOTH tech stack AND threat elements
-      const filteredArticles = mappedArticles.filter(article => {
-        // Check for tech stack matches
-        const hasTechStackMatch = 
-          article.matchedSoftware.length > 0 || 
-          article.matchedCompanies.length > 0 || 
-          article.matchedHardware.length > 0;
-        
-        // Check for threat element matches
-        const hasThreatMatch = 
-          article.matchedThreatActors.length > 0 ||
-          article.matchedCves.length > 0 ||
-          article.matchedThreatKeywords.length > 0;
-        
-        // Require BOTH tech stack AND threat elements
-        return hasTechStackMatch && hasThreatMatch;
-      });
-
-      return filteredArticles as ThreatArticle[];
+      // SIMPLIFIED: Return all articles that match tech stack (no threat element requirement)
+      // Per user request: "if user has entity and article tagged with entity, show it"
+      // Articles already filtered by tech stack entities in the SQL query above
+      return mappedArticles as ThreatArticle[];
     } catch (error) {
       console.error("Error fetching threat articles:", error);
       return [];

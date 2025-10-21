@@ -238,6 +238,13 @@ export default function ThreatHome() {
         if (!response.ok) throw new Error("Failed to fetch articles");
         const data = await response.json();
         console.log("Received filtered articles:", data.length);
+        console.log("Entity filter sent:", cleanBody.entityFilter);
+        console.log("First 3 articles:", data.slice(0, 3).map((a: any) => ({ 
+          id: a.id, 
+          title: a.title?.substring(0, 50),
+          threatLevel: a.threatLevel,
+          securityScore: a.securityScore
+        })));
         return data || [];
       } catch (error) {
         console.error("Error fetching articles:", error);
@@ -304,6 +311,14 @@ export default function ThreatHome() {
   // Sync local state with query data when it changes
   useEffect(() => {
     if (articles.data) {
+      console.log('[Threat-Tracker UI] Received articles.data:', articles.data.length);
+      console.log('[Threat-Tracker UI] First 5 articles:', articles.data.slice(0, 5).map(a => ({ 
+        id: a.id, 
+        title: a.title?.slice(0, 50) + '...',
+        threatLevel: a.threatLevel,
+        securityScore: a.securityScore
+      })));
+      
       let sortedArticles = [...articles.data];
 
       // If there's a highlighted article, move it to the top
@@ -320,6 +335,7 @@ export default function ThreatHome() {
         }
       }
 
+      console.log('[Threat-Tracker UI] Setting localArticles to:', sortedArticles.length);
       setLocalArticles(sortedArticles);
     }
   }, [articles.data, highlightedArticleId]);
@@ -598,8 +614,12 @@ export default function ThreatHome() {
   const sortedArticles = useMemo(() => {
     let articles = [...localArticles];
     
+    console.log('[Threat-Tracker UI] localArticles count:', localArticles.length);
+    console.log('[Threat-Tracker UI] threatLevel:', threatLevel);
+    
     // Apply threat level filtering
     if (threatLevel !== "All Threats") {
+      const beforeFilter = articles.length;
       articles = articles.filter((article) => {
         const securityScore = typeof article.securityScore === "string" 
           ? parseInt(article.securityScore, 10) 
@@ -613,6 +633,7 @@ export default function ThreatHome() {
           default: return true;
         }
       });
+      console.log(`[Threat-Tracker UI] Filtered from ${beforeFilter} to ${articles.length} articles`);
     }
     
     // Apply sorting
@@ -649,6 +670,7 @@ export default function ThreatHome() {
       }
     });
     
+    console.log('[Threat-Tracker UI] Final sortedArticles count:', articles.length);
     return articles;
   }, [localArticles, sortNewToTop, lastVisitTimestamp, threatLevel, sortOrder]);
 
