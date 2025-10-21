@@ -561,7 +561,7 @@ export default function TechStackPage() {
               data-testid={`button-threat-critical-${item.id}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
-              <span className="text-muted-foreground">Critical</span>
+              <span className="text-muted-foreground">Critical Threats</span>
             </button>
           )}
           {item.highCount && item.highCount > 0 && (
@@ -574,7 +574,7 @@ export default function TechStackPage() {
               data-testid={`button-threat-high-${item.id}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
-              <span className="text-muted-foreground">High</span>
+              <span className="text-muted-foreground">High Threats</span>
             </button>
           )}
           {item.mediumCount && item.mediumCount > 0 && (
@@ -587,7 +587,7 @@ export default function TechStackPage() {
               data-testid={`button-threat-medium-${item.id}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
-              <span className="text-muted-foreground">Medium</span>
+              <span className="text-muted-foreground">Medium Threats</span>
             </button>
           )}
           {item.lowCount && item.lowCount > 0 && (
@@ -600,10 +600,10 @@ export default function TechStackPage() {
               data-testid={`button-threat-low-${item.id}`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-              <span className="text-muted-foreground">Low</span>
+              <span className="text-muted-foreground">Low Threats</span>
             </button>
           )}
-          {/* Show "See Active Threats" if any threats exist */}
+          {/* Show "See all Threats" if any threats exist */}
           {((item.criticalCount && item.criticalCount > 0) || 
             (item.highCount && item.highCount > 0) || 
             (item.mediumCount && item.mediumCount > 0) || 
@@ -616,7 +616,7 @@ export default function TechStackPage() {
               className="text-xs text-primary hover:underline ml-2"
               data-testid={`button-see-all-threats-${item.id}`}
             >
-              See All
+              See all Threats
             </button>
           )}
         </div>
