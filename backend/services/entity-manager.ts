@@ -391,8 +391,10 @@ export class EntityManager {
         createdBy: data.createdBy,
         discoveredFrom: data.discoveredFrom,
         isVerified: data.isVerified || false,
-        isMalware: data.isMalware || false,
-        metadata: data.metadata
+        metadata: {
+          ...data.metadata,
+          isMalware: data.isMalware || false
+        }
       })
       .returning();
     return newSoftware.id;

@@ -40,8 +40,7 @@ export const software = pgTable('software', {
   createdBy: uuid('created_by'), // user_id who added it (null if AI-discovered)
   discoveredFrom: uuid('discovered_from'), // article_id where first found
   isVerified: boolean('is_verified').default(false),
-  isMalware: boolean('is_malware').default(false), // Flag to identify malicious software
-  metadata: jsonb('metadata') // CPE, additional identifiers, etc.
+  metadata: jsonb('metadata') // CPE, additional identifiers, malware flag, etc.
 }, (table) => {
   return {
     unq: unique().on(table.normalizedName, table.companyId),

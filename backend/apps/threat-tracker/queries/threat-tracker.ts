@@ -958,13 +958,16 @@ export const storage: IStorage = {
       
       // Fetch entity names and threat data in parallel
       const [softwareMap, companyMap, hardwareMap, threatActorsMap, cvesMap, threatKeywordsMap] = await Promise.all([
-        // Fetch software names and malware status
+        // Fetch software names and malware status from metadata
         allSoftwareIds.size > 0 
-          ? db.select({ id: software.id, name: software.name, isMalware: software.isMalware })
+          ? db.select({ id: software.id, name: software.name, metadata: software.metadata })
               .from(software)
               .where(inArray(software.id, Array.from(allSoftwareIds)))
-              .then(rows => new Map(rows.map(r => [r.id, { name: r.name, isMalware: r.isMalware }])))
-          : new Map<string, { name: string | null; isMalware: boolean | null }>(),
+              .then(rows => new Map(rows.map(r => [r.id, { 
+                name: r.name, 
+                isMalware: (r.metadata as any)?.isMalware || false 
+              }])))
+          : new Map<string, { name: string | null; isMalware: boolean }>(),
         
         // Fetch company names  
         allCompanyIds.size > 0
