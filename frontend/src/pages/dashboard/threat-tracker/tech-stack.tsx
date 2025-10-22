@@ -95,17 +95,27 @@ export default function TechStackPage() {
   // Use the upload progress hook
   const { progress } = useUploadProgress(currentUploadId, {
     onComplete: async (progressData) => {
-      // Handle upload completion - fetch the entities from the response
-      // The backend stores the entities in the upload response
-      // We need to get them from the original upload response
-      // For now, since we can't get them from progress, we'll need to refetch
+      // Handle upload completion - get entities from progress data
       setIsUploading(false);
       setCurrentUploadId(null);
       
-      if (progressData.entityCount && progressData.entityCount > 0) {
+      // Check if entities were returned in the progress response
+      if (progressData.entities && progressData.entities.length > 0) {
+        // Set extracted entities and show the preview dialog
+        setExtractedEntities(progressData.entities);
+        setSelectedEntities(new Set(progressData.entities.map((_: ExtractedEntity, i: number) => i)));
+        setShowPreview(true);
+        
         toast({
           title: "Upload complete",
-          description: `Extracted ${progressData.entityCount} entities from spreadsheet. Ready for review.`
+          description: `Extracted ${progressData.entities.length} entities from spreadsheet. Ready for review.`
+        });
+      } else if (progressData.entityCount && progressData.entityCount > 0) {
+        // Fallback if entities aren't in the progress response
+        toast({
+          title: "Upload complete",
+          description: `Extracted ${progressData.entityCount} entities from spreadsheet.`,
+          variant: "destructive"
         });
       }
     },

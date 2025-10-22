@@ -11,6 +11,7 @@ export interface UploadProgress {
   totalRows?: number;
   importedCount?: number;
   error?: string;
+  entities?: any[]; // Array of extracted entities returned when status is 'completed'
 }
 
 interface UseUploadProgressOptions {
