@@ -854,17 +854,10 @@ export default function TechStackPage() {
     const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setCurrentUploadId(uploadId); // Start tracking progress immediately!
     
-    // Check file size - if it's large, we should process it in chunks
-    const fileSize = file.size;
-    const MAX_SIZE_FOR_SINGLE_UPLOAD = 500 * 1024; // 500KB threshold
-    
-    console.log(`[UPLOAD] File size: ${(fileSize / 1024).toFixed(2)}KB`);
-    
-    // For large files, read and process in chunks
-    if (fileSize > MAX_SIZE_FOR_SINGLE_UPLOAD) {
-      console.log('[UPLOAD] Large file detected, will process in chunks');
-      // We'll still send as one request but the backend will handle it more efficiently
-    }
+    // Log file info for debugging
+    console.log(`[UPLOAD] File: ${file.name}, Size: ${(file.size / 1024).toFixed(2)}KB`);
+    // Note: We can't check row count until the backend parses the file
+    // The backend will handle row-based warnings and chunking
     
     try {
       const formData = new FormData();

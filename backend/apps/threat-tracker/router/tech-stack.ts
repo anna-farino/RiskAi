@@ -1788,10 +1788,18 @@ router.post(
       
       console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
       
-      // Early warning for large files
-      if (rows.length > 250) {
-        console.log(`[UPLOAD WARNING] Large file with ${rows.length} rows may approach timeout limit`);
-        uploadProgress.updateStatus(uploadId, 'extracting', `Processing large file (${rows.length} rows)...`, 20);
+      // Provide warnings based on actual row count, not file size
+      const totalCells = rows.length * headers.length;
+      console.log(`[UPLOAD] Data dimensions: ${rows.length} rows × ${headers.length} columns = ${totalCells} cells`);
+      
+      if (rows.length > 500) {
+        console.log(`[UPLOAD WARNING] Very large file with ${rows.length} rows may exceed timeout limit`);
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing very large file (${rows.length} rows) - this may take several minutes...`, 20);
+      } else if (rows.length > 250) {
+        console.log(`[UPLOAD INFO] Large file with ${rows.length} rows - processing may take 2-3 minutes`);
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows (this may take a few minutes)...`, 20);
+      } else {
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows...`, 20);
       }
       
       // Helper function to sanitize spreadsheet text for prompt injection protection
