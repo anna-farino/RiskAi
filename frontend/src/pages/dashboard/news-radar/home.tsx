@@ -539,7 +539,7 @@ export default function NewsHome() {
   };
 
   return (
-    <>
+    <div className="pb-[200px]">
       {/* Efficient 2-Tier Toolbar Container */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md mb-px transition-all duration-300">
         <div className="p-6">
@@ -888,6 +888,6 @@ export default function NewsHome() {
             </div>
           )}
       </div>
-    </>
+    </div>
   );
 }
