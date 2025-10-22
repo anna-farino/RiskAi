@@ -761,11 +761,15 @@ export default function TechStackPage() {
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
-    setCurrentUploadId(null); // Reset any previous upload
+    
+    // Generate uploadId on the frontend BEFORE uploading
+    const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setCurrentUploadId(uploadId); // Start tracking progress immediately!
     
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('uploadId', uploadId); // Send uploadId with the request
       
       // Debug: Show all cookies
       console.log('[UPLOAD] All cookies:', document.cookie);
@@ -817,17 +821,11 @@ export default function TechStackPage() {
       
       const data = await response.json();
       
-      // If we got an uploadId, start tracking the progress
-      if (data.uploadId) {
-        setCurrentUploadId(data.uploadId);
-        // The progress hook will handle the rest
-        // We'll show entities once the upload completes
-      } else {
-        // Fallback for old behavior if no uploadId (shouldn't happen)
-        setExtractedEntities(data.entities || []);
-        setSelectedEntities(new Set((data.entities || []).map((_: ExtractedEntity, i: number) => i)));
-        setShowPreview(true);
-        setIsUploading(false);
+      // We already have the uploadId and are tracking progress
+      // The progress hook's onComplete handler will show entities when ready
+      // Just verify the upload was accepted
+      if (!data.success) {
+        throw new Error('Upload was not successful');
       }
     } catch (error) {
       setIsUploading(false);

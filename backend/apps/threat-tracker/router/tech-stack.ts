@@ -1449,17 +1449,25 @@ router.post(
 
     console.log("[UPLOAD] Request received, userId:", userId);
     console.log("[UPLOAD] File:", req.file);
+    console.log("[UPLOAD] Request body uploadId:", req.body?.uploadId);
 
-    // Generate unique upload ID for progress tracking
-    const uploadId = uuidv4();
+    // Use uploadId from frontend if provided, otherwise generate new one
+    const uploadId = req.body?.uploadId || uuidv4();
+    console.log("[UPLOAD] Using uploadId:", uploadId);
     
     try {
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
+      // Initialize progress tracking immediately - even before validation
+      // This ensures frontend can start polling right away
+      uploadProgress.create(uploadId, userId, req.file?.originalname || 'unknown');
+      uploadProgress.updateStatus(uploadId, 'validating', 'Starting upload...', 5);
+
       // Check rate limiting (3 uploads per minute - reduced from 5)
       if (!UploadSecurity.checkRateLimit(userId, 3, 1)) {
+        uploadProgress.updateStatus(uploadId, 'failed', 'Rate limit exceeded', 0);
         return res.status(429).json({
           error:
             "Too many upload attempts. Please wait a minute before trying again.",
@@ -1474,15 +1482,13 @@ router.post(
           false,
           "No file uploaded",
         );
+        uploadProgress.updateStatus(uploadId, 'failed', 'No file uploaded', 0);
         return res.status(400).json({ error: "No file uploaded" });
       }
 
       const uploadedFile = req.file;
       filename = uploadedFile.originalname;
       fileHash = UploadSecurity.generateFileHash(uploadedFile.buffer);
-      
-      // Initialize progress tracking
-      uploadProgress.create(uploadId, userId, filename);
       uploadProgress.updateStatus(uploadId, 'validating', 'Validating file...', 10);
 
       // Verify file type using magic bytes
