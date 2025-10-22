@@ -178,6 +178,7 @@ export function Autocomplete({
                       key={option.id}
                       value={option.id}
                       onSelect={() => handleSelect(option)}
+                      onClick={() => handleSelect(option)}
                       className="cursor-pointer"
                     >
                       {formatOptionLabel(option)}
