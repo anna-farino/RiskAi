@@ -905,10 +905,14 @@ export default function TechStackPage() {
         </div>
       </div>
 
-      {/* Upload Progress */}
-      {progress && (
-        <Card className="mb-4">
-          <CardContent className="pt-6">
+      {/* Upload Progress OR Drag and Drop Zone - Only show one at a time */}
+      {progress ? (
+        // Show progress bar when upload is in progress
+        <Card className={cn(
+          "border-2 border-dashed",
+          "border-primary bg-primary/5"
+        )}>
+          <CardContent className="pt-6 pb-6">
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex-1">
@@ -935,28 +939,28 @@ export default function TechStackPage() {
             </div>
           </CardContent>
         </Card>
+      ) : (
+        // Show drag and drop zone when no upload is in progress
+        <Card
+          className={cn(
+            "border-2 border-dashed transition-colors",
+            isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <CardContent className="pt-6 pb-6 text-center">
+            <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground">
+              Drag and drop an Excel or CSV file here, or click the Import button above
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Supported formats: .xlsx, .xls, .csv
+            </p>
+          </CardContent>
+        </Card>
       )}
-
-      {/* Drag and Drop Zone */}
-      <Card
-        className={cn(
-          "border-2 border-dashed transition-colors",
-          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
-        )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <CardContent className="pt-6 pb-6 text-center">
-          <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-sm text-muted-foreground">
-            Drag and drop an Excel or CSV file here, or click the Import button above
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Supported formats: .xlsx, .xls, .csv
-          </p>
-        </CardContent>
-      </Card>
 
       {/* Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
