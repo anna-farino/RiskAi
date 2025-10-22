@@ -106,27 +106,16 @@ export default function TechStackPage() {
         setSelectedEntities(new Set(progressData.entities.map((_: ExtractedEntity, i: number) => i)));
         setShowPreview(true);
         
-        toast({
-          title: "Upload complete",
-          description: `Extracted ${progressData.entities.length} entities from spreadsheet. Ready for review.`
-        });
+        // Toast removed - upload complete
       } else if (progressData.entityCount && progressData.entityCount > 0) {
         // Fallback if entities aren't in the progress response
-        toast({
-          title: "Upload complete",
-          description: `Extracted ${progressData.entityCount} entities from spreadsheet.`,
-          variant: "destructive"
-        });
+        // Toast removed - upload complete
       }
     },
     onError: (error) => {
       setIsUploading(false);
       setCurrentUploadId(null);
-      toast({
-        title: "Upload failed",
-        description: error,
-        variant: "destructive"
-      });
+      // Toast removed - upload failed
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -228,18 +217,11 @@ export default function TechStackPage() {
       if (context?.previousData) {
         queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
       }
-      toast({
-        title: "Failed to add item",
-        description: "There was an error adding the item to your tech stack",
-        variant: "destructive"
-      });
+      // Toast removed - failed to add
     },
     onSuccess: () => {
       // Don't invalidate queries to preserve optimistic update
-      toast({
-        title: "Item added",
-        description: "Technology stack item has been added successfully"
-      });
+      // Toast removed - item added
     }
   });
 
@@ -282,18 +264,11 @@ export default function TechStackPage() {
       if (context?.previousData) {
         queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
       }
-      toast({
-        title: "Failed to remove item",
-        description: "There was an error removing the item from your tech stack",
-        variant: "destructive"
-      });
+      // Toast removed - failed to remove
     },
     onSuccess: () => {
       // Don't invalidate queries to preserve optimistic update
-      toast({
-        title: "Item removed",
-        description: "Technology stack item has been permanently removed"
-      });
+      // Toast removed - item removed
     }
   });
 
@@ -355,19 +330,12 @@ export default function TechStackPage() {
       if (context?.previousData) {
         queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
       }
-      toast({
-        title: "Failed to toggle item",
-        description: "There was an error updating the item status",
-        variant: "destructive"
-      });
+      // Toast removed - failed to toggle
     },
     onSuccess: (data) => {
       // Don't invalidate queries to preserve optimistic update
       // The optimistic update already has the correct state
-      toast({
-        title: data.isActive ? "Item enabled" : "Item disabled",
-        description: `Technology stack item has been ${data.isActive ? 'enabled' : 'disabled'}`
-      });
+      // Toast removed - item toggled
     }
   });
 
@@ -431,20 +399,13 @@ export default function TechStackPage() {
       if (context?.previousData) {
         queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
       }
-      toast({
-        title: "Failed to bulk toggle items",
-        description: "There was an error updating the items",
-        variant: "destructive"
-      });
+      // Toast removed - failed to bulk toggle
     },
     onSuccess: (data, variables) => {
       // Don't invalidate queries to preserve optimistic update
       // The optimistic update already has the correct state
       const typeLabel = variables.type || 'all';
-      toast({
-        title: variables.isActive ? "Items enabled" : "Items disabled",
-        description: `${variables.isActive ? 'Enabled' : 'Disabled'} ${typeLabel} items`
-      });
+      // Toast removed - bulk toggle success
     }
   });
 
@@ -497,19 +458,12 @@ export default function TechStackPage() {
       if (context?.previousData) {
         queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
       }
-      toast({
-        title: "Failed to delete items",
-        description: "There was an error deleting the items",
-        variant: "destructive"
-      });
+      // Toast removed - failed to delete items
     },
     onSuccess: (data, variables) => {
       // Don't invalidate queries to preserve optimistic update
       const typeLabel = variables.type || 'all';
-      toast({
-        title: "Items deleted",
-        description: `Deleted ${typeLabel} items from tech stack`
-      });
+      // Toast removed - items deleted
     }
   });
 
@@ -744,11 +698,7 @@ export default function TechStackPage() {
     if (file && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls') || file.name.endsWith('.csv'))) {
       await handleFileUpload(file);
     } else {
-      toast({
-        title: "Invalid file",
-        description: "Please upload an Excel (.xlsx, .xls) or CSV file",
-        variant: "destructive"
-      });
+      // Toast removed - invalid file
     }
   };
 
@@ -830,11 +780,8 @@ export default function TechStackPage() {
     } catch (error) {
       setIsUploading(false);
       setCurrentUploadId(null);
-      toast({
-        title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to process the spreadsheet. Please check the format and try again.",
-        variant: "destructive"
-      });
+      // Toast removed - upload failed
+      console.error("Upload failed:", error instanceof Error ? error.message : "Failed to process the spreadsheet");
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -845,11 +792,7 @@ export default function TechStackPage() {
     const entitiesToImport = extractedEntities.filter((_, index) => selectedEntities.has(index));
     
     if (entitiesToImport.length === 0) {
-      toast({
-        title: "No items selected",
-        description: "Please select at least one item to import",
-        variant: "destructive"
-      });
+      // Toast removed - no items selected
       return;
     }
 
@@ -870,20 +813,14 @@ export default function TechStackPage() {
       
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       
-      toast({
-        title: "Import successful",
-        description: `Imported ${result.imported} items to your tech stack`
-      });
+      // Toast removed - import successful
       
       setShowPreview(false);
       setExtractedEntities([]);
       setSelectedEntities(new Set());
     } catch (error) {
-      toast({
-        title: "Import failed",
-        description: "Failed to import selected items. Please try again.",
-        variant: "destructive"
-      });
+      // Toast removed - import failed
+      console.error("Import failed:", error);
     } finally {
       setIsUploading(false);
     }
