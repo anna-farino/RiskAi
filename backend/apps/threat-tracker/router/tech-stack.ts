@@ -1792,28 +1792,33 @@ Return a JSON array of extracted entities with this structure:
         }
       };
       
-      // Create all batches
-      const batches = [];
+      // Create all batch tasks (as functions, not promises)
+      const batchTasks = [];
       for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
         const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
         const batchRows = rows.slice(batchStart, batchEnd);
-        batches.push({ batchStart, batchEnd, batchRows });
+        // Store as function to defer execution
+        batchTasks.push(() => processBatch(batchStart, batchEnd, batchRows));
       }
       
-      // Process batches in parallel with concurrency limit
+      // Process batches in parallel with PROPER concurrency limit
       let allEntities = [];
-      for (let i = 0; i < batches.length; i += PARALLEL_LIMIT) {
-        const batchGroup = batches.slice(i, i + PARALLEL_LIMIT);
-        console.log(`[UPLOAD] Processing group ${Math.floor(i / PARALLEL_LIMIT) + 1} of ${Math.ceil(batches.length / PARALLEL_LIMIT)}`);
+      const totalGroups = Math.ceil(batchTasks.length / PARALLEL_LIMIT);
+      
+      for (let i = 0; i < batchTasks.length; i += PARALLEL_LIMIT) {
+        const taskGroup = batchTasks.slice(i, i + PARALLEL_LIMIT);
+        const groupNum = Math.floor(i / PARALLEL_LIMIT) + 1;
+        console.log(`[UPLOAD] Processing group ${groupNum} of ${totalGroups} (${taskGroup.length} batches in parallel)`);
         
-        const promises = batchGroup.map(({ batchStart, batchEnd, batchRows }) => 
-          processBatch(batchStart, batchEnd, batchRows)
-        );
+        // Execute the tasks NOW (not before) to enforce concurrency limit
+        const promises = taskGroup.map(task => task());
         
         const results = await Promise.all(promises);
         results.forEach(entities => {
           allEntities = allEntities.concat(entities);
         });
+        
+        console.log(`[UPLOAD] Group ${groupNum} completed. Total entities so far: ${allEntities.length}`);
       }
       
       console.log(`[UPLOAD] Total entities extracted: ${allEntities.length}`);
