@@ -1784,7 +1784,7 @@ router.post(
 
       // Process in batches of 50 rows with PARALLEL processing
       const BATCH_SIZE = 50;
-      const PARALLEL_LIMIT = 5; // Process 5 batches concurrently
+      const PARALLEL_LIMIT = 10; // Process 10 batches concurrently for better performance
       
       console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
       
