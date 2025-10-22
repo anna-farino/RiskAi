@@ -505,7 +505,7 @@ export default function TechStackPage() {
     return (
       <div 
         className={cn(
-          "flex items-center justify-between py-3 px-4 rounded-md transition-colors",
+          "flex items-center justify-between gap-4 py-3 px-4 rounded-md transition-colors",
           isActive ? "hover:bg-muted/50" : "opacity-60 hover:bg-muted/30"
         )}
         data-testid={`tech-item-${item.id}`}
@@ -550,7 +550,7 @@ export default function TechStackPage() {
         </div>
 
         {/* Threat indicators section */}
-        <div className="flex items-center gap-3 flex-1">
+        <div className="flex items-center gap-3">
           {((item.criticalCount ?? 0) > 0 || 
             (item.highCount ?? 0) > 0 || 
             (item.mediumCount ?? 0) > 0 || 
@@ -561,7 +561,7 @@ export default function TechStackPage() {
                   const filterParam = encodeURIComponent(`${type}:${item.name}`);
                   navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
                 }}
-                className="px-1 py-1 text-xs text-primary hover:underline"
+                className="px-1 py-0 text-xs text-primary hover:underline"
                 style={{ background: 'transparent' }}
                 data-testid={`button-see-all-threats-${item.id}`}
               >
@@ -575,7 +575,7 @@ export default function TechStackPage() {
                       const filterParam = encodeURIComponent(`${type}:${item.name}:${(item.criticalCount ?? 0) > 0 ? 'critical' : 'high'}`);
                       navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
                     }}
-                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-1 text-xs rounded hover:bg-muted/50"
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-0 text-xs rounded hover:bg-muted/50"
                     style={{ background: 'transparent' }}
                     data-testid={`button-threat-high-${item.id}`}
                   >
@@ -589,7 +589,7 @@ export default function TechStackPage() {
                       const filterParam = encodeURIComponent(`${type}:${item.name}:medium`);
                       navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
                     }}
-                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-1 text-xs rounded hover:bg-muted/50"
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-0 text-xs rounded hover:bg-muted/50"
                     style={{ background: 'transparent' }}
                     data-testid={`button-threat-medium-${item.id}`}
                   >
@@ -603,7 +603,7 @@ export default function TechStackPage() {
                       const filterParam = encodeURIComponent(`${type}:${item.name}:low`);
                       navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
                     }}
-                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-1 text-xs rounded hover:bg-muted/50"
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-0 text-xs rounded hover:bg-muted/50"
                     style={{ background: 'transparent' }}
                     data-testid={`button-threat-low-${item.id}`}
                   >
