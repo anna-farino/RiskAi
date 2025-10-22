@@ -1991,13 +1991,13 @@ Return a JSON array of extracted entities with this structure:
 
       // Process entities through EntityManager to match with existing database
       const entityManager = new EntityManager();
-      const processedEntities = [];
       const detectedVendors = []; // Track vendors to add to processedEntities
       
       // Import relationship detection for CSV uploads
       const { detectCompanyProductRelationship } = await import('../../../services/openai');
-
-      for (const entity of entities) {
+      
+      // Helper function to process a single entity
+      const processEntity = async (entity: any) => {
         let matchedEntity = null;
         let isNew = true;
 
@@ -2091,8 +2091,8 @@ Return a JSON array of extracted entities with this structure:
             isNew = false;
           }
           
-          // Store vendor info with the processed entity
-          processedEntities.push({
+          // Return processed software entity
+          return {
             type: entity.type,
             name: finalSoftwareName,
             version: entity.version,
@@ -2102,9 +2102,17 @@ Return a JSON array of extracted entities with this structure:
             matchedId: matchedEntity?.id || null,
             vendorId: vendorId, // Include vendor ID for import phase (null if vendor is new)
             vendorName: detectedVendorName || entity.manufacturer, // Store vendor name for creation during import
-          });
-          
-          continue; // Skip the default push at the end
+            detectedVendors: finalRelationship.parentCompany && !detectedVendors.some(v => v.name === finalRelationship.parentCompany) 
+              ? [{
+                  type: 'vendor',
+                  name: finalRelationship.parentCompany,
+                  isNew: vendorId === null,
+                  matchedId: vendorId,
+                  autoDetected: true,
+                  sourceProduct: finalSoftwareName
+                }]
+              : []
+          };
         } else if (entity.type === "hardware") {
           // Check if hardware exists (don't create yet)
           const hardwareCheck = await entityManager.checkHardwareExists({
@@ -2130,8 +2138,8 @@ Return a JSON array of extracted entities with this structure:
           }
         }
 
-        // Default push for non-software entities (hardware, vendor, client)
-        processedEntities.push({
+        // Return default entity for non-software entities (hardware, vendor, client)
+        return {
           type: entity.type,
           name: entity.name,
           version: entity.version,
@@ -2139,11 +2147,56 @@ Return a JSON array of extracted entities with this structure:
           model: entity.model,
           isNew: isNew,
           matchedId: matchedEntity?.id || null,
-        });
+          detectedVendors: []
+        };
+      }; // End of processEntity function
+      
+      // Process entities in controlled batches of 25
+      const ENTITY_BATCH_SIZE = 25;
+      const processedEntities = [];
+      const allDetectedVendors = [];
+      
+      console.log(`[UPLOAD] Processing ${entities.length} entities in batches of ${ENTITY_BATCH_SIZE}`);
+      uploadProgress.updateStatus(uploadId, 'importing', `Matching ${entities.length} entities...`, 80);
+      
+      // Process entities in batches
+      for (let i = 0; i < entities.length; i += ENTITY_BATCH_SIZE) {
+        const batchEnd = Math.min(i + ENTITY_BATCH_SIZE, entities.length);
+        const batch = entities.slice(i, batchEnd);
+        const batchNum = Math.floor(i / ENTITY_BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(entities.length / ENTITY_BATCH_SIZE);
+        
+        console.log(`[UPLOAD] Processing entity batch ${batchNum} of ${totalBatches} (entities ${i + 1}-${batchEnd} of ${entities.length})`);
+        
+        // Process all entities in this batch in parallel
+        const batchResults = await Promise.all(
+          batch.map(entity => processEntity(entity))
+        );
+        
+        // Extract results and detected vendors
+        for (const result of batchResults) {
+          const { detectedVendors, ...processedEntity } = result;
+          processedEntities.push(processedEntity);
+          
+          // Collect detected vendors (avoiding duplicates)
+          if (detectedVendors && detectedVendors.length > 0) {
+            for (const vendor of detectedVendors) {
+              if (!allDetectedVendors.some(v => v.name === vendor.name)) {
+                allDetectedVendors.push(vendor);
+              }
+            }
+          }
+        }
+        
+        // Update progress
+        const matchingProgress = 80 + Math.round((batchEnd / entities.length) * 15);
+        uploadProgress.updateStatus(uploadId, 'importing', `Matched ${batchEnd} of ${entities.length} entities...`, matchingProgress);
+        
+        console.log(`[UPLOAD] Entity batch ${batchNum} completed. Total processed: ${processedEntities.length}`);
       }
       
-      // Add detected vendors to the processed entities list
-      processedEntities.push(...detectedVendors);
+      // Add all detected vendors to the processed entities list
+      processedEntities.push(...allDetectedVendors);
 
       // Log successful upload
       UploadSecurity.auditLog(
