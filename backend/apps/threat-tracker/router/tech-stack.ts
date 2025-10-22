@@ -25,7 +25,6 @@ import { EntityManager } from "../../../services/entity-manager";
 import { extractArticleEntities, openai } from "../../../services/openai";
 import { UploadSecurity } from "../../../services/upload-security";
 import { doubleCsrfProtection } from "../../../middleware/csrf";
-import { uploadProgressTracker, generateProgressId } from "../../../services/upload-progress";
 
 const router = Router();
 
@@ -1445,7 +1444,6 @@ router.post(
     const userId = req.user?.id;
     let fileHash = "";
     let filename = "";
-    let progressId = "";
 
     console.log("[UPLOAD] Request received, userId:", userId);
     console.log("[UPLOAD] File:", req.file);
@@ -1477,268 +1475,227 @@ router.post(
       const uploadedFile = req.file;
       filename = uploadedFile.originalname;
       fileHash = UploadSecurity.generateFileHash(uploadedFile.buffer);
-      
-      // Generate progress ID and initialize tracking
-      progressId = generateProgressId();
-      uploadProgressTracker.createProgress(progressId, userId, filename);
 
-      // Return progress ID immediately for polling
-      res.json({
-        success: true,
-        progressId: progressId,
-        message: "Upload started. Processing file in background...",
-      });
-      
-      // Process file asynchronously (not blocking the response)
-      processUploadAsync(progressId, userId, uploadedFile, filename, fileHash).catch((error) => {
-        log(`Async upload processing error: ${error.message}`, "error");
-        uploadProgressTracker.failProgress(progressId, error.message || "Processing failed");
-      });
-    } catch (error: any) {
-      log(
-        `Error processing spreadsheet upload: ${error.message || error}`,
-        "error",
-      );
-      if (progressId) {
-        uploadProgressTracker.failProgress(progressId, error.message || "Upload failed");
-      }
-      if (fileHash) {
-        UploadSecurity.auditLog(
-          userId || "unknown",
-          filename,
-          fileHash,
-          false,
-          `Processing error: ${error.message}`,
-        );
-      }
-      res.status(500).json({ error: "Failed to process spreadsheet" });
-    }
-  },
-);
-
-// Async function to process upload with progress tracking
-async function processUploadAsync(
-  progressId: string,
-  userId: string,
-  uploadedFile: any,
-  filename: string,
-  fileHash: string
-) {
-  try {
-    // Update progress: validating
-    uploadProgressTracker.updateProgress(progressId, {
-      status: "parsing",
-      message: "Validating file format...",
-      progress: 5,
-    });
-
-    // Verify file type using magic bytes
-    if (!UploadSecurity.verifyFileType(uploadedFile.buffer, filename)) {
-      UploadSecurity.auditLog(
-        userId,
-        filename,
-        fileHash,
-        false,
-        "Invalid file signature",
-      );
-      throw new Error("Invalid file type. Only CSV, XLSX, and XLS files are allowed.");
-    }
-    
-    // For XLSX files ONLY (not XLS), check ZIP safety before decompression
-    // XLS files use OLE format, not ZIP
-    if (filename.toLowerCase().endsWith('.xlsx')) {
-      const zipSafetyCheck = await UploadSecurity.isZipSafe(uploadedFile.buffer);
-      if (!zipSafetyCheck.safe) {
-        log(`XLSX/ZIP safety check failed: ${zipSafetyCheck.reason}`, 'error');
+      // Verify file type using magic bytes
+      if (!UploadSecurity.verifyFileType(uploadedFile.buffer, filename)) {
         UploadSecurity.auditLog(
           userId,
           filename,
           fileHash,
           false,
-          `Unsafe ZIP: ${zipSafetyCheck.reason}`,
+          "Invalid file signature",
         );
-        throw new Error(`File rejected: ${zipSafetyCheck.reason}. Please ensure your Excel file is not corrupted and is under 50MB when uncompressed.`);
-      }
-    }
-
-    // Parse the spreadsheet with STRICT security limits
-    let data: any[][] = [];
-    
-    // STRICT limits - significantly reduced
-    const MAX_ROWS = 500;  // Reduced from 10000
-    const MAX_SHEETS = 4;  // New limit on number of sheets
-    const MAX_COLUMNS = 300;  // Increased to 300 for 200+ column files
-    const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
-    const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
-
-    uploadProgressTracker.updateProgress(progressId, {
-      status: "parsing",
-      message: "Parsing spreadsheet...",
-      progress: 10,
-    });
-
-    try {
-      if (uploadedFile.originalname.endsWith(".csv")) {
-        // Parse CSV with limits
-        const csvText = uploadedFile.buffer.toString("utf-8");
-        
-        // Check decompressed size
-        if (csvText.length > MAX_SHEET_SIZE) {
-          log(`CSV too large after decompression: ${csvText.length} bytes`, 'error');
-          UploadSecurity.auditLog(userId, filename, fileHash, false, 'CSV file too large');
-          throw new Error(`CSV file too large (${(csvText.length / 1024 / 1024).toFixed(2)}MB decompressed)`);
-        }
-        
-        const workbook = XLSX.read(csvText, { 
-          type: "string",
-          sheetRows: MAX_ROWS + 1, // Limit rows during parsing
-          dense: false // Use sparse mode to save memory
+        return res.status(400).json({
+          error: "Invalid file type. Only CSV, XLSX, and XLS files are allowed. File must be under 1MB.",
         });
-        const sheetName = workbook.SheetNames[0];
-        data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
-          header: 1,
-          range: { s: { r: 0, c: 0 }, e: { r: MAX_ROWS, c: MAX_COLUMNS } }
-        });
-      } else {
-        // Parse Excel with STRICT limits and memory protection
-        const workbook = XLSX.read(uploadedFile.buffer, { 
-          type: "buffer",
-          sheetRows: MAX_ROWS + 1, // Limit rows during parsing
-          dense: false, // Use sparse mode to save memory
-          cellDates: false, // Don't parse dates to save processing
-          cellFormula: false // Skip formula parsing for security
-        });
-        
-        if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
-          UploadSecurity.auditLog(userId, filename, fileHash, false, 'No sheets found');
-          throw new Error("No sheets found in Excel file");
-        }
-        
-        // Check number of sheets
-        if (workbook.SheetNames.length > MAX_SHEETS) {
-          log(`Excel has too many sheets: ${workbook.SheetNames.length} (max ${MAX_SHEETS})`, 'warn');
-          UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many sheets');
-          throw new Error(`Excel file has too many sheets (${workbook.SheetNames.length}). Maximum allowed is ${MAX_SHEETS} sheets.`);
-        }
-        
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        
-        // Check sheet dimensions before conversion
-        const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
-        if (range.e.r - range.s.r > MAX_ROWS) {
-          const rowCount = range.e.r - range.s.r;
-          log(`Excel has too many rows: ${rowCount} (max ${MAX_ROWS})`, 'warn');
-          UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many rows');
-          throw new Error(`Excel file has too many rows (${rowCount}). Maximum allowed is ${MAX_ROWS} rows.`);
-        }
-        if (range.e.c - range.s.c > MAX_COLUMNS) {
-          const colCount = range.e.c - range.s.c;
-          log(`Excel has too many columns: ${colCount} (max ${MAX_COLUMNS})`, 'warn');
-          UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many columns');
-          throw new Error(`Excel file has too many columns (${colCount}). Maximum allowed is ${MAX_COLUMNS} columns.`);
-        }
-        
-        // Convert with enforced limits
-        data = XLSX.utils.sheet_to_json(sheet, {
-          header: 1,
-          range: { s: { r: 0, c: 0 }, e: { r: Math.min(range.e.r, MAX_ROWS), c: Math.min(range.e.c, MAX_COLUMNS) } },
-          blankrows: false, // Skip empty rows
-          raw: false // Get string values, not formulas
-        });
-      }
-        
-      // Additional validation: check individual cell lengths
-      for (let i = 0; i < Math.min(data.length, MAX_ROWS); i++) {
-        const row = data[i] as any[];
-        for (let j = 0; j < Math.min(row.length, MAX_COLUMNS); j++) {
-          if (row[j] && String(row[j]).length > MAX_CELL_LENGTH) {
-            log(`Cell content too large at row ${i}, col ${j}`, 'warn');
-            row[j] = String(row[j]).substring(0, MAX_CELL_LENGTH) + '...';
-          }
-        }
       }
       
-      // Ensure we don't process more than MAX_ROWS
-      if (data.length > MAX_ROWS) {
-        data = data.slice(0, MAX_ROWS);
-        log(`Truncated spreadsheet to ${MAX_ROWS} rows`, 'info');
+      // For XLSX files ONLY (not XLS), check ZIP safety before decompression
+      // XLS files use OLE format, not ZIP
+      if (filename.toLowerCase().endsWith('.xlsx')) {
+        const zipSafetyCheck = await UploadSecurity.isZipSafe(uploadedFile.buffer);
+        if (!zipSafetyCheck.safe) {
+          log(`XLSX/ZIP safety check failed: ${zipSafetyCheck.reason}`, 'error');
+          UploadSecurity.auditLog(
+            userId,
+            filename,
+            fileHash,
+            false,
+            `Unsafe ZIP: ${zipSafetyCheck.reason}`,
+          );
+          return res.status(400).json({
+            error: `File rejected: ${zipSafetyCheck.reason}. Please ensure your Excel file is not corrupted and is under 50MB when uncompressed.`,
+          });
+        }
       }
-    } catch (parseError) {
-      UploadSecurity.auditLog(
-        userId,
-        filename,
-        fileHash,
-        false,
-        `Parse error: ${parseError}`,
-      );
-      throw new Error("Failed to parse spreadsheet. File may be corrupted.");
-    }
 
-    if (data.length === 0) {
-      UploadSecurity.auditLog(
-        userId,
-        filename,
-        fileHash,
-        false,
-        "Empty spreadsheet",
-      );
-      throw new Error("Spreadsheet is empty");
-    }
+      // Parse the spreadsheet with STRICT security limits
+      let data: any[][] = [];
+      
+      // STRICT limits - significantly reduced
+      const MAX_ROWS = 500;  // Reduced from 10000
+      const MAX_SHEETS = 4;  // New limit on number of sheets
+      const MAX_COLUMNS = 50;  // Reduced from 100
+      const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
+      const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
 
-    // Scan for suspicious content
-    const scanResult = UploadSecurity.scanForSuspiciousContent(data);
-    if (!scanResult.safe) {
-      log(
-        `Suspicious content detected in upload from user ${userId}: ${scanResult.warnings.join("; ")}`,
-        "warn",
-      );
-      UploadSecurity.auditLog(
-        userId,
-        filename,
-        fileHash,
-        false,
-        `Suspicious content: ${scanResult.warnings.join("; ")}`,
-      );
-      throw new Error("File contains suspicious content and cannot be processed.");
-    }
+      try {
+        if (uploadedFile.originalname.endsWith(".csv")) {
+          // Parse CSV with limits
+          const csvText = uploadedFile.buffer.toString("utf-8");
+          
+          // Check decompressed size
+          if (csvText.length > MAX_SHEET_SIZE) {
+            log(`CSV too large after decompression: ${csvText.length} bytes`, 'error');
+            UploadSecurity.auditLog(userId, filename, fileHash, false, 'CSV file too large');
+            return res.status(413).json({ 
+              error: `CSV file too large (${(csvText.length / 1024 / 1024).toFixed(2)}MB decompressed)` 
+            });
+          }
+          
+          const workbook = XLSX.read(csvText, { 
+            type: "string",
+            sheetRows: MAX_ROWS + 1, // Limit rows during parsing
+            dense: false // Use sparse mode to save memory
+          });
+          const sheetName = workbook.SheetNames[0];
+          data = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], {
+            header: 1,
+            range: { s: { r: 0, c: 0 }, e: { r: MAX_ROWS, c: MAX_COLUMNS } }
+          });
+        } else {
+          // Parse Excel with STRICT limits and memory protection
+          const workbook = XLSX.read(uploadedFile.buffer, { 
+            type: "buffer",
+            sheetRows: MAX_ROWS + 1, // Limit rows during parsing
+            dense: false, // Use sparse mode to save memory
+            cellDates: false, // Don't parse dates to save processing
+            cellFormula: false // Skip formula parsing for security
+          });
+          
+          if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+            UploadSecurity.auditLog(userId, filename, fileHash, false, 'No sheets found');
+            return res.status(400).json({ error: "No sheets found in Excel file" });
+          }
+          
+          // Check number of sheets
+          if (workbook.SheetNames.length > MAX_SHEETS) {
+            log(`Excel has too many sheets: ${workbook.SheetNames.length} (max ${MAX_SHEETS})`, 'warn');
+            UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many sheets');
+            return res.status(413).json({ 
+              error: `Excel file has too many sheets (${workbook.SheetNames.length}). Maximum allowed is ${MAX_SHEETS} sheets.` 
+            });
+          }
+          
+          const sheetName = workbook.SheetNames[0];
+          const sheet = workbook.Sheets[sheetName];
+          
+          // Check sheet dimensions before conversion
+          const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+          if (range.e.r - range.s.r > MAX_ROWS) {
+            const rowCount = range.e.r - range.s.r;
+            log(`Excel has too many rows: ${rowCount} (max ${MAX_ROWS})`, 'warn');
+            UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many rows');
+            return res.status(413).json({ 
+              error: `Excel file has too many rows (${rowCount}). Maximum allowed is ${MAX_ROWS} rows.` 
+            });
+          }
+          if (range.e.c - range.s.c > MAX_COLUMNS) {
+            const colCount = range.e.c - range.s.c;
+            log(`Excel has too many columns: ${colCount} (max ${MAX_COLUMNS})`, 'warn');
+            UploadSecurity.auditLog(userId, filename, fileHash, false, 'Too many columns');
+            return res.status(413).json({ 
+              error: `Excel file has too many columns (${colCount}). Maximum allowed is ${MAX_COLUMNS} columns.` 
+            });
+          }
+          
+          // Convert with enforced limits
+          data = XLSX.utils.sheet_to_json(sheet, {
+            header: 1,
+            range: { s: { r: 0, c: 0 }, e: { r: Math.min(range.e.r, MAX_ROWS), c: Math.min(range.e.c, MAX_COLUMNS) } },
+            blankrows: false, // Skip empty rows
+            raw: false // Get string values, not formulas
+          });
+        }
+        
+        // Additional validation: check individual cell lengths
+        for (let i = 0; i < Math.min(data.length, MAX_ROWS); i++) {
+          const row = data[i] as any[];
+          for (let j = 0; j < Math.min(row.length, MAX_COLUMNS); j++) {
+            if (row[j] && String(row[j]).length > MAX_CELL_LENGTH) {
+              log(`Cell content too large at row ${i}, col ${j}`, 'warn');
+              row[j] = String(row[j]).substring(0, MAX_CELL_LENGTH) + '...';
+            }
+          }
+        }
+        
+        // Ensure we don't process more than MAX_ROWS
+        if (data.length > MAX_ROWS) {
+          data = data.slice(0, MAX_ROWS);
+          log(`Truncated spreadsheet to ${MAX_ROWS} rows`, 'info');
+        }
+      } catch (parseError) {
+        UploadSecurity.auditLog(
+          userId,
+          filename,
+          fileHash,
+          false,
+          `Parse error: ${parseError}`,
+        );
+        return res.status(400).json({
+          error: "Failed to parse spreadsheet. File may be corrupted.",
+        });
+      }
 
-    // Sanitize data to prevent formula injection
-    data = UploadSecurity.sanitizeSpreadsheetData(data);
+      if (data.length === 0) {
+        UploadSecurity.auditLog(
+          userId,
+          filename,
+          fileHash,
+          false,
+          "Empty spreadsheet",
+        );
+        return res.status(400).json({ error: "Spreadsheet is empty" });
+      }
 
-    // Convert spreadsheet data to text for AI processing
-    const headers = data[0] || [];
-    const rows = data.slice(1);
+      // Scan for suspicious content
+      const scanResult = UploadSecurity.scanForSuspiciousContent(data);
+      if (!scanResult.safe) {
+        log(
+          `Suspicious content detected in upload from user ${userId}: ${scanResult.warnings.join("; ")}`,
+          "warn",
+        );
+        UploadSecurity.auditLog(
+          userId,
+          filename,
+          fileHash,
+          false,
+          `Suspicious content: ${scanResult.warnings.join("; ")}`,
+        );
+        return res.status(400).json({
+          error: "File contains suspicious content and cannot be processed.",
+          warnings: scanResult.warnings,
+        });
+      }
 
-    // Debug: Log what we parsed
-    console.log("[UPLOAD] Parsed data - Total rows:", data.length);
-    console.log("[UPLOAD] Headers:", headers);
-    console.log("[UPLOAD] First data row:", rows[0]);
-    console.log("[UPLOAD] Data rows count:", rows.length);
+      // Sanitize data to prevent formula injection
+      data = UploadSecurity.sanitizeSpreadsheetData(data);
 
-    // Update progress for AI extraction
-    uploadProgressTracker.updateProgress(progressId, {
-      status: "processing",
-      message: "Extracting entities from spreadsheet...",
-      progress: 20,
-      totalRows: rows.length,
-      totalBatches: Math.ceil(rows.length / 50),
-    });
+      // Convert spreadsheet data to text for AI processing
+      const headers = data[0] || [];
+      const rows = data.slice(1);
 
-    // Process in batches of 50 rows with PARALLEL AI extraction
-    const BATCH_SIZE = 50;
-    const PARALLEL_LIMIT = 5; // Process 5 batches concurrently
-    let allEntities: any[] = [];
-    
-    // Create all batches first
-    const batches: Array<{ start: number; end: number; rows: any[][] }> = [];
-    for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
-      const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
-      const batchRows = rows.slice(batchStart, batchEnd);
-      batches.push({ start: batchStart, end: batchEnd, rows: batchRows });
-    }
-    
-    console.log(`[UPLOAD] Processing ${batches.length} batches with parallel limit of ${PARALLEL_LIMIT}`);
+      // Debug: Log what we parsed
+      console.log("[UPLOAD] Parsed data - Total rows:", data.length);
+      console.log("[UPLOAD] Headers:", headers);
+      console.log("[UPLOAD] First data row:", rows[0]);
+      console.log("[UPLOAD] Data rows count:", rows.length);
+
+      // Process in batches of 50 rows to handle large files
+      const BATCH_SIZE = 50;
+      let allEntities = [];
+      
+      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE}`);
+      
+      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
+        const batchRows = rows.slice(batchStart, batchEnd);
+        
+        console.log(`[UPLOAD] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
+        
+        // Create a structured text representation for this batch
+        let spreadsheetText = `Headers: ${headers.join(", ")}\n\n`;
+        spreadsheetText += "Data rows:\n";
+
+        batchRows.forEach((row, index) => {
+          if (row.some((cell) => cell)) {
+            // Skip empty rows
+            const rowData = headers
+              .map((header, i) => `${header}: ${row[i] || "N/A"}`)
+              .join(", ");
+            spreadsheetText += `Row ${batchStart + index + 1}: ${rowData}\n`;
+          }
+        });
 
         // Sanitize spreadsheetText to prevent prompt injection
         const sanitizeForPrompt = (text: string): string => {
