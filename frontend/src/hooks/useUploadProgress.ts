@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useFetch } from '@/hooks/use-fetch';
 
 export interface UploadProgress {
   uploadId: string;
@@ -23,6 +24,7 @@ export function useUploadProgress(
   options: UseUploadProgressOptions = {}
 ) {
   const { onComplete, onError, pollInterval = 1000 } = options;
+  const fetchWithAuth = useFetch();
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -46,9 +48,7 @@ export function useUploadProgress(
 
     const checkProgress = async () => {
       try {
-        const response = await fetch(`/api/threat-tracker/tech-stack/upload/${uploadId}/progress`, {
-          credentials: 'include',
-        });
+        const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/upload/${uploadId}/progress`);
 
         if (!response.ok) {
           if (response.status === 404) {
