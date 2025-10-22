@@ -1782,23 +1782,28 @@ router.post(
       console.log("[UPLOAD] First data row:", rows[0]);
       console.log("[UPLOAD] Data rows count:", rows.length);
 
-      // Process in smaller batches for faster processing
-      const BATCH_SIZE = 20; // Smaller batches = faster individual processing
-      const PARALLEL_LIMIT = 10; // Process 10 batches concurrently for better performance
-      
-      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
-      
-      // Provide warnings based on actual row count, not file size
-      const totalCells = rows.length * headers.length;
-      console.log(`[UPLOAD] Data dimensions: ${rows.length} rows × ${headers.length} columns = ${totalCells} cells`);
-      
+      // Check row limit - max 500 rows
       if (rows.length > 500) {
-        console.log(`[UPLOAD WARNING] Very large file with ${rows.length} rows may exceed timeout limit`);
-        uploadProgress.updateStatus(uploadId, 'extracting', `Processing very large file (${rows.length} rows) - this may take several minutes...`, 20);
-      } else if (rows.length > 250) {
-        console.log(`[UPLOAD INFO] Large file with ${rows.length} rows - processing may take 2-3 minutes`);
-        uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows (this may take a few minutes)...`, 20);
+        console.log(`[UPLOAD ERROR] File exceeds 500 row limit (has ${rows.length} rows)`);
+        uploadProgress.updateStatus(uploadId, 'failed', `File too large: ${rows.length} rows exceeds 500 row limit`, 0);
+        return res.status(400).json({
+          error: `File too large: ${rows.length} rows exceeds the 500 row limit. Please split your data into smaller files.`
+        });
+      }
+      
+      // Process configuration
+      const CHUNK_SIZE = 50; // Process in 50-row chunks for files over 50 rows
+      const PARALLEL_LIMIT = 10; // Process multiple chunks concurrently
+      const useChunking = rows.length > 50;
+      
+      console.log(`[UPLOAD] Data dimensions: ${rows.length} rows × ${headers.length} columns`);
+      
+      if (useChunking) {
+        const numChunks = Math.ceil(rows.length / CHUNK_SIZE);
+        console.log(`[UPLOAD] Processing ${rows.length} rows in ${numChunks} chunks of ${CHUNK_SIZE} rows each`);
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows in ${numChunks} chunks...`, 20);
       } else {
+        console.log(`[UPLOAD] Processing ${rows.length} rows in single batch (under threshold)`);
         uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows...`, 20);
       }
       
@@ -1829,17 +1834,17 @@ router.post(
         return sanitized;
       };
       
-      // Helper function to process a single batch
-      const processBatch = async (batchStart: number, batchEnd: number, batchRows: any[][]) => {
-        console.log(`[UPLOAD PARALLEL] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
+      // Helper function to process a single chunk
+      const processChunk = async (chunkStart: number, chunkEnd: number, chunkRows: any[][]) => {
+        console.log(`[UPLOAD] Processing chunk: rows ${chunkStart + 1} to ${chunkEnd}`);
         
         let spreadsheetText = `Headers: ${headers.join(", ")}\n\nData rows:\n`;
-        batchRows.forEach((row, index) => {
+        chunkRows.forEach((row, index) => {
           if (row.some((cell) => cell)) {
             const rowData = headers
               .map((header, i) => `${header}: ${row[i] || "N/A"}`)
               .join(", ");
-            spreadsheetText += `Row ${batchStart + index + 1}: ${rowData}\n`;
+            spreadsheetText += `Row ${chunkStart + index + 1}: ${rowData}\n`;
           }
         });
         
@@ -1909,49 +1914,57 @@ Return a JSON array of extracted entities with this structure:
             batchEntities = parsed.entities;
           }
           
-          console.log(`[UPLOAD PARALLEL] Batch ${batchStart}-${batchEnd} extracted ${batchEntities.length} entities`);
+          console.log(`[UPLOAD] Chunk ${chunkStart}-${chunkEnd} extracted ${batchEntities.length} entities`);
           return batchEntities;
         } catch (e) {
-          log(`Failed to process batch ${batchStart}-${batchEnd}: ${e}`, "error");
+          log(`Failed to process chunk ${chunkStart}-${chunkEnd}: ${e}`, "error");
           return [];
         }
       };
       
-      // Create all batch tasks (as functions, not promises)
-      const batchTasks = [];
-      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
-        const batchRows = rows.slice(batchStart, batchEnd);
+      // Create chunk tasks based on whether we're using chunking or not
+      const chunkTasks = [];
+      const chunkSize = useChunking ? CHUNK_SIZE : rows.length; // If not chunking, process all rows in one go
+      
+      for (let chunkStart = 0; chunkStart < rows.length; chunkStart += chunkSize) {
+        const chunkEnd = Math.min(chunkStart + chunkSize, rows.length);
+        const chunkRows = rows.slice(chunkStart, chunkEnd);
         // Store as function to defer execution
-        batchTasks.push(() => processBatch(batchStart, batchEnd, batchRows));
+        chunkTasks.push(() => processChunk(chunkStart, chunkEnd, chunkRows));
       }
       
-      // Process batches in parallel with PROPER concurrency limit
+      // Process chunks with concurrency control
       let allEntities = [];
-      const totalGroups = Math.ceil(batchTasks.length / PARALLEL_LIMIT);
+      const totalChunks = chunkTasks.length;
       
       // Update progress to extraction phase
-      uploadProgress.updateStatus(uploadId, 'extracting', 'Extracting entities from spreadsheet...', 30);
+      uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${totalChunks} chunk${totalChunks > 1 ? 's' : ''}...`, 30);
       
-      for (let i = 0; i < batchTasks.length; i += PARALLEL_LIMIT) {
-        const taskGroup = batchTasks.slice(i, i + PARALLEL_LIMIT);
-        const groupNum = Math.floor(i / PARALLEL_LIMIT) + 1;
-        console.log(`[UPLOAD] Processing group ${groupNum} of ${totalGroups} (${taskGroup.length} batches in parallel)`);
+      if (useChunking) {
+        // Process chunks sequentially or in controlled parallel groups
+        console.log(`[UPLOAD] Processing ${totalChunks} chunks of ${CHUNK_SIZE} rows each`);
         
-        // Execute the tasks NOW (not before) to enforce concurrency limit
-        const promises = taskGroup.map(task => task());
-        
-        const results = await Promise.all(promises);
-        results.forEach(entities => {
-          allEntities = allEntities.concat(entities);
-        });
-        
-        // Update progress based on groups processed (30% to 80%)
-        const extractionProgress = 30 + Math.round((groupNum / totalGroups) * 50);
-        const processedRows = Math.min(i + PARALLEL_LIMIT * BATCH_SIZE, rows.length);
-        uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
-        
-        console.log(`[UPLOAD] Group ${groupNum} completed. Total entities so far: ${allEntities.length}`);
+        for (let i = 0; i < chunkTasks.length; i++) {
+          const chunkNum = i + 1;
+          console.log(`[UPLOAD] Processing chunk ${chunkNum} of ${totalChunks}`);
+          
+          // Process single chunk
+          const chunkEntities = await chunkTasks[i]();
+          allEntities = allEntities.concat(chunkEntities);
+          
+          // Update progress (30% to 80% range)
+          const extractionProgress = 30 + Math.round((chunkNum / totalChunks) * 50);
+          const processedRows = Math.min(chunkNum * CHUNK_SIZE, rows.length);
+          uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
+          
+          console.log(`[UPLOAD] Chunk ${chunkNum} completed. Total entities so far: ${allEntities.length}`);
+        }
+      } else {
+        // Process single batch for small files
+        console.log(`[UPLOAD] Processing single batch (${rows.length} rows)`);
+        const entities = await chunkTasks[0]();
+        allEntities = entities;
+        uploadProgress.updateExtraction(uploadId, rows.length, rows.length, allEntities.length);
       }
       
       console.log(`[UPLOAD] Total entities extracted: ${allEntities.length}`);
