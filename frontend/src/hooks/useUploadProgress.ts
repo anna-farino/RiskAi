@@ -65,6 +65,9 @@ export function useUploadProgress(
 
         const data: UploadProgress = await response.json();
         setProgress(data);
+        
+        // Reset error counter on successful response
+        (window as any).__uploadErrorCount = 0;
 
         // Handle completion or failure
         if ((data.status === 'completed' || data.status === 'failed') && !completedRef.current) {
@@ -84,6 +87,25 @@ export function useUploadProgress(
       } catch (error) {
         console.error('Error checking upload progress:', error);
         // Don't stop polling on network errors - the upload might still be running
+        // But increment error count to detect persistent failures
+        if (!intervalRef.current) return; // Already stopped
+        
+        // If we've had multiple consecutive errors, notify the user
+        const errorCount = (window as any).__uploadErrorCount || 0;
+        (window as any).__uploadErrorCount = errorCount + 1;
+        
+        if (errorCount >= 3) {
+          // After 3 consecutive failures, notify user and stop polling
+          setIsPolling(false);
+          if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+          }
+          (window as any).__uploadErrorCount = 0; // Reset counter
+          if (onError) {
+            onError('Unable to check upload progress. Please try again.');
+          }
+        }
       }
     };
 

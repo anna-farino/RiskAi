@@ -1527,7 +1527,7 @@ router.post(
       // STRICT limits - optimized for large files
       const MAX_ROWS = 500;  // Reduced from 10000
       const MAX_SHEETS = 4;  // New limit on number of sheets
-      const MAX_COLUMNS = 300;  // Increased to handle large spreadsheets
+      const MAX_COLUMNS = 50;  // Lowered for security *Dont Change This*
       const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
       const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
 
@@ -2041,15 +2041,34 @@ Return a JSON array of extracted entities with this structure:
 
 // POST /api/tech-stack/import - Import selected entities to user's tech stack
 // GET endpoint to check upload progress
-router.get("/upload/:uploadId/progress", authenticateToken, async (req, res) => {
+router.get("/upload/:uploadId/progress", async (req: any, res) => {
+  // Check authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  
   const { uploadId } = req.params;
-  const progress = uploadProgress.getProgress(uploadId);
+  // Use getForUser to ensure users can only see their own uploads (security)
+  const progress = uploadProgress.getForUser(uploadId, userId);
   
   if (!progress) {
     return res.status(404).json({ error: "Upload not found" });
   }
   
-  res.json(progress);
+  // Transform the internal progress format to match frontend expectations
+  res.json({
+    uploadId: progress.id,
+    status: progress.status,
+    message: progress.message,
+    percentage: progress.progress, // Map 'progress' to 'percentage' for frontend
+    entityCount: progress.entitiesFound,
+    rowsProcessed: progress.processedRows,
+    totalRows: progress.totalRows,
+    importedCount: progress.entitiesFound,
+    error: progress.errors?.join(', '),
+    entities: progress.entities, // Include entities if available
+  });
 });
 
 router.post("/import", async (req: any, res) => {
