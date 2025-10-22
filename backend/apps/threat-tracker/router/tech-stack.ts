@@ -1782,11 +1782,30 @@ router.post(
       console.log("[UPLOAD] First data row:", rows[0]);
       console.log("[UPLOAD] Data rows count:", rows.length);
 
-      // Process in batches of 50 rows with PARALLEL processing
-      const BATCH_SIZE = 50;
-      const PARALLEL_LIMIT = 5; // Process 5 batches concurrently
+      // Check row limit - max 500 rows
+      if (rows.length > 500) {
+        console.log(`[UPLOAD ERROR] File exceeds 500 row limit (has ${rows.length} rows)`);
+        uploadProgress.updateStatus(uploadId, 'failed', `File too large: ${rows.length} rows exceeds 500 row limit`, 0);
+        return res.status(400).json({
+          error: `File too large: ${rows.length} rows exceeds the 500 row limit. Please split your data into smaller files.`
+        });
+      }
       
-      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
+      // Process configuration
+      const CHUNK_SIZE = 50; // Process in 50-row chunks for files over 50 rows
+      const PARALLEL_LIMIT = 10; // Process multiple chunks concurrently
+      const useChunking = rows.length > 50;
+      
+      console.log(`[UPLOAD] Data dimensions: ${rows.length} rows × ${headers.length} columns`);
+      
+      if (useChunking) {
+        const numChunks = Math.ceil(rows.length / CHUNK_SIZE);
+        console.log(`[UPLOAD] Processing ${rows.length} rows in ${numChunks} chunks of ${CHUNK_SIZE} rows each`);
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows in ${numChunks} chunks...`, 20);
+      } else {
+        console.log(`[UPLOAD] Processing ${rows.length} rows in single batch (under threshold)`);
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${rows.length} rows...`, 20);
+      }
       
       // Helper function to sanitize spreadsheet text for prompt injection protection
       const sanitizeForPrompt = (text: string): string => {
@@ -1815,17 +1834,17 @@ router.post(
         return sanitized;
       };
       
-      // Helper function to process a single batch
-      const processBatch = async (batchStart: number, batchEnd: number, batchRows: any[][]) => {
-        console.log(`[UPLOAD PARALLEL] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
+      // Helper function to process a single chunk
+      const processChunk = async (chunkStart: number, chunkEnd: number, chunkRows: any[][]) => {
+        console.log(`[UPLOAD] Processing chunk: rows ${chunkStart + 1} to ${chunkEnd}`);
         
         let spreadsheetText = `Headers: ${headers.join(", ")}\n\nData rows:\n`;
-        batchRows.forEach((row, index) => {
+        chunkRows.forEach((row, index) => {
           if (row.some((cell) => cell)) {
             const rowData = headers
               .map((header, i) => `${header}: ${row[i] || "N/A"}`)
               .join(", ");
-            spreadsheetText += `Row ${batchStart + index + 1}: ${rowData}\n`;
+            spreadsheetText += `Row ${chunkStart + index + 1}: ${rowData}\n`;
           }
         });
         
@@ -1895,49 +1914,76 @@ Return a JSON array of extracted entities with this structure:
             batchEntities = parsed.entities;
           }
           
-          console.log(`[UPLOAD PARALLEL] Batch ${batchStart}-${batchEnd} extracted ${batchEntities.length} entities`);
+          console.log(`[UPLOAD] Chunk ${chunkStart}-${chunkEnd} extracted ${batchEntities.length} entities`);
           return batchEntities;
         } catch (e) {
-          log(`Failed to process batch ${batchStart}-${batchEnd}: ${e}`, "error");
+          log(`Failed to process chunk ${chunkStart}-${chunkEnd}: ${e}`, "error");
           return [];
         }
       };
       
-      // Create all batch tasks (as functions, not promises)
-      const batchTasks = [];
-      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
-        const batchRows = rows.slice(batchStart, batchEnd);
+      // Create chunk tasks based on whether we're using chunking or not
+      const chunkTasks = [];
+      const chunkSize = useChunking ? CHUNK_SIZE : rows.length; // If not chunking, process all rows in one go
+      
+      for (let chunkStart = 0; chunkStart < rows.length; chunkStart += chunkSize) {
+        const chunkEnd = Math.min(chunkStart + chunkSize, rows.length);
+        const chunkRows = rows.slice(chunkStart, chunkEnd);
         // Store as function to defer execution
-        batchTasks.push(() => processBatch(batchStart, batchEnd, batchRows));
+        chunkTasks.push(() => processChunk(chunkStart, chunkEnd, chunkRows));
       }
       
-      // Process batches in parallel with PROPER concurrency limit
+      // Process chunks with concurrency control
       let allEntities = [];
-      const totalGroups = Math.ceil(batchTasks.length / PARALLEL_LIMIT);
+      const totalChunks = chunkTasks.length;
       
       // Update progress to extraction phase
-      uploadProgress.updateStatus(uploadId, 'extracting', 'Extracting entities from spreadsheet...', 30);
+      uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${totalChunks} chunk${totalChunks > 1 ? 's' : ''}...`, 30);
       
-      for (let i = 0; i < batchTasks.length; i += PARALLEL_LIMIT) {
-        const taskGroup = batchTasks.slice(i, i + PARALLEL_LIMIT);
-        const groupNum = Math.floor(i / PARALLEL_LIMIT) + 1;
-        console.log(`[UPLOAD] Processing group ${groupNum} of ${totalGroups} (${taskGroup.length} batches in parallel)`);
+      if (useChunking) {
+        // Process chunks in controlled parallel batches
+        console.log(`[UPLOAD] Processing ${totalChunks} chunks of ${CHUNK_SIZE} rows each (${PARALLEL_LIMIT} parallel)`);
         
-        // Execute the tasks NOW (not before) to enforce concurrency limit
-        const promises = taskGroup.map(task => task());
-        
-        const results = await Promise.all(promises);
-        results.forEach(entities => {
-          allEntities = allEntities.concat(entities);
-        });
-        
-        // Update progress based on groups processed (30% to 80%)
-        const extractionProgress = 30 + Math.round((groupNum / totalGroups) * 50);
-        const processedRows = Math.min(i + PARALLEL_LIMIT * BATCH_SIZE, rows.length);
-        uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
-        
-        console.log(`[UPLOAD] Group ${groupNum} completed. Total entities so far: ${allEntities.length}`);
+        // Process chunks in groups of PARALLEL_LIMIT
+        for (let batchStart = 0; batchStart < chunkTasks.length; batchStart += PARALLEL_LIMIT) {
+          const batchEnd = Math.min(batchStart + PARALLEL_LIMIT, chunkTasks.length);
+          const batchTasks = chunkTasks.slice(batchStart, batchEnd);
+          const batchNum = Math.floor(batchStart / PARALLEL_LIMIT) + 1;
+          const totalBatches = Math.ceil(chunkTasks.length / PARALLEL_LIMIT);
+          
+          console.log(`[UPLOAD] Processing batch ${batchNum} of ${totalBatches} (chunks ${batchStart + 1}-${batchEnd} of ${totalChunks})`);
+          
+          // Process all chunks in this batch in parallel
+          const batchPromises = batchTasks.map((task, index) => {
+            const chunkNum = batchStart + index + 1;
+            console.log(`[UPLOAD] Starting chunk ${chunkNum} of ${totalChunks}`);
+            return task().then(entities => {
+              console.log(`[UPLOAD] Chunk ${chunkNum} completed with ${entities.length} entities`);
+              return entities;
+            });
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          
+          // Combine results from this batch
+          batchResults.forEach(entities => {
+            allEntities = allEntities.concat(entities);
+          });
+          
+          // Update progress based on chunks completed
+          const completedChunks = Math.min(batchEnd, chunkTasks.length);
+          const extractionProgress = 30 + Math.round((completedChunks / totalChunks) * 50);
+          const processedRows = Math.min(completedChunks * CHUNK_SIZE, rows.length);
+          uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
+          
+          console.log(`[UPLOAD] Batch ${batchNum} completed. Total entities so far: ${allEntities.length}`);
+        }
+      } else {
+        // Process single batch for small files
+        console.log(`[UPLOAD] Processing single batch (${rows.length} rows)`);
+        const entities = await chunkTasks[0]();
+        allEntities = entities;
+        uploadProgress.updateExtraction(uploadId, rows.length, rows.length, allEntities.length);
       }
       
       console.log(`[UPLOAD] Total entities extracted: ${allEntities.length}`);
@@ -1945,13 +1991,13 @@ Return a JSON array of extracted entities with this structure:
 
       // Process entities through EntityManager to match with existing database
       const entityManager = new EntityManager();
-      const processedEntities = [];
       const detectedVendors = []; // Track vendors to add to processedEntities
       
       // Import relationship detection for CSV uploads
       const { detectCompanyProductRelationship } = await import('../../../services/openai');
-
-      for (const entity of entities) {
+      
+      // Helper function to process a single entity
+      const processEntity = async (entity: any) => {
         let matchedEntity = null;
         let isNew = true;
 
@@ -2045,8 +2091,8 @@ Return a JSON array of extracted entities with this structure:
             isNew = false;
           }
           
-          // Store vendor info with the processed entity
-          processedEntities.push({
+          // Return processed software entity
+          return {
             type: entity.type,
             name: finalSoftwareName,
             version: entity.version,
@@ -2056,9 +2102,17 @@ Return a JSON array of extracted entities with this structure:
             matchedId: matchedEntity?.id || null,
             vendorId: vendorId, // Include vendor ID for import phase (null if vendor is new)
             vendorName: detectedVendorName || entity.manufacturer, // Store vendor name for creation during import
-          });
-          
-          continue; // Skip the default push at the end
+            detectedVendors: finalRelationship.parentCompany && !detectedVendors.some(v => v.name === finalRelationship.parentCompany) 
+              ? [{
+                  type: 'vendor',
+                  name: finalRelationship.parentCompany,
+                  isNew: vendorId === null,
+                  matchedId: vendorId,
+                  autoDetected: true,
+                  sourceProduct: finalSoftwareName
+                }]
+              : []
+          };
         } else if (entity.type === "hardware") {
           // Check if hardware exists (don't create yet)
           const hardwareCheck = await entityManager.checkHardwareExists({
@@ -2084,8 +2138,8 @@ Return a JSON array of extracted entities with this structure:
           }
         }
 
-        // Default push for non-software entities (hardware, vendor, client)
-        processedEntities.push({
+        // Return default entity for non-software entities (hardware, vendor, client)
+        return {
           type: entity.type,
           name: entity.name,
           version: entity.version,
@@ -2093,11 +2147,56 @@ Return a JSON array of extracted entities with this structure:
           model: entity.model,
           isNew: isNew,
           matchedId: matchedEntity?.id || null,
-        });
+          detectedVendors: []
+        };
+      }; // End of processEntity function
+      
+      // Process entities in controlled batches of 25
+      const ENTITY_BATCH_SIZE = 25;
+      const processedEntities = [];
+      const allDetectedVendors = [];
+      
+      console.log(`[UPLOAD] Processing ${entities.length} entities in batches of ${ENTITY_BATCH_SIZE}`);
+      uploadProgress.updateStatus(uploadId, 'importing', `Matching ${entities.length} entities...`, 80);
+      
+      // Process entities in batches
+      for (let i = 0; i < entities.length; i += ENTITY_BATCH_SIZE) {
+        const batchEnd = Math.min(i + ENTITY_BATCH_SIZE, entities.length);
+        const batch = entities.slice(i, batchEnd);
+        const batchNum = Math.floor(i / ENTITY_BATCH_SIZE) + 1;
+        const totalBatches = Math.ceil(entities.length / ENTITY_BATCH_SIZE);
+        
+        console.log(`[UPLOAD] Processing entity batch ${batchNum} of ${totalBatches} (entities ${i + 1}-${batchEnd} of ${entities.length})`);
+        
+        // Process all entities in this batch in parallel
+        const batchResults = await Promise.all(
+          batch.map(entity => processEntity(entity))
+        );
+        
+        // Extract results and detected vendors
+        for (const result of batchResults) {
+          const { detectedVendors, ...processedEntity } = result;
+          processedEntities.push(processedEntity);
+          
+          // Collect detected vendors (avoiding duplicates)
+          if (detectedVendors && detectedVendors.length > 0) {
+            for (const vendor of detectedVendors) {
+              if (!allDetectedVendors.some(v => v.name === vendor.name)) {
+                allDetectedVendors.push(vendor);
+              }
+            }
+          }
+        }
+        
+        // Update progress
+        const matchingProgress = 80 + Math.round((batchEnd / entities.length) * 15);
+        uploadProgress.updateStatus(uploadId, 'importing', `Matched ${batchEnd} of ${entities.length} entities...`, matchingProgress);
+        
+        console.log(`[UPLOAD] Entity batch ${batchNum} completed. Total processed: ${processedEntities.length}`);
       }
       
-      // Add detected vendors to the processed entities list
-      processedEntities.push(...detectedVendors);
+      // Add all detected vendors to the processed entities list
+      processedEntities.push(...allDetectedVendors);
 
       // Log successful upload
       UploadSecurity.auditLog(

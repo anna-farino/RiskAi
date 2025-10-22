@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Trash2, Plus, Upload, FileSpreadsheet, Check, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Trash2, Plus, Upload, FileSpreadsheet, Check, X, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useFetch } from "@/hooks/use-fetch";
@@ -93,6 +93,15 @@ export default function TechStackPage() {
   const [hardwareSearch, setHardwareSearch] = useState("");
   const [vendorSearch, setVendorSearch] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+  
+  // Track newly added items during this session
+  const [newlyAddedItems, setNewlyAddedItems] = useState<Set<string>>(new Set());
+  
+  // Loading states for Add buttons
+  const [isAddingSoftware, setIsAddingSoftware] = useState(false);
+  const [isAddingHardware, setIsAddingHardware] = useState(false);
+  const [isAddingVendor, setIsAddingVendor] = useState(false);
+  const [isAddingClient, setIsAddingClient] = useState(false);
   
   // File upload state
   const [isDragging, setIsDragging] = useState(false);
@@ -185,21 +194,45 @@ export default function TechStackPage() {
 
   // Handle adding item with validation
   const handleAddItem = async (type: 'software' | 'hardware' | 'vendor' | 'client', name: string, version?: string, priority?: number) => {
-    // Validate entity type
-    const validation = await validateEntityType(name, type);
+    // Set loading state for the appropriate button
+    const setLoadingState = (loading: boolean) => {
+      switch (type) {
+        case 'software':
+          setIsAddingSoftware(loading);
+          break;
+        case 'hardware':
+          setIsAddingHardware(loading);
+          break;
+        case 'vendor':
+          setIsAddingVendor(loading);
+          break;
+        case 'client':
+          setIsAddingClient(loading);
+          break;
+      }
+    };
+
+    setLoadingState(true);
     
-    if (validation?.shouldSuggestCorrection) {
-      // Show routing dialog
-      setRoutingDialog({
-        open: true,
-        entity: { name, version, priority },
-        currentType: type,
-        suggestedType: validation.suggestedType,
-        message: validation.message
-      });
-    } else {
-      // Add directly
-      addItem.mutate({ type, name, version, priority });
+    try {
+      // Validate entity type
+      const validation = await validateEntityType(name, type);
+      
+      if (validation?.shouldSuggestCorrection) {
+        // Show routing dialog
+        setRoutingDialog({
+          open: true,
+          entity: { name, version, priority },
+          currentType: type,
+          suggestedType: validation.suggestedType,
+          message: validation.message
+        });
+      } else {
+        // Add directly
+        addItem.mutate({ type, name, version, priority });
+      }
+    } finally {
+      setLoadingState(false);
     }
   };
 
@@ -304,7 +337,11 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Track the newly added item
+      if (data?.id) {
+        setNewlyAddedItems(prev => new Set([...prev, data.id]));
+      }
       // Don't invalidate queries to preserve optimistic update
       // Toast removed - item added
     }
@@ -817,6 +854,11 @@ export default function TechStackPage() {
     const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     setCurrentUploadId(uploadId); // Start tracking progress immediately!
     
+    // Log file info for debugging
+    console.log(`[UPLOAD] File: ${file.name}, Size: ${(file.size / 1024).toFixed(2)}KB`);
+    // Note: We can't check row count until the backend parses the file
+    // The backend will handle row-based warnings and chunking
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -949,6 +991,48 @@ export default function TechStackPage() {
     } else {
       setSelectedEntities(new Set(extractedEntities.map((_, i) => i)));
     }
+  };
+
+  // Sorting function for software/hardware (by company first, then name)
+  const sortTechItems = (items: TechStackItem[] | undefined) => {
+    if (!items) return [];
+    
+    return [...items].sort((a, b) => {
+      // New items first
+      const aIsNew = newlyAddedItems.has(a.id);
+      const bIsNew = newlyAddedItems.has(b.id);
+      
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      
+      // Then sort by company (if available) + name
+      const aCompany = a.company || a.manufacturer || '';
+      const bCompany = b.company || b.manufacturer || '';
+      
+      // First compare by company
+      const companyCompare = aCompany.toLowerCase().localeCompare(bCompany.toLowerCase());
+      if (companyCompare !== 0) return companyCompare;
+      
+      // If companies are the same (or both empty), sort by name
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+  };
+
+  // Sorting function for vendors/clients (by name only)
+  const sortSimpleItems = (items: TechStackItem[] | undefined) => {
+    if (!items) return [];
+    
+    return [...items].sort((a, b) => {
+      // New items first
+      const aIsNew = newlyAddedItems.has(a.id);
+      const bIsNew = newlyAddedItems.has(b.id);
+      
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      
+      // Then sort alphabetically by name
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
   };
 
   return (
@@ -1182,9 +1266,11 @@ export default function TechStackPage() {
                       onValueChange={setSoftwareSearch}
                       onSelect={(option) => {
                         handleAddItem('software', option.name, undefined, 1);
+                        setSoftwareSearch("");
                       }}
                       fetchOptions={fetchSoftwareOptions}
                       className="flex-1"
+                      disabled={isAddingSoftware}
                     />
                     <Button 
                       onClick={() => {
@@ -1194,9 +1280,15 @@ export default function TechStackPage() {
                           setSoftwareSearch("");
                         }
                       }}
+                      disabled={isAddingSoftware}
                       data-testid="button-add-software"
                     >
-                      <Plus className="h-4 w-4 mr-1" /> Add
+                      {isAddingSoftware ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-1" />
+                      )}
+                      Add
                     </Button>
                   </div>
                   
@@ -1240,7 +1332,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.software?.map(item => (
+                  {sortTechItems(techStack?.software).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
@@ -1282,9 +1374,11 @@ export default function TechStackPage() {
                       onValueChange={setHardwareSearch}
                       onSelect={(option) => {
                         handleAddItem('hardware', option.name, undefined, 1);
+                        setHardwareSearch("");
                       }}
                       fetchOptions={fetchHardwareOptions}
                       className="flex-1"
+                      disabled={isAddingHardware}
                     />
                     <Button 
                       onClick={() => {
@@ -1294,9 +1388,15 @@ export default function TechStackPage() {
                           setHardwareSearch("");
                         }
                       }}
+                      disabled={isAddingHardware}
                       data-testid="button-add-hardware"
                     >
-                      <Plus className="h-4 w-4 mr-1" /> Add
+                      {isAddingHardware ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-1" />
+                      )}
+                      Add
                     </Button>
                   </div>
                   
@@ -1340,7 +1440,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.hardware?.map(item => (
+                  {sortTechItems(techStack?.hardware).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
@@ -1382,9 +1482,11 @@ export default function TechStackPage() {
                       onValueChange={setVendorSearch}
                       onSelect={(option) => {
                         handleAddItem('vendor', option.name, undefined, 1);
+                        setVendorSearch("");
                       }}
                       fetchOptions={fetchVendorOptions}
                       className="flex-1"
+                      disabled={isAddingVendor}
                     />
                     <Button 
                       onClick={() => {
@@ -1394,9 +1496,15 @@ export default function TechStackPage() {
                           setVendorSearch("");
                         }
                       }}
+                      disabled={isAddingVendor}
                       data-testid="button-add-vendor"
                     >
-                      <Plus className="h-4 w-4 mr-1" /> Add
+                      {isAddingVendor ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-1" />
+                      )}
+                      Add
                     </Button>
                   </div>
                   
@@ -1440,7 +1548,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.vendors?.map(item => (
+                  {sortSimpleItems(techStack?.vendors).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
@@ -1482,9 +1590,11 @@ export default function TechStackPage() {
                       onValueChange={setClientSearch}
                       onSelect={(option) => {
                         handleAddItem('client', option.name, undefined, 1);
+                        setClientSearch("");
                       }}
                       fetchOptions={fetchClientOptions}
                       className="flex-1"
+                      disabled={isAddingClient}
                     />
                     <Button 
                       onClick={() => {
@@ -1494,9 +1604,15 @@ export default function TechStackPage() {
                           setClientSearch("");
                         }
                       }}
+                      disabled={isAddingClient}
                       data-testid="button-add-client"
                     >
-                      <Plus className="h-4 w-4 mr-1" /> Add
+                      {isAddingClient ? (
+                        <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                      ) : (
+                        <Plus className="h-4 w-4 mr-1" />
+                      )}
+                      Add
                     </Button>
                   </div>
                   
@@ -1540,7 +1656,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.clients?.map(item => (
+                  {sortSimpleItems(techStack?.clients).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
