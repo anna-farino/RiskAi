@@ -414,7 +414,16 @@ export default function Keywords() {
     keywordsAreUpdating
 
   const onSubmit = form.handleSubmit((data) => {
-    addKeyword.mutate(data);
+    // Split by comma and process each keyword
+    const keywords = data.term
+      .split(',')
+      .map(term => term.trim())
+      .filter(term => term.length > 0);
+    
+    // Add each keyword individually
+    keywords.forEach(term => {
+      addKeyword.mutate({ term });
+    });
   });
 
   // Search functionality for the unified toolbar
@@ -533,13 +542,13 @@ export default function Keywords() {
                 <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
                   <div className="flex items-center gap-2 mb-3">
                     <Plus className="h-4 w-4 text-purple-400" />
-                    <span className="text-sm font-medium text-purple-400">Add New Keyword</span>
+                    <span className="text-sm font-medium text-purple-400">Add new single, bulk keywords</span>
                   </div>
                   <div className="flex gap-2">
                     <div className="relative flex-1">
                       <Tag className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
-                        placeholder="Enter keyword term..."
+                        placeholder="+ keyword(s), comma..."
                         {...form.register("term")}
                         className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500 focus:border-[#00FFFF] focus:ring-0 focus:ring-offset-0 focus:outline-none focus-visible:ring-0 focus-visible:ring-offset-0"
                       />

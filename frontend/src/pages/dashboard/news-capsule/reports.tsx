@@ -1173,7 +1173,7 @@ export default function Reports() {
                                   });
                                 }
                               }}
-                              className="w-full text-left text-sm text-blue-400 hover:text-blue-300 hover:underline transition-colors truncate block whitespace-nowrap overflow-hidden"
+                              className="w-full text-left text-xs font-normal bg-purple-500/20 hover:bg-purple-500/30 text-white hover:text-white border border-purple-500/40 px-2 py-2 rounded transition-colors truncate block whitespace-nowrap overflow-hidden"
                               title={`${index + 1}. ${article.title}`}
                             >
                               {index + 1}. {article.title}

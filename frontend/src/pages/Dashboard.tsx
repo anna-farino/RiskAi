@@ -553,37 +553,29 @@ export default function Dashboard() {
             delay={0.1}
             onClick={() => navigate("/dashboard/news/home")}
             footer={
-              <div className="mt-auto">
-                <div className="text-xs text-gray-400 mt-2 text-center">
-                  {newsLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Loading latest articles...
-                    </div>
-                  ) : newsError ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
-                      <span className="text-red-400">API connection failed</span>
-                      <button 
-                        onClick={() => refetchNews()} 
-                        className="text-cyan-400 hover:text-purple-400 transition-colors"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : newsArticles && newsArticles.length > 0 ? (
-                    <div className="w-full">
-                      <button 
-                        onClick={() => navigate('/dashboard/news/home')}
-                        className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
-                      >
-                        <span>Go To News Radar</span>
-                        <ArrowRight className="h-3 w-3 flex-shrink-0" />
-                      </button>
-                    </div>
-                  ) : null}
+              (newsLoading || newsError) ? (
+                <div className="mt-auto">
+                  <div className="text-xs text-gray-400 mt-3 text-center">
+                    {newsLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Loading latest articles...
+                      </div>
+                    ) : newsError ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                        <span className="text-red-400">API connection failed</span>
+                        <button 
+                          onClick={() => refetchNews()} 
+                          className="text-cyan-400 hover:text-purple-400 transition-colors"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              ) : null
             }
           >
             <div className="space-y-2 flex-1">
@@ -954,6 +946,21 @@ export default function Dashboard() {
                       );
                     })}
                   </div>
+
+                  {/* Quick Action Buttons */}
+                  <div className="flex flex-col gap-2 mt-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/dashboard/news/home');
+                      }}
+                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
+                    >
+                      <span>Go To News Radar</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  
                 </>
               ) : (
                 <div className="bg-black rounded-md p-4 border border-purple-500/30 text-center">
@@ -962,7 +969,7 @@ export default function Dashboard() {
                   <p className="text-xs text-gray-500 mb-3">Configure sources to start receiving updates</p>
                   <button 
                     onClick={() => navigate('/dashboard/news/sources')}
-                    className="text-xs font-medium px-4 py-2 rounded-md transition-all duration-300 bg-gradient-to-b from-slate-900/50 to-slate-800/40 backdrop-blur-sm border border-cyan-500/20 shadow-sm text-cyan-400 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10"
+                    className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-b from-slate-900/50 to-slate-800/40 backdrop-blur-sm border border-cyan-500/20 shadow-sm text-cyan-400 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10"
                   >
                     Configure Sources →
                   </button>
@@ -979,37 +986,29 @@ export default function Dashboard() {
             delay={0.2}
             onClick={() => navigate("/dashboard/threat/home")}
             footer={
-              <div className="mt-auto">
-                <div className="text-xs text-gray-400 mt-2 text-center">
-                  {threatLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Scanning for threats...
-                    </div>
-                  ) : threatError ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
-                      <span className="text-red-400">Threat API offline</span>
-                      <button 
-                        onClick={() => refetchThreats()} 
-                        className="text-cyan-400 hover:text-purple-400 transition-colors"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : threatArticles && threatArticles.length > 0 ? (
-                    <div className="w-full">
-                      <button 
-                        onClick={() => navigate('/dashboard/threat/home')}
-                        className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
-                      >
-                        <span>Go To Threat Tracker</span>
-                        <ArrowRight className="h-3 w-3 flex-shrink-0 text-[#00FFFF] border border-[#00FFFF]/40 rounded-sm p-0.5" />
-                      </button>
-                    </div>
-                  ) : null}
+              (threatLoading || threatError) ? (
+                <div className="mt-auto">
+                  <div className="text-xs text-gray-400 mt-3 text-center">
+                    {threatLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Scanning for threats...
+                      </div>
+                    ) : threatError ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                        <span className="text-red-400">Threat API offline</span>
+                        <button 
+                          onClick={() => refetchThreats()} 
+                          className="text-cyan-400 hover:text-purple-400 transition-colors"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              ) : null
             }
           >
             <div className="space-y-2 flex-1">
@@ -1426,6 +1425,21 @@ export default function Dashboard() {
                       );
                     })}
                   </div>
+
+                  {/* Quick Action Buttons */}
+                  <div className="flex flex-col gap-2 mt-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/dashboard/threat/home');
+                      }}
+                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
+                    >
+                      <span>Go To Threat Tracker</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  
                 </>
               ) : (
                 <div className="bg-black rounded-md p-4 border border-purple-500/30 text-center">
@@ -1435,14 +1449,14 @@ export default function Dashboard() {
                     <div className="flex gap-2 text-xs">
                       <button 
                         onClick={() => navigate('/dashboard/threat/sources')}
-                        className="text-xs font-medium px-4 py-2 rounded-md transition-all duration-300 bg-gradient-to-b from-slate-900/50 to-slate-800/40 backdrop-blur-sm border border-cyan-500/20 shadow-sm text-cyan-400 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10"
+                        className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-b from-slate-900/50 to-slate-800/40 backdrop-blur-sm border border-cyan-500/20 shadow-sm text-cyan-400 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10"
                       >
                         Add Sources →
                       </button>
                       <span className="text-gray-600">|</span>
                       <button 
                         onClick={() => navigate('/dashboard/threat/keywords')}
-                        className="text-xs font-medium px-4 py-2 rounded-md transition-all duration-300 bg-gradient-to-b from-slate-900/50 to-slate-800/40 backdrop-blur-sm border border-cyan-500/20 shadow-sm text-cyan-400 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10"
+                        className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-b from-slate-900/50 to-slate-800/40 backdrop-blur-sm border border-cyan-500/20 shadow-sm text-cyan-400 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-cyan-500/30 hover:shadow-lg hover:shadow-cyan-500/10"
                       >
                         Set Keywords →
                       </button>
@@ -1463,40 +1477,29 @@ export default function Dashboard() {
             delay={0.4}
             onClick={() => navigate("/dashboard/news-capsule/home")}
             footer={
-              <div className="mt-auto">
-                <div className="text-xs text-gray-400 mt-2 text-center">
-                  {capsuleLoading ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Loading reports...
-                    </div>
-                  ) : capsuleError ? (
-                    <div className="flex items-center justify-center gap-2">
-                      <AlertTriangle className="w-3 h-3 text-red-400" />
-                      <span className="text-red-400">Reports API offline</span>
-                      <button 
-                        onClick={() => refetchCapsule()} 
-                        className="text-orange-400 hover:text-orange-300 transition-colors"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="w-full">
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigate('/dashboard/news-capsule/home');
-                        }}
-                        className="w-full text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-between"
-                      >
-                        <span>Go To Report Center</span>
-                        <ArrowRight className="h-3 w-3 flex-shrink-0" />
-                      </button>
-                    </div>
-                  )}
+              (capsuleLoading || capsuleError) ? (
+                <div className="mt-auto">
+                  <div className="text-xs text-gray-400 mt-3 text-center">
+                    {capsuleLoading ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                        Loading reports...
+                      </div>
+                    ) : capsuleError ? (
+                      <div className="flex items-center justify-center gap-2">
+                        <AlertTriangle className="w-3 h-3 text-red-400" />
+                        <span className="text-red-400">Reports API offline</span>
+                        <button 
+                          onClick={() => refetchCapsule()} 
+                          className="text-orange-400 hover:text-orange-300 transition-colors"
+                        >
+                          Retry
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              </div>
+              ) : null
             }
           >
             <div className="space-y-2 flex-1">
@@ -1638,17 +1641,6 @@ export default function Dashboard() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        navigate('/dashboard/news-capsule/research');
-                      }}
-                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
-                    >
-                      <Radar className="w-3.5 h-3.5" />
-                      <span>Create New Report</span>
-                    </button>
-                    
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
                         navigate('/dashboard/news-capsule/home');
                       }}
                       className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
@@ -1660,15 +1652,12 @@ export default function Dashboard() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (capsuleReports && capsuleReports.length > 0) {
-                          navigate(`/dashboard/news-capsule/reports/${capsuleReports[0].id}`);
-                        }
+                        navigate('/dashboard/news-capsule/research');
                       }}
-                      disabled={!capsuleReports || capsuleReports.length === 0}
-                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:from-purple-500/20 disabled:hover:to-purple-600/20 disabled:hover:border-purple-500/40"
+                      className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-[#00FFFF] hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-[#00FFFF] hover:shadow-lg hover:shadow-purple-500/20 flex items-center justify-center gap-2"
                     >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>View Latest Report</span>
+                      <span>Go To Report Center</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                   
@@ -1683,7 +1672,7 @@ export default function Dashboard() {
                       e.stopPropagation();
                       navigate('/dashboard/news-capsule/home');
                     }}
-                    className="text-xs font-medium px-3 py-1.5 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-purple-300 hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-purple-200 hover:shadow-lg hover:shadow-purple-500/20"
+                    className="text-xs font-medium px-3 py-3 rounded-md transition-all duration-300 bg-gradient-to-r from-purple-500/20 to-purple-600/20 backdrop-blur-sm border border-purple-500/40 shadow-sm text-purple-300 hover:from-purple-500/30 hover:to-purple-600/30 hover:border-purple-400/60 hover:text-purple-200 hover:shadow-lg hover:shadow-purple-500/20"
                   >
                     Process Articles →
                   </button>

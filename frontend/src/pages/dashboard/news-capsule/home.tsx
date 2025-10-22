@@ -728,7 +728,7 @@ export default function Home() {
                           }
                           
                           if (items.length < 4 && cveCount > 0) {
-                            items.push({ text: `${cveCount} CVE vulnerability${cveCount > 1 ? 'ies' : 'y'} identified`, type: 'fallback' });
+                            items.push({ text: `${cveCount} CVE ${cveCount > 1 ? 'vulnerabilities' : 'vulnerability'} identified`, type: 'fallback' });
                           }
                           
                           if (items.length < 4) {
