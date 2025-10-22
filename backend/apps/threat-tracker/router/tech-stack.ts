@@ -1853,15 +1853,21 @@ router.post(
         const extractionPrompt = `Extract technology entities from this spreadsheet data. The spreadsheet may contain various formats and column names.
 
 Identify and extract:
-1. Software products (applications, platforms, tools, etc.)
-2. Hardware devices (servers, routers, computers, etc.)
+1. Software products (applications, platforms, cloud services, SaaS tools, operating systems, databases, etc.)
+2. Hardware devices (servers, routers, switches, firewalls, storage arrays, SAN/NAS devices, tape libraries, backup appliances, computers, laptops, etc.)
 3. Vendor companies (technology vendors, suppliers)
 4. Client companies (customers, partners)
+
+CRITICAL CLASSIFICATION RULES:
+- Storage products (e.g., HPE Nimble Storage, Dell PowerStore, NetApp FAS, EMC Unity) are HARDWARE
+- Products with "Storage", "Array", "SAN", "NAS" in the name are typically HARDWARE unless explicitly described as software/application/service
+- Physical appliances and data center equipment are HARDWARE
+- Virtual appliances, cloud services, and downloadable applications are SOFTWARE
 
 For each entity, determine:
 - Type: software, hardware, vendor, or client
 - Name: The specific product/company name
-- Version: Software version if available
+- Version: Software version if available (e.g., v6.1, 2023, Enterprise)
 - Manufacturer/Company: For hardware or software
 - Model: For hardware devices
 
