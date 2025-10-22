@@ -1782,11 +1782,17 @@ router.post(
       console.log("[UPLOAD] First data row:", rows[0]);
       console.log("[UPLOAD] Data rows count:", rows.length);
 
-      // Process in batches of 50 rows with PARALLEL processing
-      const BATCH_SIZE = 50;
+      // Process in smaller batches for faster processing
+      const BATCH_SIZE = 20; // Smaller batches = faster individual processing
       const PARALLEL_LIMIT = 10; // Process 10 batches concurrently for better performance
       
       console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
+      
+      // Early warning for large files
+      if (rows.length > 250) {
+        console.log(`[UPLOAD WARNING] Large file with ${rows.length} rows may approach timeout limit`);
+        uploadProgress.updateStatus(uploadId, 'extracting', `Processing large file (${rows.length} rows)...`, 20);
+      }
       
       // Helper function to sanitize spreadsheet text for prompt injection protection
       const sanitizeForPrompt = (text: string): string => {
