@@ -2009,9 +2009,16 @@ Return a JSON array of extracted entities with this structure:
         `Extracted ${processedEntities.length} entities`,
       );
 
+      // Store entities with the upload for later retrieval
+      uploadProgress.setEntities(uploadId, processedEntities);
+      
+      // Mark upload as complete
+      uploadProgress.complete(uploadId, processedEntities.length);
+      
       res.json({
         success: true,
         entities: processedEntities,
+        uploadId: uploadId, // Include uploadId for progress tracking
       });
     } catch (error: any) {
       log(
@@ -2052,14 +2059,16 @@ router.post("/import", async (req: any, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { entities } = req.body;
+    const { entities, uploadId } = req.body;
 
     if (!entities || !Array.isArray(entities)) {
       return res.status(400).json({ error: "Invalid entities data" });
     }
 
-    // Update progress to importing phase
-    uploadProgress.updateStatus(uploadId, 'importing', 'Importing entities to tech stack...', 85);
+    // Update progress to importing phase if we have an uploadId
+    if (uploadId) {
+      uploadProgress.updateStatus(uploadId, 'importing', 'Importing entities to tech stack...', 85);
+    }
     
     const entityManager = new EntityManager();
     let imported = 0;

@@ -14,6 +14,7 @@ interface UploadProgress {
   errors?: string[];
   createdAt: number;
   updatedAt: number;
+  entities?: any[]; // Store extracted entities
 }
 
 // In-memory store with auto-cleanup after 1 hour
@@ -79,6 +80,14 @@ class UploadProgressTracker {
       processedRows,
       totalRows,
       entitiesFound,
+    });
+  }
+  
+  // Store entities with the upload
+  setEntities(id: string, entities: any[]): UploadProgress | null {
+    return this.update(id, {
+      entities,
+      entitiesFound: entities.length,
     });
   }
   

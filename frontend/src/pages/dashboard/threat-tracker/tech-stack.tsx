@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useFetch } from "@/hooks/use-fetch";
 import { Autocomplete } from "@/components/ui/autocomplete";
+import { Progress } from "@/components/ui/progress";
+import { useUploadProgress } from "@/hooks/useUploadProgress";
 import {
   Tooltip,
   TooltipContent,
@@ -88,6 +90,38 @@ export default function TechStackPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [extractedEntities, setExtractedEntities] = useState<ExtractedEntity[]>([]);
   const [selectedEntities, setSelectedEntities] = useState<Set<number>>(new Set());
+  const [currentUploadId, setCurrentUploadId] = useState<string | null>(null);
+  
+  // Use the upload progress hook
+  const { progress } = useUploadProgress(currentUploadId, {
+    onComplete: async (progressData) => {
+      // Handle upload completion - fetch the entities from the response
+      // The backend stores the entities in the upload response
+      // We need to get them from the original upload response
+      // For now, since we can't get them from progress, we'll need to refetch
+      setIsUploading(false);
+      setCurrentUploadId(null);
+      
+      if (progressData.entityCount && progressData.entityCount > 0) {
+        toast({
+          title: "Upload complete",
+          description: `Extracted ${progressData.entityCount} entities from spreadsheet. Ready for review.`
+        });
+      }
+    },
+    onError: (error) => {
+      setIsUploading(false);
+      setCurrentUploadId(null);
+      toast({
+        title: "Upload failed",
+        description: error,
+        variant: "destructive"
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  });
 
   // Autocomplete fetch functions
   const fetchSoftwareOptions = async (query: string) => {
@@ -717,6 +751,7 @@ export default function TechStackPage() {
 
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
+    setCurrentUploadId(null); // Reset any previous upload
     
     try {
       const formData = new FormData();
@@ -766,21 +801,32 @@ export default function TechStackPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to process file');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process file');
       }
       
       const data = await response.json();
-      setExtractedEntities(data.entities);
-      setSelectedEntities(new Set(data.entities.map((_: ExtractedEntity, i: number) => i)));
-      setShowPreview(true);
+      
+      // If we got an uploadId, start tracking the progress
+      if (data.uploadId) {
+        setCurrentUploadId(data.uploadId);
+        // The progress hook will handle the rest
+        // We'll show entities once the upload completes
+      } else {
+        // Fallback for old behavior if no uploadId (shouldn't happen)
+        setExtractedEntities(data.entities || []);
+        setSelectedEntities(new Set((data.entities || []).map((_: ExtractedEntity, i: number) => i)));
+        setShowPreview(true);
+        setIsUploading(false);
+      }
     } catch (error) {
+      setIsUploading(false);
+      setCurrentUploadId(null);
       toast({
         title: "Upload failed",
-        description: "Failed to process the spreadsheet. Please check the format and try again.",
+        description: error instanceof Error ? error.message : "Failed to process the spreadsheet. Please check the format and try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -883,6 +929,38 @@ export default function TechStackPage() {
           </Button>
         </div>
       </div>
+
+      {/* Upload Progress */}
+      {progress && (
+        <Card className="mb-4">
+          <CardContent className="pt-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {progress.status === 'validating' && '🔍 Validating file...'}
+                    {progress.status === 'parsing' && '📄 Parsing spreadsheet...'}
+                    {progress.status === 'extracting' && '⚙️ Extracting entities with AI...'}
+                    {progress.status === 'importing' && '📥 Importing to tech stack...'}
+                    {progress.status === 'completed' && '✅ Upload complete!'}
+                    {progress.status === 'failed' && '❌ Upload failed'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {progress.message}
+                  </p>
+                  {progress.rowsProcessed && progress.totalRows && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Processing row {progress.rowsProcessed} of {progress.totalRows} • {progress.entityCount || 0} entities found
+                    </p>
+                  )}
+                </div>
+                <span className="text-sm font-medium">{progress.percentage}%</span>
+              </div>
+              <Progress value={progress.percentage} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Drag and Drop Zone */}
       <Card
