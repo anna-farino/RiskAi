@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect } from "react";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AutocompleteOption {
@@ -128,12 +126,7 @@ export function Autocomplete({
     <div className={cn("relative", className)}>
       <Popover 
         open={open} 
-        onOpenChange={(newOpen) => {
-          // Only allow closing, not opening manually (only open when typing)
-          if (!newOpen) {
-            setOpen(false);
-          }
-        }}
+        onOpenChange={setOpen}
         modal={false}
       >
         <PopoverTrigger asChild>
@@ -166,28 +159,26 @@ export function Autocomplete({
             e.preventDefault();
           }}
         >
-          <Command shouldFilter={false}>
-            <CommandList>
-              {options.length === 0 && !loading && (
-                <CommandEmpty>No matching items found</CommandEmpty>
-              )}
-              {options.length > 0 && (
-                <CommandGroup>
-                  {options.map((option) => (
-                    <CommandItem
-                      key={option.id}
-                      value={option.id}
-                      onSelect={() => handleSelect(option)}
-                      onClick={() => handleSelect(option)}
-                      className="cursor-pointer"
-                    >
-                      {formatOptionLabel(option)}
-                    </CommandItem>
-                  ))}
-                </CommandGroup>
-              )}
-            </CommandList>
-          </Command>
+          <div className="max-h-[300px] overflow-y-auto overflow-x-hidden">
+            {options.length === 0 && !loading && (
+              <div className="py-6 text-center text-sm">No matching items found</div>
+            )}
+            {options.length > 0 && (
+              <div className="p-1">
+                {options.map((option) => (
+                  <div
+                    key={option.id}
+                    onClick={() => handleSelect(option)}
+                    className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                    role="option"
+                    aria-selected={false}
+                  >
+                    {formatOptionLabel(option)}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </PopoverContent>
       </Popover>
     </div>
