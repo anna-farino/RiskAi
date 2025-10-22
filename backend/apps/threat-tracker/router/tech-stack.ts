@@ -1941,23 +1941,42 @@ Return a JSON array of extracted entities with this structure:
       uploadProgress.updateStatus(uploadId, 'extracting', `Processing ${totalChunks} chunk${totalChunks > 1 ? 's' : ''}...`, 30);
       
       if (useChunking) {
-        // Process chunks sequentially or in controlled parallel groups
-        console.log(`[UPLOAD] Processing ${totalChunks} chunks of ${CHUNK_SIZE} rows each`);
+        // Process chunks in controlled parallel batches
+        console.log(`[UPLOAD] Processing ${totalChunks} chunks of ${CHUNK_SIZE} rows each (${PARALLEL_LIMIT} parallel)`);
         
-        for (let i = 0; i < chunkTasks.length; i++) {
-          const chunkNum = i + 1;
-          console.log(`[UPLOAD] Processing chunk ${chunkNum} of ${totalChunks}`);
+        // Process chunks in groups of PARALLEL_LIMIT
+        for (let batchStart = 0; batchStart < chunkTasks.length; batchStart += PARALLEL_LIMIT) {
+          const batchEnd = Math.min(batchStart + PARALLEL_LIMIT, chunkTasks.length);
+          const batchTasks = chunkTasks.slice(batchStart, batchEnd);
+          const batchNum = Math.floor(batchStart / PARALLEL_LIMIT) + 1;
+          const totalBatches = Math.ceil(chunkTasks.length / PARALLEL_LIMIT);
           
-          // Process single chunk
-          const chunkEntities = await chunkTasks[i]();
-          allEntities = allEntities.concat(chunkEntities);
+          console.log(`[UPLOAD] Processing batch ${batchNum} of ${totalBatches} (chunks ${batchStart + 1}-${batchEnd} of ${totalChunks})`);
           
-          // Update progress (30% to 80% range)
-          const extractionProgress = 30 + Math.round((chunkNum / totalChunks) * 50);
-          const processedRows = Math.min(chunkNum * CHUNK_SIZE, rows.length);
+          // Process all chunks in this batch in parallel
+          const batchPromises = batchTasks.map((task, index) => {
+            const chunkNum = batchStart + index + 1;
+            console.log(`[UPLOAD] Starting chunk ${chunkNum} of ${totalChunks}`);
+            return task().then(entities => {
+              console.log(`[UPLOAD] Chunk ${chunkNum} completed with ${entities.length} entities`);
+              return entities;
+            });
+          });
+          
+          const batchResults = await Promise.all(batchPromises);
+          
+          // Combine results from this batch
+          batchResults.forEach(entities => {
+            allEntities = allEntities.concat(entities);
+          });
+          
+          // Update progress based on chunks completed
+          const completedChunks = Math.min(batchEnd, chunkTasks.length);
+          const extractionProgress = 30 + Math.round((completedChunks / totalChunks) * 50);
+          const processedRows = Math.min(completedChunks * CHUNK_SIZE, rows.length);
           uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
           
-          console.log(`[UPLOAD] Chunk ${chunkNum} completed. Total entities so far: ${allEntities.length}`);
+          console.log(`[UPLOAD] Batch ${batchNum} completed. Total entities so far: ${allEntities.length}`);
         }
       } else {
         // Process single batch for small files
