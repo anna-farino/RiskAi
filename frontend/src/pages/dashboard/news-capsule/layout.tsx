@@ -7,16 +7,16 @@ import { Shield, AlertTriangle } from "lucide-react";
 
 const buttons = [
   {
-    label: 'Executive Reports',
-    url: '/dashboard/news-capsule/home'
-  },
-  {
-    label: 'Article Library',
+    label: 'Processed Articles',
     url: '/dashboard/news-capsule/research'
   },
   {
     label: 'Current Report',
     url: '/dashboard/news-capsule/reports'
+  },
+  {
+    label: 'Reports Library',
+    url: '/dashboard/news-capsule/home'
   },
 ]
 
