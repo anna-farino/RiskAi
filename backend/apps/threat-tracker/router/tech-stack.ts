@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
 import * as XLSX from "xlsx";
 import { db } from "../../../db/db";
 import {
@@ -24,6 +25,7 @@ import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
 import { extractArticleEntities, openai } from "../../../services/openai";
 import { UploadSecurity } from "../../../services/upload-security";
+import { uploadProgress } from "../../../services/upload-progress";
 import { doubleCsrfProtection } from "../../../middleware/csrf";
 
 const router = Router();
@@ -1448,6 +1450,9 @@ router.post(
     console.log("[UPLOAD] Request received, userId:", userId);
     console.log("[UPLOAD] File:", req.file);
 
+    // Generate unique upload ID for progress tracking
+    const uploadId = uuidv4();
+    
     try {
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
@@ -1475,6 +1480,10 @@ router.post(
       const uploadedFile = req.file;
       filename = uploadedFile.originalname;
       fileHash = UploadSecurity.generateFileHash(uploadedFile.buffer);
+      
+      // Initialize progress tracking
+      uploadProgress.create(uploadId, userId, filename);
+      uploadProgress.updateStatus(uploadId, 'validating', 'Validating file...', 10);
 
       // Verify file type using magic bytes
       if (!UploadSecurity.verifyFileType(uploadedFile.buffer, filename)) {
@@ -1511,6 +1520,9 @@ router.post(
 
       // Parse the spreadsheet with STRICT security limits
       let data: any[][] = [];
+      
+      // Update progress to parsing phase
+      uploadProgress.updateStatus(uploadId, 'parsing', 'Parsing spreadsheet...', 20);
       
       // STRICT limits - optimized for large files
       const MAX_ROWS = 500;  // Reduced from 10000
@@ -1805,6 +1817,9 @@ Return a JSON array of extracted entities with this structure:
       let allEntities = [];
       const totalGroups = Math.ceil(batchTasks.length / PARALLEL_LIMIT);
       
+      // Update progress to extraction phase
+      uploadProgress.updateStatus(uploadId, 'extracting', 'Extracting entities from spreadsheet...', 30);
+      
       for (let i = 0; i < batchTasks.length; i += PARALLEL_LIMIT) {
         const taskGroup = batchTasks.slice(i, i + PARALLEL_LIMIT);
         const groupNum = Math.floor(i / PARALLEL_LIMIT) + 1;
@@ -1817,6 +1832,11 @@ Return a JSON array of extracted entities with this structure:
         results.forEach(entities => {
           allEntities = allEntities.concat(entities);
         });
+        
+        // Update progress based on groups processed (30% to 80%)
+        const extractionProgress = 30 + Math.round((groupNum / totalGroups) * 50);
+        const processedRows = Math.min(i + PARALLEL_LIMIT * BATCH_SIZE, rows.length);
+        uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
         
         console.log(`[UPLOAD] Group ${groupNum} completed. Total entities so far: ${allEntities.length}`);
       }
@@ -2026,6 +2046,9 @@ router.post("/import", async (req: any, res) => {
       return res.status(400).json({ error: "Invalid entities data" });
     }
 
+    // Update progress to importing phase
+    uploadProgress.updateStatus(uploadId, 'importing', 'Importing entities to tech stack...', 85);
+    
     const entityManager = new EntityManager();
     let imported = 0;
 
@@ -2158,14 +2181,22 @@ router.post("/import", async (req: any, res) => {
       }
     }
 
+    // Mark upload as complete
+    uploadProgress.complete(uploadId, imported);
+    
     res.json({
       success: true,
       imported,
       message: `Successfully imported ${imported} items to your tech stack`,
+      uploadId, // Include uploadId for progress tracking
     });
   } catch (error: any) {
     log(`Error importing entities: ${error.message || error}`, "error");
-    res.status(500).json({ error: "Failed to import entities" });
+    // Mark upload as failed
+    if (uploadId) {
+      uploadProgress.fail(uploadId, error.message || 'Unknown error');
+    }
+    res.status(500).json({ error: "Failed to import entities", uploadId });
   }
 });
 
