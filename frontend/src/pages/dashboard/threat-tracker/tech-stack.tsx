@@ -30,6 +30,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Type definitions
 interface TechStackItem {
@@ -92,6 +102,18 @@ export default function TechStackPage() {
   const [selectedEntities, setSelectedEntities] = useState<Set<number>>(new Set());
   const [currentUploadId, setCurrentUploadId] = useState<string | null>(null);
   
+  // Entity routing dialog state
+  const [routingDialog, setRoutingDialog] = useState<{
+    open: boolean;
+    entity: { name: string; version?: string; priority?: number } | null;
+    currentType: 'software' | 'hardware' | 'vendor' | 'client' | null;
+    suggestedType: 'software' | 'hardware' | 'vendor' | 'client' | null;
+    message: string;
+  }>({ open: false, entity: null, currentType: null, suggestedType: null, message: '' });
+  
+  // Simple in-memory cache for validation results
+  const validationCache = useRef<Map<string, { suggestedType: string; timestamp: number }>>(new Map());
+  
   // Use the upload progress hook
   const { progress } = useUploadProgress(currentUploadId, {
     onComplete: async (progressData) => {
@@ -125,6 +147,61 @@ export default function TechStackPage() {
       }
     }
   });
+
+  // Validate entity type with AI
+  const validateEntityType = async (name: string, currentType: string) => {
+    // Check cache first (cache for 5 minutes)
+    const cacheKey = `${name}-${currentType}`;
+    const cached = validationCache.current.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+      return { suggestedType: cached.suggestedType, shouldSuggestCorrection: cached.suggestedType !== currentType };
+    }
+    
+    try {
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/validate-entity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, currentType })
+      });
+      
+      if (!response.ok) return null;
+      
+      const result = await response.json();
+      
+      // Cache the result
+      if (result.suggestedType) {
+        validationCache.current.set(cacheKey, {
+          suggestedType: result.suggestedType,
+          timestamp: Date.now()
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error validating entity type:', error);
+      return null;
+    }
+  };
+
+  // Handle adding item with validation
+  const handleAddItem = async (type: 'software' | 'hardware' | 'vendor' | 'client', name: string, version?: string, priority?: number) => {
+    // Validate entity type
+    const validation = await validateEntityType(name, type);
+    
+    if (validation?.shouldSuggestCorrection) {
+      // Show routing dialog
+      setRoutingDialog({
+        open: true,
+        entity: { name, version, priority },
+        currentType: type,
+        suggestedType: validation.suggestedType,
+        message: validation.message
+      });
+    } else {
+      // Add directly
+      addItem.mutate({ type, name, version, priority });
+    }
+  };
 
   // Autocomplete fetch functions
   const fetchSoftwareOptions = async (query: string) => {
@@ -1104,12 +1181,7 @@ export default function TechStackPage() {
                       value={softwareSearch}
                       onValueChange={setSoftwareSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'software', 
-                          name: option.name,
-                          // Use the existing entity ID for linking
-                          priority: 1
-                        });
+                        handleAddItem('software', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchSoftwareOptions}
                       className="flex-1"
@@ -1118,10 +1190,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (softwareSearch.trim()) {
                           // Allow manual entry for software not in database
-                          addItem.mutate({ 
-                            type: 'software', 
-                            name: softwareSearch.trim() 
-                          });
+                          handleAddItem('software', softwareSearch.trim());
                           setSoftwareSearch("");
                         }
                       }}
@@ -1212,11 +1281,7 @@ export default function TechStackPage() {
                       value={hardwareSearch}
                       onValueChange={setHardwareSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'hardware', 
-                          name: option.name,
-                          priority: 1
-                        });
+                        handleAddItem('hardware', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchHardwareOptions}
                       className="flex-1"
@@ -1225,10 +1290,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (hardwareSearch.trim()) {
                           // Allow manual entry for hardware not in database
-                          addItem.mutate({ 
-                            type: 'hardware', 
-                            name: hardwareSearch.trim() 
-                          });
+                          handleAddItem('hardware', hardwareSearch.trim());
                           setHardwareSearch("");
                         }
                       }}
@@ -1319,11 +1381,7 @@ export default function TechStackPage() {
                       value={vendorSearch}
                       onValueChange={setVendorSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'vendor', 
-                          name: option.name,
-                          priority: 1
-                        });
+                        handleAddItem('vendor', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchVendorOptions}
                       className="flex-1"
@@ -1332,10 +1390,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (vendorSearch.trim()) {
                           // Allow manual entry for vendors not in database
-                          addItem.mutate({ 
-                            type: 'vendor', 
-                            name: vendorSearch.trim() 
-                          });
+                          handleAddItem('vendor', vendorSearch.trim());
                           setVendorSearch("");
                         }
                       }}
@@ -1426,11 +1481,7 @@ export default function TechStackPage() {
                       value={clientSearch}
                       onValueChange={setClientSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'client', 
-                          name: option.name,
-                          priority: 1
-                        });
+                        handleAddItem('client', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchClientOptions}
                       className="flex-1"
@@ -1439,10 +1490,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (clientSearch.trim()) {
                           // Allow manual entry for clients not in database
-                          addItem.mutate({ 
-                            type: 'client', 
-                            name: clientSearch.trim() 
-                          });
+                          handleAddItem('client', clientSearch.trim());
                           setClientSearch("");
                         }
                       }}
@@ -1510,6 +1558,46 @@ export default function TechStackPage() {
           </Collapsible>
         </CardContent>
       </Card>
+
+      {/* Entity Routing Suggestion Dialog */}
+      <AlertDialog open={routingDialog.open} onOpenChange={(open) => !open && setRoutingDialog(prev => ({ ...prev, open: false }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Suggested Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              {routingDialog.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              // Add to the originally selected category
+              if (routingDialog.entity && routingDialog.currentType) {
+                addItem.mutate({ 
+                  type: routingDialog.currentType, 
+                  name: routingDialog.entity.name, 
+                  version: routingDialog.entity.version,
+                  priority: routingDialog.entity.priority
+                });
+              }
+            }}>
+              Keep as {routingDialog.currentType}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              // Add to the suggested category
+              if (routingDialog.entity && routingDialog.suggestedType) {
+                addItem.mutate({ 
+                  type: routingDialog.suggestedType, 
+                  name: routingDialog.entity.name, 
+                  version: routingDialog.entity.version,
+                  priority: routingDialog.entity.priority
+                });
+              }
+            }}>
+              Move to {routingDialog.suggestedType}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
