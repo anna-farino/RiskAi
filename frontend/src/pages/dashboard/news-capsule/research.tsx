@@ -94,7 +94,7 @@ export default function Research() {
   const [showUrlDropdown, setShowUrlDropdown] = useState(false);
   const [bulkMode, setBulkMode] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
-  const [articlesPerPage] = useState(5);
+  const [articlesPerPage] = useState(6);
   const [reportTopic, setReportTopic] = useState("");
   
   // Filter and sort state
@@ -480,8 +480,8 @@ export default function Research() {
   const selectForReport = (article: CapsuleArticle) => {
     // Use functional update to avoid race conditions when clicking multiple articles quickly
     setSelectedArticles(prev => {
-      // Check if article with same title already exists
-      const alreadySelected = prev.some(selected => selected.title === article.title);
+      // Check if article with same id already exists
+      const alreadySelected = prev.some(selected => selected.id === article.id);
       
       if (alreadySelected) {
         console.log("Article already selected:", article.title);
@@ -644,7 +644,7 @@ export default function Research() {
     const visibleArticles = filteredAndSortedArticles.slice(startIdx, endIdx);
     
     visibleArticles.forEach(article => {
-      if (!selectedArticles.some(selected => selected.title === article.title)) {
+      if (!selectedArticles.some(selected => selected.id === article.id)) {
         selectForReport(article);
       }
     });
@@ -653,6 +653,71 @@ export default function Research() {
   const handleClearSelection = () => {
     setSelectedArticles([]);
     localStorage.removeItem('news-capsule-selected-articles');
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedArticles.length === 0) {
+      toast({
+        variant: "destructive",
+        title: "No Selection",
+        description: "Please select articles to delete",
+      });
+      return;
+    }
+
+    // Confirmation before deleting
+    if (!confirm(`Are you sure you want to delete ${selectedArticles.length} selected article(s)? This action cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      // Optimistically remove articles from UI
+      const articlesToDelete = [...selectedArticles];
+      queryClient.setQueryData(["/api/news-capsule/articles"], (oldData: CapsuleArticle[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.filter(article => !articlesToDelete.some(selected => selected.id === article.id));
+      });
+
+      // Clear selection
+      setSelectedArticles([]);
+      localStorage.removeItem('news-capsule-selected-articles');
+
+      // Delete each article
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const article of articlesToDelete) {
+        try {
+          await deleteArticleMutation.mutateAsync(article.id);
+          successCount++;
+        } catch (error) {
+          errorCount++;
+          console.error(`Failed to delete article: ${article.title}`, error);
+        }
+      }
+
+      if (errorCount === 0) {
+        toast({
+          title: "Success",
+          description: `Deleted ${successCount} article(s) successfully`,
+        });
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Partial Success",
+          description: `Deleted ${successCount} article(s), ${errorCount} failed`,
+        });
+      }
+
+      // Refresh the list
+      queryClient.invalidateQueries({ queryKey: ["/api/news-capsule/articles"] });
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete articles",
+      });
+    }
   };
 
   const handleCopyUrls = () => {
@@ -729,7 +794,7 @@ export default function Research() {
                   {isLoading ? "Processing..." : "Process URLs"}
                 </button>
 
-                {/* URL Input */}
+                {/* URL Input - Height matches 2 button rows in Column 3 */}
                 <div className="relative">
                   <textarea
                     value={url}
@@ -737,8 +802,7 @@ export default function Research() {
                     onFocus={() => setShowUrlDropdown(true)}
                     onBlur={() => setTimeout(() => setShowUrlDropdown(false), 200)}
                     placeholder="Enter single URL or multiple URLs&#10;https://example.com/article1&#10;https://example.com/article2"
-                    rows={3}
-                    className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:outline-none focus:border-purple-500/50 text-slate-200"
+                    className="w-full h-[72px] px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-none focus:outline-none focus:border-purple-500/50 text-slate-200"
                   />
                   
                   {/* URL Dropdown */}
@@ -769,11 +833,11 @@ export default function Research() {
               </div>
             </div>
 
-            {/* Column 2: Research Tools */}
+            {/* Column 2: Keyword Filter */}
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
               <div className="flex items-center gap-2 mb-3">
                 <Search className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-400">Research Tools</span>
+                <span className="text-sm font-medium text-purple-400">Keyword Filter</span>
               </div>
               
               <div className="space-y-2">
@@ -786,13 +850,12 @@ export default function Research() {
                   Search Keywords
                 </button>
 
-                {/* Keyword Input */}
+                {/* Keyword Input - Height matches 2 button rows in Column 3 */}
                 <textarea
                   value={keywordSearch}
                   onChange={(e) => setKeywordSearch(e.target.value)}
                   placeholder="Enter keywords to search (e.g., ransomware, CVE-2024, Windows)&#10;Separate multiple keywords with spaces"
-                  rows={3}
-                  className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:outline-none focus:border-purple-500/50 text-slate-200"
+                  className="w-full h-[72px] px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-none focus:outline-none focus:border-purple-500/50 text-slate-200"
                 />
 
                 {/* Clear Button */}
@@ -810,54 +873,66 @@ export default function Research() {
               </div>
             </div>
 
-            {/* Column 3: Report Management */}
+            {/* Column 3: Article Selection Tools */}
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
               <div className="flex items-center gap-2 mb-3">
                 <FileText className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-400">Report Management</span>
+                <span className="text-sm font-medium text-purple-400">Article Selection Tools</span>
               </div>
               
-              <div className="space-y-2">
-                {/* Set Report Topic Button - Row 1 */}
+              {/* 2x3 Grid Layout */}
+              <div className="grid grid-cols-2 gap-2">
+                {/* Row 1, Col 1: Select All Visible Button */}
                 <button
-                  onClick={() => {
-                    if (!reportTopic.trim()) {
-                      toast({
-                        variant: "destructive",
-                        title: "No Topic",
-                        description: "Please enter a report topic first",
-                      });
-                      return;
-                    }
-                    toast({
-                      title: "Topic Set",
-                      description: `Report topic: ${reportTopic}`,
-                    });
-                  }}
-                  disabled={!reportTopic.trim()}
-                  className="w-full h-8 px-3 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
+                  onClick={handleSelectAllVisible}
+                  disabled={filteredAndSortedArticles.length === 0}
+                  className="h-8 px-2 text-xs font-medium bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded border border-purple-500/40 transition-colors disabled:opacity-50 flex items-center justify-center"
                 >
-                  Set Report Topic
+                  Select All Visible
                 </button>
 
-                {/* Report Topic Input */}
-                <textarea
-                  value={reportTopic}
-                  onChange={(e) => setReportTopic(e.target.value)}
-                  placeholder="Enter report topic and notes (optional)&#10;e.g., Q1 2025 Ransomware Threats&#10;Microsoft Windows Zero-Day Summary"
-                  rows={3}
-                  className="w-full px-3 py-2 text-xs bg-slate-800/50 border border-slate-600/50 rounded-md resize-vertical focus:outline-none focus:border-purple-500/50 text-slate-200"
-                />
+                {/* Row 1, Col 2: Clear Selection Button */}
+                <button
+                  onClick={handleClearSelection}
+                  disabled={selectedArticles.length === 0}
+                  className="h-8 px-2 text-xs font-medium bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded border border-slate-600/50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  Clear Selection
+                </button>
 
-                {/* Clear Button */}
-                {reportTopic && (
-                  <button
-                    onClick={() => setReportTopic("")}
-                    className="w-full h-8 px-3 text-xs font-medium bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 rounded border border-slate-600/50 transition-colors flex items-center justify-center"
-                  >
-                    Clear
-                  </button>
-                )}
+                {/* Row 2, Col 1: Selection Counter Badge */}
+                <div className="h-8 px-2 flex items-center justify-center bg-slate-800/50 border border-slate-600/50 rounded-md">
+                  <span className="text-xs font-medium text-purple-300">
+                    ({selectedArticles.length}) {selectedArticles.length === 1 ? 'article' : 'articles'} selected
+                  </span>
+                </div>
+
+                {/* Row 2, Col 2: Create Report Button */}
+                <button
+                  onClick={sendToExecutiveReport}
+                  disabled={selectedArticles.length === 0}
+                  className="h-8 px-2 text-xs font-medium bg-[#00FFFF]/20 hover:bg-[#00FFFF]/30 text-[#00FFFF] hover:text-white rounded border border-[#00FFFF]/40 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  Create Report
+                </button>
+
+                {/* Row 3, Col 1: Copy URLs Button */}
+                <button
+                  onClick={handleCopyUrls}
+                  disabled={selectedArticles.length === 0}
+                  className="h-8 px-2 text-xs font-medium bg-slate-700/50 hover:bg-slate-600/50 text-slate-300 hover:text-white rounded border border-slate-600/50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                >
+                  Copy Article URLs
+                </button>
+
+                {/* Row 3, Col 2: Bulk Delete Button */}
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={selectedArticles.length === 0}
+                  className="h-8 px-2 text-xs font-medium bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-white rounded border border-red-500/50 hover:border-gray-400 transition-colors disabled:opacity-50 flex items-center justify-center focus:outline-none focus-visible:ring-0"
+                >
+                  Bulk Delete
+                </button>
               </div>
             </div>
           </div>
@@ -903,7 +978,7 @@ export default function Research() {
                 className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 hover:text-white rounded-md border border-purple-500/40 disabled:opacity-50 text-sm font-medium transition-colors flex items-center gap-2"
               >
                 <FileText className="h-4 w-4" />
-                Send to Report ({selectedArticles.length})
+                Create Report ({selectedArticles.length})
               </button>
             </div>
           </div>
@@ -998,13 +1073,13 @@ export default function Research() {
                             onClick={() => {
                               // Use functional update to check and toggle selection atomically
                               setSelectedArticles(prev => {
-                                const isSelected = prev.some(selected => selected.title === article.title);
+                                const isSelected = prev.some(selected => selected.id === article.id);
                                 if (isSelected) {
                                   // Remove from selection
-                                  return prev.filter(selected => selected.title !== article.title);
+                                  return prev.filter(selected => selected.id !== article.id);
                                 } else {
                                   // Check if already selected to prevent duplicates
-                                  if (prev.some(selected => selected.title === article.title)) {
+                                  if (prev.some(selected => selected.id === article.id)) {
                                     return prev;
                                   }
                                   // Add to selection
@@ -1013,16 +1088,16 @@ export default function Research() {
                               });
                             }}
                             className={`px-3 py-1.5 text-xs rounded-md border transition-all duration-200 ${
-                              selectedArticles.some(selected => selected.title === article.title) 
-                                ? "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-500/50" 
-                                : "bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/50"
+                              selectedArticles.some(selected => selected.id === article.id) 
+                                ? "bg-cyan-500/20 hover:bg-purple-500/30 text-cyan-300 border-cyan-500/50 hover:border-purple-500/50 hover:text-[#00FFFF]" 
+                                : "bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-500/50 hover:border-purple-400/60 hover:text-[#00FFFF]"
                             }`}
                           >
-                            {selectedArticles.some(selected => selected.title === article.title) ? "Selected for Report" : "Select for Report"}
+                            {selectedArticles.some(selected => selected.id === article.id) ? "Selected for Report" : "Select for Report"}
                           </button>
                           <button
                             onClick={() => removeProcessedArticle(article)}
-                            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-md border border-red-500/50 transition-all duration-200 text-xs flex items-center justify-center gap-1.5"
+                            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 hover:text-white rounded-md border border-red-500/50 hover:border-gray-400 transition-all duration-200 text-xs flex items-center justify-center gap-1.5 focus:outline-none focus-visible:ring-0"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                             Delete Article
@@ -1033,15 +1108,30 @@ export default function Research() {
                           <div className="flex-1">
                             <h3 className="text-lg font-medium leading-tight text-slate-100 mb-1">{article.title}</h3>
                             <p className="text-xs text-purple-400">
-                              Article sent on {new Date(article.createdAt).toLocaleDateString('en-US', { 
+                              Article processed {new Date(article.createdAt).toLocaleDateString('en-US', { 
                                 month: 'short', 
                                 day: 'numeric', 
                                 year: 'numeric',
                               })}, {new Date(article.createdAt).toLocaleTimeString('en-US', { 
                                 hour: '2-digit',
                                 minute: '2-digit'
-                              })}
+                              }).replace(/\s/g, '')}
                             </p>
+                            <a 
+                              href={article.originalUrl} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-xs text-[#00FFFF] hover:text-cyan-300 mt-1 inline-block transition-colors"
+                            >
+                              {(() => {
+                                try {
+                                  const url = new URL(article.originalUrl);
+                                  return url.hostname.replace(/^www\./, '');
+                                } catch {
+                                  return article.originalUrl;
+                                }
+                              })()}
+                            </a>
                           </div>
                         </div>
                         
@@ -1071,7 +1161,7 @@ export default function Research() {
                             <p className="text-xs text-slate-400 mb-1">Target OS</p>
                             <p className="text-sm text-slate-200 break-words">{article.targetOS}</p>
                           </div>
-                          <div className="sm:col-span-2">
+                          <div>
                             <p className="text-xs text-slate-400 mb-1">Source</p>
                             <p className="text-sm text-slate-200 break-words">{article.sourcePublication}</p>
                           </div>
