@@ -1512,10 +1512,10 @@ router.post(
       // Parse the spreadsheet with STRICT security limits
       let data: any[][] = [];
       
-      // STRICT limits - significantly reduced
+      // STRICT limits - optimized for large files
       const MAX_ROWS = 500;  // Reduced from 10000
       const MAX_SHEETS = 4;  // New limit on number of sheets
-      const MAX_COLUMNS = 50;  // Reduced from 100
+      const MAX_COLUMNS = 300;  // Increased to handle large spreadsheets
       const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
       const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
 
@@ -1671,71 +1671,55 @@ router.post(
       console.log("[UPLOAD] First data row:", rows[0]);
       console.log("[UPLOAD] Data rows count:", rows.length);
 
-      // Process in batches of 50 rows to handle large files
+      // Process in batches of 50 rows with PARALLEL processing
       const BATCH_SIZE = 50;
-      let allEntities = [];
+      const PARALLEL_LIMIT = 5; // Process 5 batches concurrently
       
-      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE}`);
+      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
       
-      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
-        const batchRows = rows.slice(batchStart, batchEnd);
+      // Helper function to sanitize spreadsheet text for prompt injection protection
+      const sanitizeForPrompt = (text: string): string => {
+        let sanitized = text
+          .replace(/\{\{.*?\}\}/g, '')
+          .replace(/\[\[.*?\]\]/g, '')
+          .replace(/<\|.*?\|>/g, '')
+          .replace(/ignore (previous|all|above|prior) (instructions?|prompts?|commands?)/gi, '[FILTERED]')
+          .replace(/disregard (everything|all|above|prior)/gi, '[FILTERED]')
+          .replace(/new instructions?:/gi, '[FILTERED]')
+          .replace(/system:/gi, '[FILTERED]')
+          .replace(/assistant:/gi, '[FILTERED]')
+          .replace(/^user:/gim, '[FILTERED]')
+          .replace(/show me (the|your) (system |original )?prompt/gi, '[FILTERED]')
+          .replace(/what (is|are) your instructions?/gi, '[FILTERED]')
+          .replace(/exec\(|eval\(|import\s|require\(/gi, '[FILTERED]')
+          .replace(/(\$\{.*?\})/g, '')
+          .replace(/(\\x[0-9a-fA-F]{2})+/g, '')
+          .replace(/(\\u[0-9a-fA-F]{4})+/g, '')
+          .replace(/([!@#$%^&*()_+=\[\]{};':"\\|,.<>\/?])\1{3,}/g, '$1$1');
         
-        console.log(`[UPLOAD] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
+        const MAX_TEXT_LENGTH = 5000;
+        if (sanitized.length > MAX_TEXT_LENGTH) {
+          sanitized = sanitized.substring(0, MAX_TEXT_LENGTH - 20) + '... [truncated]';
+        }
+        return sanitized;
+      };
+      
+      // Helper function to process a single batch
+      const processBatch = async (batchStart: number, batchEnd: number, batchRows: any[][]) => {
+        console.log(`[UPLOAD PARALLEL] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
         
-        // Create a structured text representation for this batch
-        let spreadsheetText = `Headers: ${headers.join(", ")}\n\n`;
-        spreadsheetText += "Data rows:\n";
-
+        let spreadsheetText = `Headers: ${headers.join(", ")}\n\nData rows:\n`;
         batchRows.forEach((row, index) => {
           if (row.some((cell) => cell)) {
-            // Skip empty rows
             const rowData = headers
               .map((header, i) => `${header}: ${row[i] || "N/A"}`)
               .join(", ");
             spreadsheetText += `Row ${batchStart + index + 1}: ${rowData}\n`;
           }
         });
-
-        // Sanitize spreadsheetText to prevent prompt injection
-        const sanitizeForPrompt = (text: string): string => {
-          // Remove dangerous prompt injection patterns
-          let sanitized = text
-            // Remove attempts to break out of prompts
-            .replace(/\{\{.*?\}\}/g, '')  // Remove template variables
-            .replace(/\[\[.*?\]\]/g, '')  // Remove double brackets
-            .replace(/<\|.*?\|>/g, '')    // Remove special markers
-            // Remove common prompt injection attempts
-            .replace(/ignore (previous|all|above|prior) (instructions?|prompts?|commands?)/gi, '[FILTERED]')
-            .replace(/disregard (everything|all|above|prior)/gi, '[FILTERED]')
-            .replace(/new instructions?:/gi, '[FILTERED]')
-            .replace(/system:/gi, '[FILTERED]')
-            .replace(/assistant:/gi, '[FILTERED]')
-            .replace(/^user:/gim, '[FILTERED]')
-            // Remove attempts to reveal system prompts
-            .replace(/show me (the|your) (system |original )?prompt/gi, '[FILTERED]')
-            .replace(/what (is|are) your instructions?/gi, '[FILTERED]')
-            // Remove code execution attempts
-            .replace(/exec\(|eval\(|import\s|require\(/gi, '[FILTERED]')
-            // Remove excessive special characters that might be used for escaping
-            .replace(/(\$\{.*?\})/g, '')  // Remove template literals
-            .replace(/(\\x[0-9a-fA-F]{2})+/g, '')  // Remove hex escapes
-            .replace(/(\\u[0-9a-fA-F]{4})+/g, '')  // Remove unicode escapes
-            // Limit consecutive special characters
-            .replace(/([!@#$%^&*()_+=\[\]{};':"\\|,.<>\/?])\1{3,}/g, '$1$1');
-          
-          // Truncate if too long
-          const MAX_TEXT_LENGTH = 5000;
-          if (sanitized.length > MAX_TEXT_LENGTH) {
-            sanitized = sanitized.substring(0, MAX_TEXT_LENGTH - 20) + '... [truncated]';
-          }
-          
-          return sanitized;
-        };
         
         const sanitizedSpreadsheetText = sanitizeForPrompt(spreadsheetText);
         
-        // Use OpenAI to intelligently extract entities from the sanitized spreadsheet batch
         const extractionPrompt = `Extract technology entities from this spreadsheet data. The spreadsheet may contain various formats and column names.
 
 Identify and extract:
@@ -1773,43 +1757,63 @@ Return a JSON array of extracted entities with this structure:
   }
 ]`;
 
-        const completion = await openai.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an expert at extracting technology entities from spreadsheets. Return only valid JSON.",
-            },
-            {
-              role: "user",
-              content: extractionPrompt,
-            },
-          ],
-          model: "gpt-4o-mini", // Using 16K context model for better handling of large batches
-          response_format: { type: "json_object" },
-          max_tokens: 4000,
-        });
-
-        const extractedData = completion.choices[0].message.content || "{}";
-        let batchEntities = [];
-
         try {
+          const completion = await openai.chat.completions.create({
+            messages: [
+              {
+                role: "system",
+                content: "You are an expert at extracting technology entities from spreadsheets. Return only valid JSON.",
+              },
+              {
+                role: "user",
+                content: extractionPrompt,
+              },
+            ],
+            model: "gpt-4o-mini",
+            response_format: { type: "json_object" },
+            max_tokens: 4000,
+          });
+
+          const extractedData = completion.choices[0].message.content || "{}";
           const parsed = JSON.parse(extractedData);
-          // Handle both array and object with entities property
+          
+          let batchEntities = [];
           if (Array.isArray(parsed)) {
             batchEntities = parsed;
           } else if (parsed.entities && Array.isArray(parsed.entities)) {
             batchEntities = parsed.entities;
-          } else {
-            batchEntities = [];
           }
           
-          console.log(`[UPLOAD] Batch extracted ${batchEntities.length} entities`);
-          allEntities = allEntities.concat(batchEntities);
+          console.log(`[UPLOAD PARALLEL] Batch ${batchStart}-${batchEnd} extracted ${batchEntities.length} entities`);
+          return batchEntities;
         } catch (e) {
-          log(`Failed to parse extracted entities for batch ${batchStart}-${batchEnd}: ${e}`, "error");
-          // Continue with other batches even if one fails
+          log(`Failed to process batch ${batchStart}-${batchEnd}: ${e}`, "error");
+          return [];
         }
+      };
+      
+      // Create all batches
+      const batches = [];
+      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
+        const batchRows = rows.slice(batchStart, batchEnd);
+        batches.push({ batchStart, batchEnd, batchRows });
+      }
+      
+      // Process batches in parallel with concurrency limit
+      let allEntities = [];
+      for (let i = 0; i < batches.length; i += PARALLEL_LIMIT) {
+        const batchGroup = batches.slice(i, i + PARALLEL_LIMIT);
+        console.log(`[UPLOAD] Processing group ${Math.floor(i / PARALLEL_LIMIT) + 1} of ${Math.ceil(batches.length / PARALLEL_LIMIT)}`);
+        
+        const promises = batchGroup.map(({ batchStart, batchEnd, batchRows }) => 
+          processBatch(batchStart, batchEnd, batchRows)
+        );
+        
+        const results = await Promise.all(promises);
+        results.forEach(entities => {
+          allEntities = allEntities.concat(entities);
+        });
       }
       
       console.log(`[UPLOAD] Total entities extracted: ${allEntities.length}`);
