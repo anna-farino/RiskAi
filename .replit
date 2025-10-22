@@ -52,3 +52,6 @@ externalPort = 3003
 [nix]
 channel = "stable-24_05"
 
+[agent]
+integrations = ["javascript_stripe:1.0.0"]
+
