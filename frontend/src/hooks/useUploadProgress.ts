@@ -29,6 +29,7 @@ export function useUploadProgress(
   const [progress, setProgress] = useState<UploadProgress | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const completedRef = useRef(false);
 
   useEffect(() => {
@@ -39,6 +40,10 @@ export function useUploadProgress(
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
       return;
     }
@@ -93,20 +98,33 @@ export function useUploadProgress(
         // Reset error counter on successful response
         (window as any).__uploadErrorCount = 0;
 
-        // Handle completion or failure
-        if ((data.status === 'completed' || data.status === 'failed') && !completedRef.current) {
-          completedRef.current = true;
-          setIsPolling(false);
-          if (intervalRef.current) {
-            clearInterval(intervalRef.current);
-            intervalRef.current = null;
-          }
+        // Handle completion or failure - check completedRef first to prevent duplicates
+        if (data.status === 'completed' || data.status === 'failed') {
+          // Only process if not already completed
+          if (!completedRef.current) {
+            completedRef.current = true;
+            setIsPolling(false);
+            
+            // Clear both interval and timeout
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
+            if (timeoutRef.current) {
+              clearTimeout(timeoutRef.current);
+              timeoutRef.current = null;
+            }
 
-          if (data.status === 'completed' && onComplete) {
-            onComplete(data);
-          } else if (data.status === 'failed' && onError) {
-            onError(data.error || 'Upload failed');
+            // Only call the callback once
+            if (data.status === 'completed' && onComplete) {
+              onComplete(data);
+            } else if (data.status === 'failed' && onError) {
+              onError(data.error || 'Upload failed');
+            }
           }
+          
+          // Always stop polling on completion/failure, even if already handled
+          return; // Exit early to prevent further processing
         }
       } catch (error) {
         console.error('Error checking upload progress:', error);
@@ -136,18 +154,30 @@ export function useUploadProgress(
     // Delay first poll slightly (200ms) to allow upload request to reach server first
     // This prevents 404 errors from the race condition where polling starts before 
     // the backend has created the progress tracking entry
-    setTimeout(() => {
-      checkProgress();
-      
-      // Set up polling interval
-      intervalRef.current = setInterval(checkProgress, pollInterval);
+    timeoutRef.current = setTimeout(() => {
+      // Double-check we haven't been cancelled or completed
+      if (!completedRef.current) {
+        checkProgress();
+        
+        // Set up polling interval only if not already completed
+        if (!completedRef.current) {
+          intervalRef.current = setInterval(checkProgress, pollInterval);
+        }
+      }
     }, 200);
 
     return () => {
+      // Clean up both timeout and interval
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;
       }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      // Mark as completed to prevent any pending callbacks from running
+      completedRef.current = true;
     };
   }, [uploadId, onComplete, onError, pollInterval]);
 
