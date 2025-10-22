@@ -2221,22 +2221,25 @@ router.post("/import", async (req: any, res) => {
       }
     }
 
-    // Mark upload as complete
-    uploadProgress.complete(uploadId, imported);
+    // Mark upload as complete if we have an uploadId
+    if (uploadId) {
+      uploadProgress.complete(uploadId, imported);
+    }
     
     res.json({
       success: true,
       imported,
       message: `Successfully imported ${imported} items to your tech stack`,
-      uploadId, // Include uploadId for progress tracking
+      ...(uploadId && { uploadId }), // Include uploadId only if it exists
     });
   } catch (error: any) {
     log(`Error importing entities: ${error.message || error}`, "error");
-    // Mark upload as failed
-    if (uploadId) {
-      uploadProgress.fail(uploadId, error.message || 'Unknown error');
+    // Mark upload as failed if we have an uploadId
+    const { uploadId: failedUploadId } = req.body;
+    if (failedUploadId) {
+      uploadProgress.fail(failedUploadId, error.message || 'Unknown error');
     }
-    res.status(500).json({ error: "Failed to import entities", uploadId });
+    res.status(500).json({ error: "Failed to import entities", ...(failedUploadId && { uploadId: failedUploadId }) });
   }
 });
 

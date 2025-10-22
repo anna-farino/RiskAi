@@ -46,7 +46,7 @@ export function useUploadProgress(
 
     const checkProgress = async () => {
       try {
-        const response = await fetch(`/api/tech-stack/upload/${uploadId}/progress`, {
+        const response = await fetch(`/api/threat-tracker/tech-stack/upload/${uploadId}/progress`, {
           credentials: 'include',
         });
 
