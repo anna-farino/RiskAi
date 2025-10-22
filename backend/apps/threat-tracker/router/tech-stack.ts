@@ -1512,12 +1512,12 @@ router.post(
       // Parse the spreadsheet with STRICT security limits
       let data: any[][] = [];
       
-      // Adjusted limits to handle larger enterprise spreadsheets
-      const MAX_ROWS = 1000;  // Increased to handle more data
-      const MAX_SHEETS = 10;  // Support more sheets
-      const MAX_COLUMNS = 300;  // Increased to handle 200+ column files
-      const MAX_CELL_LENGTH = 1000;  // Keep reasonable cell length
-      const MAX_SHEET_SIZE = 10 * 1024 * 1024; // 10MB decompressed to handle larger files
+      // STRICT limits - significantly reduced
+      const MAX_ROWS = 500;  // Reduced from 10000
+      const MAX_SHEETS = 4;  // New limit on number of sheets
+      const MAX_COLUMNS = 50;  // Reduced from 100
+      const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
+      const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
 
       try {
         if (uploadedFile.originalname.endsWith(".csv")) {
@@ -1671,8 +1671,8 @@ router.post(
       console.log("[UPLOAD] First data row:", rows[0]);
       console.log("[UPLOAD] Data rows count:", rows.length);
 
-      // Process in batches of 25 rows (reduced for wider columns) to handle large files
-      const BATCH_SIZE = 25;
+      // Process in batches of 50 rows to handle large files
+      const BATCH_SIZE = 50;
       let allEntities = [];
       
       console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE}`);

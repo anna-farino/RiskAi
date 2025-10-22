@@ -131,6 +131,3 @@ export const insertThreatKeywordSchema = z.object({
 
 export type InsertThreatKeyword = z.infer<typeof insertThreatKeywordSchema>;
 
-// Export upload progress tracking
-export * from './upload-progress';
-
