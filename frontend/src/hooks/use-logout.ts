@@ -3,7 +3,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/query-client";
 import { useRef } from "react";
 
-export type LogoutReason = 'manual' | 'session_expired' | 'corrupted_tokens' | 'silent';
+export type LogoutReason = 'manual' | 'session_expired' | 'corrupted_tokens' | 'not_authorized' | 'silent';
 
 function getToastConfig(reason: LogoutReason) {
   switch (reason) {
@@ -22,6 +22,12 @@ function getToastConfig(reason: LogoutReason) {
       return {
         title: "Authentication Error",
         description: "Authentication error detected. Please sign in again.",
+        variant: "destructive" as const,
+      };
+    case 'not_authorized':
+      return {
+        title: "Access Denied",
+        description: "User is not authorized to access this application",
         variant: "destructive" as const,
       };
     default:

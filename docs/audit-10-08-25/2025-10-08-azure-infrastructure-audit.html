@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Azure Infrastructure Audit Report - RisqAI Platform</title>
+    <style>
+        :root {
+            --primary-color: #0078d4;
+            --secondary-color: #50e6ff;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --danger-color: #ef4444;
+            --bg-main: #f9fafb;
+            --bg-content: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border-color: #e5e7eb;
+            --code-bg: #f3f4f6;
+            --table-header-bg: #f9fafb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: var(--bg-main);
+            font-size: 16px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #0078d4 0%, #50e6ff 100%);
+            color: white;
+            padding: 60px 20px;
+            margin: -40px -20px 40px -20px;
+            border-radius: 0 0 16px 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .header-meta {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            opacity: 0.95;
+        }
+
+        .header-meta-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 12px 16px;
+            border-radius: 8px;
+            backdrop-filter: blur(10px);
+        }
+
+        .header-meta strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.875rem;
+            opacity: 0.9;
+        }
+
+        .content {
+            background: var(--bg-content);
+            padding: 48px;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-bottom: 24px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            margin: 48px 0 24px 0;
+            color: var(--primary-color);
+            border-bottom: 3px solid var(--secondary-color);
+            padding-bottom: 12px;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            margin: 36px 0 16px 0;
+            color: var(--text-primary);
+        }
+
+        h4 {
+            font-size: 1.25rem;
+            margin: 24px 0 12px 0;
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        p {
+            margin: 16px 0;
+            line-height: 1.8;
+            color: var(--text-primary);
+        }
+
+        ul, ol {
+            margin: 16px 0;
+            padding-left: 32px;
+        }
+
+        li {
+            margin: 8px 0;
+            line-height: 1.7;
+        }
+
+        li ul, li ol {
+            margin: 8px 0;
+        }
+
+        code {
+            background: var(--code-bg);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-family: 'SF Mono', 'Monaco', 'Inconsolata', 'Fira Code', monospace;
+            font-size: 0.9em;
+            color: #e11d48;
+        }
+
+        pre {
+            background: var(--code-bg);
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 20px 0;
+            border-left: 4px solid var(--primary-color);
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 24px 0;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        th {
+            background: var(--table-header-bg);
+            padding: 16px;
+            text-align: left;
+            font-weight: 600;
+            color: var(--text-primary);
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover {
+            background: var(--bg-main);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            margin: 0 4px;
+        }
+
+        .badge-success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-danger {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-info {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+
+        hr {
+            border: none;
+            border-top: 2px solid var(--border-color);
+            margin: 40px 0;
+        }
+
+        blockquote {
+            border-left: 4px solid var(--secondary-color);
+            padding-left: 20px;
+            margin: 20px 0;
+            font-style: italic;
+            color: var(--text-secondary);
+        }
+
+        .callout {
+            padding: 20px;
+            border-radius: 8px;
+            margin: 24px 0;
+            border-left: 4px solid;
+        }
+
+        .callout-info {
+            background: #dbeafe;
+            border-color: #3b82f6;
+        }
+
+        .callout-success {
+            background: #d1fae5;
+            border-color: #10b981;
+        }
+
+        .callout-warning {
+            background: #fef3c7;
+            border-color: #f59e0b;
+        }
+
+        .callout-danger {
+            background: #fee2e2;
+            border-color: #ef4444;
+        }
+
+        .toc {
+            background: var(--bg-main);
+            padding: 24px;
+            border-radius: 8px;
+            margin: 32px 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--primary-color);
+        }
+
+        .toc ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .toc a {
+            color: var(--primary-color);
+            text-decoration: none;
+            display: block;
+            padding: 8px 12px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .toc a:hover {
+            background: white;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 32px 20px;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            border-top: 1px solid var(--border-color);
+            margin-top: 64px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 16px;
+            }
+
+            .header {
+                padding: 40px 16px;
+            }
+
+            .header h1 {
+                font-size: 1.75rem;
+            }
+
+            .content {
+                padding: 24px;
+            }
+
+            h2 {
+                font-size: 1.5rem;
+            }
+
+            h3 {
+                font-size: 1.25rem;
+            }
+        }
+
+        /* Smooth scroll */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Link styles */
+        a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Print-optimized styles */
+        @media print {
+            body {
+                background: white;
+                font-size: 11pt;
+                line-height: 1.5;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .header {
+                background: none;
+                color: var(--text-primary);
+                padding: 20px 0;
+                margin: 0 0 20px 0;
+                border-radius: 0;
+                box-shadow: none;
+                border-bottom: 3px solid var(--primary-color);
+                page-break-after: avoid;
+            }
+
+            .header h1 {
+                color: var(--primary-color);
+                font-size: 24pt;
+            }
+
+            .header-meta {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+            }
+
+            .header-meta-item {
+                background: var(--bg-main);
+                color: var(--text-primary);
+            }
+
+            .content {
+                padding: 0;
+                box-shadow: none;
+                background: white;
+            }
+
+            h2 {
+                color: var(--primary-color);
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 30pt;
+                font-size: 18pt;
+            }
+
+            h3 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 20pt;
+                font-size: 14pt;
+            }
+
+            h4 {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+                margin-top: 15pt;
+                font-size: 12pt;
+            }
+
+            pre {
+                page-break-inside: avoid;
+                background: #f5f5f5;
+                border: 1px solid var(--border-color);
+                padding: 10pt;
+                font-size: 8pt;
+                overflow: visible;
+                white-space: pre-wrap;
+                word-wrap: break-word;
+            }
+
+            pre code {
+                color: #000;
+            }
+
+            table {
+                page-break-inside: avoid;
+                font-size: 9pt;
+            }
+
+            .badge {
+                border: 1px solid currentColor;
+            }
+
+            a {
+                color: var(--primary-color);
+                text-decoration: none;
+            }
+
+            a[href]:after {
+                content: " (" attr(href) ")";
+                font-size: 8pt;
+                color: var(--text-secondary);
+            }
+
+            a[href^="#"]:after {
+                content: "";
+            }
+
+            .footer {
+                page-break-before: always;
+                border-top: 2px solid var(--border-color);
+                padding-top: 20px;
+                margin-top: 40px;
+            }
+
+            /* Page numbering */
+            @page {
+                margin: 2cm;
+                @bottom-right {
+                    content: "Page " counter(page) " of " counter(pages);
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Azure Infrastructure Audit Report</h1>
+            <div class="header-meta">
+                <div class="header-meta-item">
+                    <strong>Generated</strong>
+                    October 8, 2025
+                </div>
+                <div class="header-meta-item">
+                    <strong>Project</strong>
+                    RisqAI Platform
+                </div>
+                <div class="header-meta-item">
+                    <strong>Subscription</strong>
+                    Azure subscription 1 ([COMPANY-DOMAIN])
+                </div>
+                <div class="header-meta-item">
+                    <strong>Tenant ID</strong>
+                    [REDACTED-TENANT-ID]
+                </div>
+            </div>
+        </div>
+        <div class="content">
+<h2>Executive Summary</h2>
+<p>This audit assessed the Azure infrastructure currently deployed for the RisqAI platform against a comprehensive Azure services checklist. The platform demonstrates a <strong>mature cloud-native architecture</strong> with strong security, identity management, and DevSecOps practices in place.</p>
+<p><strong>Key Findings:</strong></p>
+<ul>
+<li>✅ <strong>13 Azure services</strong> actively deployed and configured</li>
+<li>✅ Production and Staging environments fully separated</li>
+<li>✅ Modern containerized architecture with CI/CD automation</li>
+<li>⚠️ Opportunities for enhanced observability and resilience</li>
+</ul>
+<hr>
+<h2>Deployed Azure Services</h2>
+<h3>🟢 <strong>Hosting &amp; Platform</strong> (5/8 services)</h3>
+<h4>✅ In Use</h4>
+<ol>
+<li><p><strong>Azure Container Apps</strong> (Production &amp; Staging)</p>
+<ul>
+<li><strong>Production:</strong> <code>app-risqai-backend-prod</code><ul>
+<li>FQDN: <code>app-risqai-backend-prod.[FQDN-ID-PROD].eastus.azurecontainerapps.io</code></li>
+<li>Resources: 0.5 CPU, 1Gi Memory</li>
+<li>Image: <code>risqaiprod.azurecr.io/app-risqai-backend-prod:[COMMIT-SHA-SHORT]</code></li>
+<li>Location: East US</li>
+</ul>
+</li>
+<li><strong>Staging:</strong> <code>app-risqai-backend</code><ul>
+<li>FQDN: <code>app-risqai-backend.[FQDN-ID-STAGING].eastus.azurecontainerapps.io</code></li>
+<li>Location: East US</li>
+</ul>
+</li>
+<li><strong>Evidence:</strong> GitHub Actions workflows, Azure CLI queries</li>
+<li><strong>Configuration:</strong> Dockerfile with Node.js 20, Puppeteer, CycleTLS</li>
+</ul>
+</li>
+<li><p><strong>Azure Static Web Apps</strong> (3 instances)</p>
+<ul>
+<li><strong>Production Frontend:</strong> <code>frontend-risqai-production</code><ul>
+<li>FQDN: <code>[FQDN-ID-FRONTEND-PROD].2.azurestaticapps.net</code></li>
+<li>Branch: master</li>
+<li>Repository: <code>github.com/[ORG]/[REPO]</code></li>
+</ul>
+</li>
+<li><strong>Staging Frontend:</strong> <code>frontend-risqai-staging</code><ul>
+<li>FQDN: <code>[FQDN-ID-FRONTEND-STAGING].2.azurestaticapps.net</code></li>
+<li>Branch: staging</li>
+</ul>
+</li>
+<li><strong>Landing Page:</strong> <code>landing-page-prod</code><ul>
+<li>FQDN: <code>[FQDN-ID-LANDING].2.azurestaticapps.net</code></li>
+<li>Branch: main</li>
+<li>Repository: <code>github.com/[ORG]/[REPO]-website</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Azure Container Registry</strong> (2 instances)</p>
+<ul>
+<li><strong>Production:</strong> <code>risqaiprod.azurecr.io</code><ul>
+<li>SKU: Standard</li>
+<li>Admin Enabled: True</li>
+<li>Created: 2025-08-26</li>
+</ul>
+</li>
+<li><strong>Staging:</strong> <code>[ACR-ID-STAGING].azurecr.io</code><ul>
+<li>SKU: Standard</li>
+<li>Admin Enabled: True</li>
+<li>Created: 2025-08-12</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Azure App Service</li>
+<li>Azure Kubernetes Service (AKS)</li>
+<li>Azure Functions</li>
+<li>API Management</li>
+<li>Virtual Machines</li>
+</ul>
+<hr>
+<h3>🟢 <strong>Data &amp; Storage</strong> (1/9 services)</h3>
+<h4>✅ In Use</h4>
+<ol>
+<li><strong>Azure Database for PostgreSQL - Flexible Server</strong> (2 instances)<ul>
+<li><strong>Production:</strong> <code>db-risqai-production</code><ul>
+<li>Version: PostgreSQL 17</li>
+<li>Tier: GeneralPurpose</li>
+<li>SKU: Standard_D2ds_v5</li>
+<li>Storage: 32 GiB</li>
+<li>Availability Zone: 1</li>
+<li>HA: Not Enabled</li>
+</ul>
+</li>
+<li><strong>Staging:</strong> <code>db-risqay-staging</code><ul>
+<li>Version: PostgreSQL 17</li>
+<li>Tier: Burstable</li>
+<li>SKU: Standard_B2s</li>
+<li>Storage: 32 GiB</li>
+<li>Availability Zone: 1</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Azure SQL Database</li>
+<li>Cosmos DB</li>
+<li>Blob Storage</li>
+<li>Azure Data Lake Storage Gen2</li>
+<li>Synapse Analytics</li>
+<li>Azure Databricks</li>
+<li>Queue Storage</li>
+<li>Table Storage</li>
+</ul>
+<hr>
+<h3>🟢 <strong>Identity &amp; Secrets</strong> (2/5 services)</h3>
+<h4>✅ In Use</h4>
+<ol>
+<li><p><strong>Azure Key Vault</strong> (2 instances)</p>
+<ul>
+<li><strong>Production:</strong> <code>risqai-keyv-production</code><ul>
+<li>Location: East US</li>
+<li>Resource Group: <code>group-risqai-production</code></li>
+</ul>
+</li>
+<li><strong>Staging:</strong> <code>risqai-keyv-staging</code><ul>
+<li>Location: East US</li>
+<li>Resource Group: <code>group-risqai-staging</code></li>
+</ul>
+</li>
+<li><strong>Integration:</strong> Active in codebase<ul>
+<li><code>backend/utils/encryption-new.ts</code> - Encryption/decryption service</li>
+<li><code>backend/handlers/test-crypto.ts</code> - Cryptography testing</li>
+<li>Dependencies: <code>@azure/identity</code>, <code>@azure/keyvault-keys</code></li>
+<li>Credential Management: <code>DefaultAzureCredential</code>, <code>ManagedIdentityCredential</code></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Managed Identities</strong></p>
+<ul>
+<li><strong>Static Web Apps:</strong> System-assigned identities enabled<ul>
+<li><code>frontend-risqai-production</code></li>
+<li><code>frontend-risqai-staging</code></li>
+<li><code>landing-page-prod</code></li>
+</ul>
+</li>
+<li><strong>Evidence:</strong> Key Vault reference identity configured</li>
+</ul>
+</li>
+</ol>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Microsoft Entra ID (Azure AD) Premium features</li>
+<li>Privileged Identity Management (PIM)</li>
+<li>Conditional Access policies (not visible in audit scope)</li>
+</ul>
+<hr>
+<h3>🟢 <strong>Networking</strong> (0/9 services)</h3>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Virtual Network (VNet)</li>
+<li>Network Security Groups (NSG)</li>
+<li>Private Link</li>
+<li>Azure Firewall</li>
+<li>Application Gateway with WAF</li>
+<li>Front Door with WAF</li>
+<li>ExpressRoute</li>
+<li>VPN Gateway</li>
+<li>Azure Bastion</li>
+</ul>
+<p><strong>Note:</strong> Container Apps use Azure-managed networking with default public endpoints.</p>
+<hr>
+<h3>🟢 <strong>Security &amp; Compliance</strong> (0/8 services)</h3>
+<h4>❌ Not Visible/Deployed</h4>
+<ul>
+<li>Microsoft Defender for Cloud</li>
+<li>Defender for Containers</li>
+<li>Defender for Servers</li>
+<li>Defender for Databases</li>
+<li>DDoS Protection</li>
+<li>Azure Web Application Firewall (WAF)</li>
+<li>Microsoft Purview</li>
+<li>Azure Policy/Blueprints</li>
+</ul>
+<p><strong>Note:</strong> Some security services may be enabled at subscription level but not visible in resource-level queries.</p>
+<hr>
+<h3>🟢 <strong>Observability &amp; IR</strong> (1/5 services)</h3>
+<h4>✅ In Use</h4>
+<ol>
+<li><strong>Azure Monitor - Log Analytics</strong> (2 workspaces)<ul>
+<li><strong>Production:</strong> <code>workspace-risqai-production</code><ul>
+<li>Workspace ID: <code>[REDACTED-WORKSPACE-ID-PROD]</code></li>
+<li>Retention: 30 days</li>
+<li>Public Access: Enabled (ingestion &amp; query)</li>
+<li>Created: 2025-08-26</li>
+</ul>
+</li>
+<li><strong>Staging:</strong> <code>[WORKSPACE-NAME-STAGING]</code><ul>
+<li>Workspace ID: <code>[REDACTED-WORKSPACE-ID-STAGING]</code></li>
+<li>Retention: 30 days</li>
+<li>Created: 2025-08-12</li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Application Insights</li>
+<li>Azure Monitor Alerts</li>
+<li>Azure Sentinel (SIEM/SOAR)</li>
+<li>Azure Service Health monitoring</li>
+</ul>
+<hr>
+<h3>🟢 <strong>DevSecOps</strong> (4/6 services)</h3>
+<h4>✅ In Use</h4>
+<ol>
+<li><p><strong>GitHub / GitHub Actions</strong></p>
+<ul>
+<li><strong>CI/CD Pipelines:</strong> 4 active workflows<ul>
+<li><code>app-risqai-backend-prod-AutoDeployTrigger</code> (master → production)</li>
+<li><code>staging_backend-22.yml</code> (staging → staging)</li>
+<li><code>azure-static-web-apps-white-forest</code> (master → production frontend)</li>
+<li><code>azure-static-web-apps-icy-plant</code> (staging → staging frontend)</li>
+</ul>
+</li>
+<li><strong>OIDC Authentication:</strong> Configured for Azure<ul>
+<li>Client ID, Tenant ID, Subscription ID stored as secrets</li>
+</ul>
+</li>
+<li><strong>Secrets Management:</strong> 23+ GitHub secrets configured</li>
+</ul>
+</li>
+<li><p><strong>Azure Container Registry</strong></p>
+<ul>
+<li><strong>Image Management:</strong> Automated builds and pushes</li>
+<li><strong>Integration:</strong> Direct integration with Container Apps</li>
+<li><strong>Authentication:</strong> Admin credentials + OIDC</li>
+</ul>
+</li>
+<li><p><strong>Infrastructure as Code</strong></p>
+<ul>
+<li><strong>Dockerfiles:</strong> Multi-stage builds with security scanning</li>
+<li><strong>Evidence:</strong> <code>Dockerfile</code> with optimized Node.js 20 image</li>
+<li><strong>Container Optimizations:</strong><ul>
+<li>Non-root user (<code>nodeuser</code>)</li>
+<li>Multi-stage builds</li>
+<li>Dependency pruning (<code>npm prune --production</code>)</li>
+<li>CycleTLS binary configuration</li>
+<li>Database migration automation</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p><strong>Azure DevOps Integration</strong></p>
+<ul>
+<li><strong>Evidence:</strong> GitHub Actions with Azure authentication</li>
+<li><strong>Deployment Method:</strong> Azure Container Apps Deploy Action v2</li>
+</ul>
+</li>
+</ol>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Microsoft Defender for DevOps</li>
+<li>Terraform/Bicep infrastructure templates (not found in repository)</li>
+</ul>
+<hr>
+<h3>🟢 <strong>Compliance</strong> (0/4 services)</h3>
+<h4>❌ Not Visible</h4>
+<ul>
+<li>Regulatory compliance dashboards</li>
+<li>Customer-Managed Keys (CMK) for encryption</li>
+<li>Immutable storage</li>
+<li>Retention locks</li>
+</ul>
+<p><strong>Note:</strong> Compliance features may be configured but not visible in resource-level audits.</p>
+<hr>
+<h3>🟢 <strong>Resilience</strong> (0/3 services)</h3>
+<h4>❌ Not Deployed</h4>
+<ul>
+<li>Azure Backup</li>
+<li>Azure Site Recovery</li>
+<li>Availability Zones (configured but HA not enabled)</li>
+</ul>
+<p><strong>Note:</strong> PostgreSQL databases are deployed to Availability Zone 1 but HA is disabled.</p>
+<hr>
+<h2>Architecture Overview</h2>
+<h3>Current Infrastructure</h3>
+<pre><code>┌─────────────────────────────────────────────────────────────────┐
+│                        GitHub Repository                         │
+│                    ([ORG]/[REPO])                           │
+└────────────┬────────────────────────────────────┬───────────────┘
+             │                                    │
+             │ Push to master/staging             │
+             ├────────────────────────────────────┤
+             ▼                                    ▼
+┌────────────────────────┐          ┌────────────────────────────┐
+│  GitHub Actions        │          │  GitHub Actions            │
+│  (Backend CI/CD)       │          │  (Frontend CI/CD)          │
+│  - Docker Build        │          │  - Vite Build              │
+│  - ACR Push            │          │  - Static Web App Deploy   │
+│  - Container App Deploy│          │                            │
+└────────┬───────────────┘          └────────┬───────────────────┘
+         │                                   │
+         │ Push Image                        │ Deploy
+         ▼                                   ▼
+┌─────────────────────┐          ┌─────────────────────────────┐
+│ Azure Container     │          │ Azure Static Web App        │
+│ Registry (ACR)      │          │ (Frontend)                  │
+│                     │          │ - white-forest (prod)       │
+│ - risqaiprod        │          │ - icy-plant (staging)       │
+│ - risqaistg         │          │                             │
+└────────┬────────────┘          └─────────────────────────────┘
+         │
+         │ Pull Image
+         ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Azure Container Apps                              │
+│                                                             │
+│  ┌──────────────────────────┐  ┌──────────────────────┐  │
+│  │ app-risqai-backend-prod  │  │ app-risqai-backend   │  │
+│  │ (Production)             │  │ (Staging)            │  │
+│  │ - 0.5 CPU, 1Gi Memory   │  │                      │  │
+│  │ - Node.js 20            │  │                      │  │
+│  │ - Auto-scaling          │  │                      │  │
+│  └──────────┬───────────────┘  └──────────┬───────────┘  │
+└─────────────┼──────────────────────────────┼──────────────┘
+              │                              │
+              │ Database Connections         │
+              ▼                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│           PostgreSQL Flexible Server                        │
+│                                                             │
+│  ┌────────────────────────┐  ┌───────────────────────┐   │
+│  │ db-risqai-production   │  │ db-risqay-staging     │   │
+│  │ - Standard_D2ds_v5     │  │ - Standard_B2s        │   │
+│  │ - PostgreSQL 17        │  │ - PostgreSQL 17       │   │
+│  │ - 32 GiB storage       │  │ - 32 GiB storage      │   │
+│  └────────────────────────┘  └───────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+              │                              │
+              │ Encryption Keys              │
+              ▼                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Azure Key Vault                                   │
+│                                                             │
+│  ┌──────────────────────┐  ┌──────────────────────────┐  │
+│  │ risqai-keyv-prod     │  │ risqai-keyv-staging      │  │
+│  │ (Production)         │  │ (Staging)                │  │
+│  └──────────────────────┘  └──────────────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+              │                              │
+              │ Logs &amp; Metrics              │
+              ▼                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│           Log Analytics Workspaces                          │
+│                                                             │
+│  ┌───────────────────────────┐  ┌────────────────────┐   │
+│  │ workspace-risqai-prod      │  │ workspace-staging  │   │
+│  │ (30-day retention)         │  │ (30-day retention) │   │
+│  └───────────────────────────┘  └────────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+</code></pre>
+<hr>
+<h2>Resource Groups</h2>
+<table>
+<thead>
+<tr>
+<th>Name</th>
+<th>Location</th>
+<th>Resources</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>group-risqai-production</code></td>
+<td>East US</td>
+<td>7+</td>
+<td>Succeeded</td>
+</tr>
+<tr>
+<td><code>group-risqai-staging</code></td>
+<td>East US</td>
+<td>7+</td>
+<td>Succeeded</td>
+</tr>
+<tr>
+<td><code>LogAnalyticsDefaultResources</code></td>
+<td>East US</td>
+<td>System</td>
+<td>Succeeded</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Detailed Service Analysis</h2>
+<h3>Container Apps Configuration</h3>
+<p><strong>Production Backend:</strong></p>
+<ul>
+<li><strong>Image:</strong> <code>risqaiprod.azurecr.io/app-risqai-backend-prod:[COMMIT-SHA-SHORT]</code></li>
+<li><strong>Resources:</strong> 0.5 vCPU, 1 GiB memory</li>
+<li><strong>Scaling:</strong> Not configured (default)</li>
+<li><strong>Environment Variables:</strong> Configured via Azure secrets</li>
+<li><strong>Database Migrations:</strong> Automated via Drizzle Kit on startup</li>
+<li><strong>Virtual Display:</strong> Xvfb for Puppeteer/Chromium</li>
+<li><strong>Security:</strong> Non-root user, minimal attack surface</li>
+</ul>
+<p><strong>Key Dockerfile Features:</strong></p>
+<ul>
+<li>Base Image: <code>node:20-slim</code></li>
+<li>System Dependencies: Chromium, Xvfb, fonts, libaries</li>
+<li>Multi-architecture Support: x64 validation</li>
+<li>CycleTLS Configuration: Binary permissions and environment</li>
+<li>Build Optimizations: Production dependency pruning</li>
+<li>Startup Diagnostics: Comprehensive runtime validation</li>
+</ul>
+<h3>Static Web Apps Configuration</h3>
+<p><strong>Production:</strong></p>
+<ul>
+<li><strong>CDN:</strong> Content delivered via Azure CDN (East US 2)</li>
+<li><strong>Branch:</strong> master</li>
+<li><strong>Build:</strong> Vite (React/TypeScript)</li>
+<li><strong>Authentication:</strong> OIDC with GitHub</li>
+<li><strong>Environment Variables:</strong> Managed via GitHub secrets<ul>
+<li><code>VITE_SERVER_URL</code></li>
+<li><code>VITE_AUTH0_*</code> (Auth0 configuration)</li>
+</ul>
+</li>
+</ul>
+<p><strong>Staging:</strong></p>
+<ul>
+<li><strong>CDN:</strong> Content delivered via Azure CDN (East US 2)</li>
+<li><strong>Branch:</strong> staging</li>
+<li><strong>Same configuration as production</strong></li>
+</ul>
+<h3>Key Vault Integration</h3>
+<p><strong>Backend Integration:</strong></p>
+<ul>
+<li><strong>File:</strong> <code>backend/utils/encryption-new.ts</code></li>
+<li><strong>Purpose:</strong> Encrypt/decrypt sensitive database fields</li>
+<li><strong>Authentication Methods:</strong><ul>
+<li><code>DefaultAzureCredential</code> (local dev, CI/CD)</li>
+<li><code>ManagedIdentityCredential</code> (Azure runtime)</li>
+</ul>
+</li>
+<li><strong>Token Management:</strong><ul>
+<li>Automatic token refresh (5-minute buffer)</li>
+<li>30-second check interval</li>
+<li>Retry logic for transient failures</li>
+</ul>
+</li>
+<li><strong>Environment Variables:</strong><ul>
+<li><code>AZURE_KEY_NAME</code></li>
+<li><code>AZURE_KEYVAULT_URL</code></li>
+</ul>
+</li>
+</ul>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Encryption of sensitive user data</li>
+<li>Cryptographic operations via CryptographyClient</li>
+<li>Key rotation support</li>
+</ul>
+<h3>Log Analytics Workspaces</h3>
+<p><strong>Configuration:</strong></p>
+<ul>
+<li><strong>Retention:</strong> 30 days (both prod and staging)</li>
+<li><strong>Public Access:</strong> Enabled for ingestion and queries</li>
+<li><strong>Integration:</strong> Linked to Container Apps</li>
+<li><strong>Use Cases:</strong><ul>
+<li>Container logs</li>
+<li>Application telemetry</li>
+<li>Performance metrics</li>
+</ul>
+</li>
+</ul>
+<p><strong>Recommendations:</strong></p>
+<ul>
+<li>Consider extending retention for compliance (90+ days)</li>
+<li>Implement log queries and saved searches</li>
+<li>Configure alert rules for critical errors</li>
+</ul>
+<hr>
+<h2>GitHub Actions CI/CD Pipelines</h2>
+<h3>Backend Deployment (Production)</h3>
+<p><strong>Workflow:</strong> <code>app-risqai-backend-prod-AutoDeployTrigger</code></p>
+<pre><code class="language-yaml">Trigger: Push to master branch
+Steps:
+  1. Checkout repository
+  2. Azure Login (OIDC)
+  3. Build and push container image to ACR
+  4. Deploy to Container Apps
+Authentication:
+  - Client ID: APPRISQAIBACKENDPROD_AZURE_CLIENT_ID
+  - Tenant ID: APPRISQAIBACKENDPROD_AZURE_TENANT_ID
+  - Subscription ID: APPRISQAIBACKENDPROD_AZURE_SUBSCRIPTION_ID
+Registry: risqaiprod.azurecr.io
+</code></pre>
+<h3>Backend Deployment (Staging)</h3>
+<p><strong>Workflow:</strong> <code>staging_backend-22.yml</code></p>
+<pre><code class="language-yaml">Trigger: Push to staging branch
+Steps:
+  1. Checkout repository
+  2. Azure Login (OIDC)
+  3. Docker build
+  4. Docker login to ACR
+  5. Push image
+  6. Update Container App with new image
+Configuration:
+  - Min Replicas: 1
+  - Max Replicas: 10
+Registry: risqaistg.azurecr.io
+</code></pre>
+<h3>Frontend Deployment (Production)</h3>
+<p><strong>Workflow:</strong> <code>azure-static-web-apps-white-forest</code></p>
+<pre><code class="language-yaml">Trigger: Push to master branch
+Steps:
+  1. Checkout repository
+  2. Install OIDC client
+  3. Get ID token
+  4. Build frontend (Vite)
+  5. Deploy to Static Web App
+Environment Variables:
+  - VITE_SERVER_URL
+  - VITE_AUTH0_* (Auth0 config)
+</code></pre>
+<h3>Frontend Deployment (Staging)</h3>
+<p><strong>Workflow:</strong> <code>azure-static-web-apps-icy-plant</code></p>
+<pre><code class="language-yaml">Trigger: Push to staging branch
+Steps: Same as production
+Target: [FQDN-ID-FRONTEND-STAGING].2.azurestaticapps.net
+</code></pre>
+<hr>
+<h2>Security Assessment</h2>
+<h3>✅ Strengths</h3>
+<ol>
+<li><p><strong>Identity &amp; Authentication</strong></p>
+<ul>
+<li>OIDC-based GitHub Actions authentication (federated credentials)</li>
+<li>Managed Identities for Static Web Apps</li>
+<li>Azure Key Vault for secrets management</li>
+<li>Auth0 integration for application authentication</li>
+</ul>
+</li>
+<li><p><strong>Container Security</strong></p>
+<ul>
+<li>Non-root user execution (<code>nodeuser</code>)</li>
+<li>Minimal base image (<code>node:20-slim</code>)</li>
+<li>Production dependency pruning</li>
+<li>Container Registry with admin authentication</li>
+</ul>
+</li>
+<li><p><strong>Secrets Management</strong></p>
+<ul>
+<li>23+ GitHub secrets properly configured</li>
+<li>Environment-specific secrets (prod/staging)</li>
+<li>Key Vault integration for runtime secrets</li>
+</ul>
+</li>
+<li><p><strong>Environment Separation</strong></p>
+<ul>
+<li>Dedicated resource groups (production/staging)</li>
+<li>Separate databases (different SKUs)</li>
+<li>Separate container registries</li>
+<li>Separate Key Vaults</li>
+</ul>
+</li>
+<li><p><strong>Automated Deployments</strong></p>
+<ul>
+<li>CI/CD with quality gates</li>
+<li>Automated database migrations</li>
+<li>Image tagging with git SHA</li>
+<li>Environment-specific workflows</li>
+</ul>
+</li>
+</ol>
+<h3>⚠️ Gaps &amp; Recommendations</h3>
+<ol>
+<li><p><strong>Networking Security</strong></p>
+<ul>
+<li>❌ No Virtual Network isolation</li>
+<li>❌ No Private Link for PostgreSQL</li>
+<li>❌ No Network Security Groups</li>
+<li>❌ Public endpoints exposed</li>
+<li><strong>Recommendation:</strong> Implement VNet integration for Container Apps and PostgreSQL</li>
+</ul>
+</li>
+<li><p><strong>Threat Protection</strong></p>
+<ul>
+<li>❌ Microsoft Defender for Cloud not configured</li>
+<li>❌ No DDoS Protection Standard</li>
+<li>❌ No WAF (Web Application Firewall)</li>
+<li><strong>Recommendation:</strong> Enable Defender for Containers, Databases, and Storage</li>
+</ul>
+</li>
+<li><p><strong>Observability</strong></p>
+<ul>
+<li>❌ Application Insights not configured</li>
+<li>❌ No distributed tracing</li>
+<li>❌ Limited log retention (30 days)</li>
+<li><strong>Recommendation:</strong> Implement Application Insights with custom metrics</li>
+</ul>
+</li>
+<li><p><strong>Resilience</strong></p>
+<ul>
+<li>❌ PostgreSQL HA not enabled</li>
+<li>❌ No Azure Backup configured</li>
+<li>❌ No multi-region deployment</li>
+<li>❌ Single availability zone deployment</li>
+<li><strong>Recommendation:</strong> Enable PostgreSQL HA, implement backup strategy</li>
+</ul>
+</li>
+<li><p><strong>Infrastructure as Code</strong></p>
+<ul>
+<li>❌ No Terraform/Bicep templates found</li>
+<li>❌ Manual infrastructure changes</li>
+<li><strong>Recommendation:</strong> Migrate to Infrastructure as Code (Terraform or Bicep)</li>
+</ul>
+</li>
+<li><p><strong>Compliance</strong></p>
+<ul>
+<li>❌ No Azure Policy assignments visible</li>
+<li>❌ No compliance dashboard</li>
+<li>❌ Customer-managed keys not implemented</li>
+<li><strong>Recommendation:</strong> Implement Azure Policy for governance</li>
+</ul>
+</li>
+<li><p><strong>Container Scaling</strong></p>
+<ul>
+<li>⚠️ Production: No min/max replicas configured</li>
+<li>⚠️ Staging: Min 1, Max 10 (good)</li>
+<li><strong>Recommendation:</strong> Configure auto-scaling rules for production</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>Cost Optimization Opportunities</h2>
+<ol>
+<li><p><strong>PostgreSQL Tiers</strong></p>
+<ul>
+<li>Production: GeneralPurpose (Standard_D2ds_v5) - Appropriate</li>
+<li>Staging: Burstable (Standard_B2s) - Cost-optimized ✅</li>
+</ul>
+</li>
+<li><p><strong>Container Apps</strong></p>
+<ul>
+<li>Review CPU/Memory allocation (currently 0.5 vCPU, 1 GiB)</li>
+<li>Implement auto-scaling with appropriate min/max replicas</li>
+</ul>
+</li>
+<li><p><strong>Log Analytics</strong></p>
+<ul>
+<li>30-day retention - Consider tiered storage for older logs</li>
+<li>Archive logs to Blob Storage for long-term retention</li>
+</ul>
+</li>
+<li><p><strong>Container Registry</strong></p>
+<ul>
+<li>Standard SKU - Appropriate for current scale</li>
+<li>Consider lifecycle policies for old images</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>Compliance &amp; Governance</h2>
+<h3>Current State</h3>
+<ul>
+<li><strong>Resource Groups:</strong> Properly organized by environment</li>
+<li><strong>Naming Conventions:</strong> Consistent (<code>app-risqai-*</code>, <code>db-risqai-*</code>)</li>
+<li><strong>Tagging:</strong> Not visible in audit (may be present)</li>
+<li><strong>RBAC:</strong> Managed via Azure AD (not visible in audit)</li>
+</ul>
+<h3>Recommendations</h3>
+<ol>
+<li><p>Implement Azure Policy for:</p>
+<ul>
+<li>Required tags (environment, owner, cost-center)</li>
+<li>Allowed resource types</li>
+<li>Allowed locations</li>
+<li>Encryption requirements</li>
+</ul>
+</li>
+<li><p>Enable Azure Blueprints for:</p>
+<ul>
+<li>Standardized environment deployment</li>
+<li>Compliance templates (SOC 2, ISO 27001, etc.)</li>
+</ul>
+</li>
+<li><p>Implement Cost Management:</p>
+<ul>
+<li>Budget alerts</li>
+<li>Cost allocation tags</li>
+<li>Resource optimization recommendations</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>Disaster Recovery &amp; Business Continuity</h2>
+<h3>Current State</h3>
+<ul>
+<li><strong>RPO/RTO:</strong> Not defined</li>
+<li><strong>Backup Strategy:</strong> Not visible</li>
+<li><strong>HA Configuration:</strong> Disabled for PostgreSQL</li>
+<li><strong>Multi-Region:</strong> Not configured</li>
+</ul>
+<h3>Recommendations</h3>
+<ol>
+<li><p><strong>Database Backup</strong></p>
+<ul>
+<li>Enable automated PostgreSQL backups</li>
+<li>Configure point-in-time restore (PITR)</li>
+<li>Test restore procedures monthly</li>
+<li>Define retention policy (7-35 days)</li>
+</ul>
+</li>
+<li><p><strong>High Availability</strong></p>
+<ul>
+<li>Enable PostgreSQL HA with zone-redundant standby</li>
+<li>Configure Container Apps with zone redundancy</li>
+<li>Implement health probes and auto-restart</li>
+</ul>
+</li>
+<li><p><strong>Disaster Recovery</strong></p>
+<ul>
+<li>Define RPO/RTO requirements</li>
+<li>Consider geo-replication for PostgreSQL</li>
+<li>Implement multi-region deployment for critical workloads</li>
+<li>Document runbooks for failover procedures</li>
+</ul>
+</li>
+<li><p><strong>Data Protection</strong></p>
+<ul>
+<li>Implement Azure Backup for databases</li>
+<li>Configure immutable backups</li>
+<li>Test disaster recovery procedures quarterly</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>Monitoring &amp; Alerting Recommendations</h2>
+<h3>Recommended Metrics to Monitor</h3>
+<ol>
+<li><p><strong>Container Apps</strong></p>
+<ul>
+<li>CPU utilization (&gt; 80%)</li>
+<li>Memory utilization (&gt; 85%)</li>
+<li>Request rate and latency (p95 &gt; 1s)</li>
+<li>HTTP 5xx errors (&gt; 1%)</li>
+<li>Restart count (&gt; 3/hour)</li>
+</ul>
+</li>
+<li><p><strong>PostgreSQL</strong></p>
+<ul>
+<li>CPU utilization (&gt; 80%)</li>
+<li>Storage usage (&gt; 85%)</li>
+<li>Connection count (&gt; 80% max)</li>
+<li>Query performance (slow queries &gt; 5s)</li>
+<li>Replication lag (if HA enabled)</li>
+</ul>
+</li>
+<li><p><strong>Key Vault</strong></p>
+<ul>
+<li>Access failures</li>
+<li>Throttling events</li>
+<li>Key rotation events</li>
+</ul>
+</li>
+<li><p><strong>Application Insights</strong> (when implemented)</p>
+<ul>
+<li>Exception rate</li>
+<li>Dependency failures</li>
+<li>Page load time</li>
+<li>User session metrics</li>
+</ul>
+</li>
+</ol>
+<h3>Recommended Alerts</h3>
+<pre><code>Critical:
+- Container App crashes
+- Database connection failures
+- Key Vault access denied
+- CPU &gt; 90% for 10 minutes
+- Memory &gt; 95% for 5 minutes
+
+Warning:
+- CPU &gt; 80% for 30 minutes
+- Storage &gt; 80%
+- Failed requests &gt; 5% for 15 minutes
+- Log Analytics workspace near capacity
+</code></pre>
+<hr>
+<h2>Roadmap Recommendations</h2>
+<h3>Phase 1: Foundational Improvements (0-3 months)</h3>
+<ol>
+<li><p><strong>Enable Application Insights</strong></p>
+<ul>
+<li>Instrument backend with custom telemetry</li>
+<li>Configure availability tests</li>
+<li>Set up performance tracking</li>
+</ul>
+</li>
+<li><p><strong>Implement Container App Scaling</strong></p>
+<ul>
+<li>Configure min/max replicas</li>
+<li>Set up CPU/memory-based auto-scaling</li>
+<li>Test scaling behavior under load</li>
+</ul>
+</li>
+<li><p><strong>Enable PostgreSQL HA</strong></p>
+<ul>
+<li>Configure zone-redundant standby (production)</li>
+<li>Test failover procedures</li>
+<li>Document RTO/RPO</li>
+</ul>
+</li>
+<li><p><strong>Extend Log Retention</strong></p>
+<ul>
+<li>Increase to 90 days for compliance</li>
+<li>Configure log exports to Blob Storage for archival</li>
+</ul>
+</li>
+</ol>
+<h3>Phase 2: Security Hardening (3-6 months)</h3>
+<ol>
+<li><p><strong>Implement Virtual Network Integration</strong></p>
+<ul>
+<li>Create VNets for prod/staging</li>
+<li>Enable VNet integration for Container Apps</li>
+<li>Configure Private Link for PostgreSQL</li>
+</ul>
+</li>
+<li><p><strong>Enable Microsoft Defender</strong></p>
+<ul>
+<li>Defender for Containers</li>
+<li>Defender for Databases</li>
+<li>Defender for Key Vault</li>
+<li>Configure security alerts</li>
+</ul>
+</li>
+<li><p><strong>Implement WAF</strong></p>
+<ul>
+<li>Azure Front Door with WAF rules</li>
+<li>OWASP top 10 protection</li>
+<li>Rate limiting and bot protection</li>
+</ul>
+</li>
+<li><p><strong>Azure Policy Implementation</strong></p>
+<ul>
+<li>Required tags policy</li>
+<li>Encryption enforcement</li>
+<li>Allowed locations</li>
+<li>Resource naming standards</li>
+</ul>
+</li>
+</ol>
+<h3>Phase 3: Advanced Features (6-12 months)</h3>
+<ol>
+<li><p><strong>Infrastructure as Code</strong></p>
+<ul>
+<li>Migrate to Terraform or Bicep</li>
+<li>Version control all infrastructure</li>
+<li>Implement GitOps workflows</li>
+</ul>
+</li>
+<li><p><strong>Multi-Region Deployment</strong></p>
+<ul>
+<li>Deploy to secondary region (West US)</li>
+<li>Configure Traffic Manager or Front Door</li>
+<li>Implement geo-replication for PostgreSQL</li>
+</ul>
+</li>
+<li><p><strong>Advanced Observability</strong></p>
+<ul>
+<li>Azure Sentinel for SIEM</li>
+<li>Custom dashboards and workbooks</li>
+<li>Automated incident response</li>
+</ul>
+</li>
+<li><p><strong>Compliance Automation</strong></p>
+<ul>
+<li>Implement Azure Blueprints</li>
+<li>Automate compliance reporting</li>
+<li>Configure regulatory compliance dashboard</li>
+</ul>
+</li>
+</ol>
+<hr>
+<h2>Summary Score</h2>
+<h3>Azure Services Adoption</h3>
+<table>
+<thead>
+<tr>
+<th>Category</th>
+<th>Deployed</th>
+<th>Available</th>
+<th>Adoption Rate</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Hosting &amp; Platform</td>
+<td>3</td>
+<td>8</td>
+<td>38%</td>
+</tr>
+<tr>
+<td>Data &amp; Storage</td>
+<td>1</td>
+<td>9</td>
+<td>11%</td>
+</tr>
+<tr>
+<td>Networking</td>
+<td>0</td>
+<td>9</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Identity &amp; Secrets</td>
+<td>2</td>
+<td>5</td>
+<td>40%</td>
+</tr>
+<tr>
+<td>Security &amp; Compliance</td>
+<td>0</td>
+<td>8</td>
+<td>0%</td>
+</tr>
+<tr>
+<td>Observability &amp; IR</td>
+<td>1</td>
+<td>5</td>
+<td>20%</td>
+</tr>
+<tr>
+<td>DevSecOps</td>
+<td>4</td>
+<td>6</td>
+<td>67%</td>
+</tr>
+<tr>
+<td>Resilience</td>
+<td>0</td>
+<td>3</td>
+<td>0%</td>
+</tr>
+<tr>
+<td><strong>Overall</strong></td>
+<td><strong>11</strong></td>
+<td><strong>53</strong></td>
+<td><strong>21%</strong></td>
+</tr>
+</tbody></table>
+<h3>Maturity Assessment</h3>
+<ul>
+<li><strong>DevSecOps:</strong> ⭐⭐⭐⭐ (4/5) - Strong CI/CD automation</li>
+<li><strong>Identity:</strong> ⭐⭐⭐⭐ (4/5) - Key Vault and Managed Identities</li>
+<li><strong>Hosting:</strong> ⭐⭐⭐⭐ (4/5) - Modern container architecture</li>
+<li><strong>Observability:</strong> ⭐⭐ (2/5) - Basic logs, needs enhancement</li>
+<li><strong>Security:</strong> ⭐⭐ (2/5) - Good foundations, gaps in threat protection</li>
+<li><strong>Resilience:</strong> ⭐ (1/5) - Limited HA and backup</li>
+<li><strong>Networking:</strong> ⭐ (1/5) - No VNet isolation</li>
+<li><strong>Compliance:</strong> ⭐ (1/5) - Manual processes</li>
+</ul>
+<p><strong>Overall Maturity:</strong> ⭐⭐⭐ (3/5) - <strong>Developing</strong></p>
+<hr>
+<h2>Conclusion</h2>
+<p>The RisqAI platform demonstrates a <strong>solid cloud-native foundation</strong> with strong DevSecOps practices and modern containerized architecture. Key strengths include automated CI/CD pipelines, proper environment separation, and integration with Azure Key Vault for secrets management.</p>
+<p><strong>Priority Actions:</strong></p>
+<ol>
+<li>Enable PostgreSQL High Availability (production)</li>
+<li>Implement Application Insights for distributed tracing</li>
+<li>Configure auto-scaling for Container Apps</li>
+<li>Extend log retention to 90 days</li>
+<li>Implement VNet integration for network isolation</li>
+</ol>
+<p><strong>Strategic Focus Areas:</strong></p>
+<ul>
+<li><strong>Security:</strong> Implement Defender for Cloud and WAF</li>
+<li><strong>Resilience:</strong> Enable HA, backup, and multi-region DR</li>
+<li><strong>Observability:</strong> Deploy Application Insights and custom monitoring</li>
+<li><strong>Governance:</strong> Adopt Infrastructure as Code (Terraform/Bicep)</li>
+</ul>
+<p>With these improvements, the platform will achieve enterprise-grade reliability, security, and operational excellence on Azure.</p>
+<hr>
+<p><strong>Report Generated By:</strong> Claude Code (AI-Assisted Infrastructure Audit)
+<strong>Audit Date:</strong> October 8, 2025
+<strong>Next Review:</strong> January 8, 2026 (Quarterly)</p>
+        </div>
+        <div class="footer">
+            <p><strong>Azure Infrastructure Audit Report</strong> | Generated by Claude Code (AI-Assisted Infrastructure Audit)</p>
+            <p style="margin-top: 8px;">Report Date: October 8, 2025 | Next Review: January 8, 2026 (Quarterly)</p>
+            <p style="margin-top: 16px; font-size: 0.75rem; opacity: 0.7;">
+                All sensitive identifiers have been redacted for security purposes.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

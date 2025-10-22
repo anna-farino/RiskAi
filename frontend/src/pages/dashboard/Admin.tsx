@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Shield, Users, Loader2, UserPlus } from "lucide-react"
+import { Shield, Users, Loader2, UserPlus, ArrowUpDown, ArrowUp, ArrowDown, Search, X, Pencil, Trash2, UserCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -24,6 +24,8 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 
 export default function Admin() {
@@ -32,6 +34,13 @@ export default function Admin() {
   const [ isCreateDialogOpen, setIsCreateDialogOpen ] = useState(false)
   const [ newUserEmail, setNewUserEmail ] = useState("")
   const [ newUserPassword, setNewUserPassword ] = useState("")
+  const [ sortColumn, setSortColumn ] = useState<'email' | 'role' | 'lastLogin' | null>(null)
+  const [ sortDirection, setSortDirection ] = useState<'asc' | 'desc'>('asc')
+  const [ searchEmail, setSearchEmail ] = useState("")
+  const [ deleteDialogOpen, setDeleteDialogOpen ] = useState(false)
+  const [ userToDelete, setUserToDelete ] = useState<{email: string, id: string} | null>(null)
+  const [ selectedUsers, setSelectedUsers ] = useState<Set<string>>(new Set())
+  const [ bulkDeleteDialogOpen, setBulkDeleteDialogOpen ] = useState(false)
   const user = useAuth()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
@@ -91,6 +100,25 @@ export default function Admin() {
     },
   })
 
+  const usersInfoQuery = useQuery({
+    queryKey: ['users-info', user.data?.organizationId],
+    enabled: !!isUserAdmin && !!user.data?.organizationId,
+    retry: true,
+    queryFn: async () => {
+      if (!isUserAdmin || !user.data?.organizationId) {
+        return []
+      }
+      try {
+        const response = await fetchWithAuth(`/api/users/info/${user.data.organizationId}`)
+        if (!response.ok) throw new Error('Failed to fetch users info')
+        return response.json()
+      } catch(error) {
+        console.error(error)
+        return []
+      }
+    }
+  })
+
   const editUserRole = useMutation({
     mutationFn: async (item: { userId: string, userRole: string, userEmail: string }) => {
       if (item.userId === user.data?.id) {
@@ -137,7 +165,10 @@ export default function Admin() {
           'Content-Type': 'application/json',
           'Accept': 'application/json'
         },
-        body: JSON.stringify(data)
+        body: JSON.stringify({
+          ...data,
+          organizationId: user.data?.organizationId
+        })
       })
       if (!response.ok) {
         const errorData = await response.json()
@@ -168,6 +199,123 @@ export default function Admin() {
       email: newUserEmail,
       password: newUserPassword
     })
+  }
+
+  function handleEditUser(item: {userId: string, userEmail: string, userRole: string}) {
+    // TODO: Add edit functionality
+  }
+
+  function handleDeleteUser(item: {userId: string, userEmail: string, userRole: string}) {
+    setUserToDelete({ email: item.userEmail, id: item.userId })
+    setDeleteDialogOpen(true)
+  }
+
+  function handleSelectUser(userId: string, checked: boolean) {
+    setSelectedUsers(prev => {
+      const newSet = new Set(prev)
+      if (checked) {
+        newSet.add(userId)
+      } else {
+        newSet.delete(userId)
+      }
+      return newSet
+    })
+  }
+
+  function handleSelectAll(checked: boolean) {
+    if (checked) {
+      const allUserIds = getSortedData()?.map((item: any) => item.userId) || []
+      setSelectedUsers(new Set(allUserIds))
+    } else {
+      setSelectedUsers(new Set())
+    }
+  }
+
+  function handleBulkDelete() {
+    setBulkDeleteDialogOpen(true)
+  }
+
+  function handleBulkChangeRole(roleName: string) {
+    // TODO: Add bulk role change functionality
+    console.log('Bulk change role to:', roleName)
+  }
+
+  function handleSort(column: 'email' | 'role' | 'lastLogin') {
+    if (sortColumn === column) {
+      // Clicking the same column: toggle direction or clear
+      if (sortDirection === 'asc') {
+        setSortDirection('desc')
+      } else {
+        // Clear sorting
+        setSortColumn(null)
+      }
+    } else {
+      // Clicking a different column: set new column and default to ascending
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  function getSortedData() {
+    if (!Array.isArray(userRolesQuery.data)) {
+      return userRolesQuery.data
+    }
+
+    // Merge user roles with last_login info
+    const usersInfoData = Array.isArray(usersInfoQuery.data) ? usersInfoQuery.data : []
+    const mergedData = userRolesQuery.data.map((item: any) => {
+      const userInfo = usersInfoData.find((info: any) => info.email === item.userEmail)
+      return {
+        ...item,
+        lastLogin: userInfo?.last_login || null
+      }
+    })
+
+    // First, filter by search term
+    let filtered = mergedData
+    if (searchEmail.trim()) {
+      filtered = mergedData.filter((item: any) =>
+        item.userEmail?.toLowerCase().includes(searchEmail.toLowerCase())
+      )
+    }
+
+    // Then, sort if a column is selected
+    if (!sortColumn) {
+      return filtered
+    }
+
+    const sorted = [...filtered].sort((a: any, b: any) => {
+      let aValue: any = ''
+      let bValue: any = ''
+
+      if (sortColumn === 'email') {
+        aValue = a.userEmail?.toLowerCase() || ''
+        bValue = b.userEmail?.toLowerCase() || ''
+      } else if (sortColumn === 'role') {
+        aValue = a.userRole?.toLowerCase() || ''
+        bValue = b.userRole?.toLowerCase() || ''
+      } else if (sortColumn === 'lastLogin') {
+        // Handle date sorting - null values go to the end
+        aValue = a.lastLogin ? new Date(a.lastLogin).getTime() : 0
+        bValue = b.lastLogin ? new Date(b.lastLogin).getTime() : 0
+      }
+
+      if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1
+      if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+
+    return sorted
+  }
+
+  function getSortIcon(column: 'email' | 'role' | 'lastLogin') {
+    if (sortColumn !== column) {
+      return <ArrowUpDown className="h-4 w-4 ml-1 opacity-50" />
+    }
+    if (sortDirection === 'asc') {
+      return <ArrowUp className="h-4 w-4 ml-1" />
+    }
+    return <ArrowDown className="h-4 w-4 ml-1" />
   }
 
   console.log("User data", user.data)
@@ -229,7 +377,11 @@ export default function Admin() {
                 <Users className="h-5 w-5 text-[#00FFFF]" />
                 <span className="text-base font-medium text-white">Organization Users</span>
                 <div className="text-sm text-slate-300">
-                  ({Array.isArray(userRolesQuery.data) ? userRolesQuery.data.length : 0} users)
+                  {searchEmail.trim() ? (
+                    <>({getSortedData()?.length || 0} of {Array.isArray(userRolesQuery.data) ? userRolesQuery.data.length : 0} users)</>
+                  ) : (
+                    <>({Array.isArray(userRolesQuery.data) ? userRolesQuery.data.length : 0} users)</>
+                  )}
                 </div>
               </div>
               <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -300,16 +452,112 @@ export default function Admin() {
               </Dialog>
             </div>
 
+            {/* Search Input and Bulk Actions */}
+            <div className="flex items-center justify-between gap-4">
+              <div className="relative w-1/2">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                <Input
+                  type="text"
+                  placeholder="Search by email..."
+                  value={searchEmail}
+                  onChange={(e) => setSearchEmail(e.target.value)}
+                  className="pl-10 pr-10 bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-[#00FFFF]/50 focus:ring-[#00FFFF]/20"
+                />
+                {searchEmail && (
+                  <button
+                    onClick={() => setSearchEmail("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-white transition-colors bg-transparent hover:bg-slate-600 rounded-full p-1 m-0"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Bulk Actions */}
+              {selectedUsers.size > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-slate-300">
+                    {selectedUsers.size} selected
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleBulkDelete}
+                    className="bg-slate-700/50 border-slate-600 text-slate-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-500/50"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Delete
+                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="bg-slate-700/50 border-slate-600 text-slate-300 hover:text-white hover:bg-slate-600 hover:border-slate-500"
+                      >
+                        <UserCog className="h-4 w-4 mr-2" />
+                        Change Role
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="bg-slate-700 text-white border-slate-600/50">
+                      {rolesData.data && rolesData.data.map((role: any) => (
+                        <DropdownMenuItem
+                          key={role.name}
+                          className="cursor-pointer hover:bg-slate-600/50 focus:bg-slate-600/50"
+                          onClick={() => handleBulkChangeRole(role.name)}
+                        >
+                          {role.name}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              )}
+            </div>
+
             <Table>
               <TableHeader>
                 <TableRow className="border-slate-600/50 hover:bg-transparent">
-                  <TableHead className="text-slate-200 font-medium">User Email</TableHead>
-                  <TableHead className="text-slate-200 font-medium">Role</TableHead>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={selectedUsers.size > 0 && selectedUsers.size === getSortedData()?.length}
+                      onCheckedChange={handleSelectAll}
+                      className="border-slate-500 data-[state=checked]:bg-[#00FFFF] data-[state=checked]:border-[#00FFFF]"
+                    />
+                  </TableHead>
+                  <TableHead
+                    className="text-slate-200 font-medium cursor-pointer hover:text-[#00FFFF] transition-colors select-none"
+                    onClick={() => handleSort('email')}
+                  >
+                    <div className="flex items-center">
+                      User Email
+                      {getSortIcon('email')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="text-slate-200 font-medium cursor-pointer hover:text-[#00FFFF] transition-colors select-none"
+                    onClick={() => handleSort('role')}
+                  >
+                    <div className="flex items-center">
+                      Role
+                      {getSortIcon('role')}
+                    </div>
+                  </TableHead>
+                  <TableHead
+                    className="text-slate-200 font-medium cursor-pointer hover:text-[#00FFFF] transition-colors select-none"
+                    onClick={() => handleSort('lastLogin')}
+                  >
+                    <div className="flex items-center">
+                      Last Login
+                      {getSortIcon('lastLogin')}
+                    </div>
+                  </TableHead>
+                  <TableHead className="text-slate-200 font-medium text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {Array.isArray(userRolesQuery.data) && userRolesQuery.data.length > 0 ? (
-                  userRolesQuery.data.map((item: any, j: number) => (
+                {Array.isArray(getSortedData()) && getSortedData().length > 0 ? (
+                  getSortedData().map((item: any, j: number) => (
                     <UserRoleRow
                       key={item.userEmail + j}
                       item={item}
@@ -318,11 +566,15 @@ export default function Admin() {
                       user={user}
                       rolesData={rolesData.data}
                       changeRole={changeRole}
+                      onEdit={handleEditUser}
+                      onDelete={handleDeleteUser}
+                      isSelected={selectedUsers.has(item.userId)}
+                      onSelectChange={handleSelectUser}
                     />
                   ))
                 ) : (
                   <TableRow>
-                    <td colSpan={2} className="text-center py-8">
+                    <td colSpan={5} className="text-center py-8">
                       <div className="flex flex-col items-center">
                         <div className="w-12 h-12 bg-slate-800/50 rounded-full flex items-center justify-center mb-3">
                           <Users className="h-6 w-6 text-slate-400" />
@@ -337,6 +589,73 @@ export default function Admin() {
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-600/60 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">Delete User</DialogTitle>
+            <DialogDescription className="text-slate-300">
+              Are you sure you want to delete <span className="font-semibold text-white">{userToDelete?.email}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="bg-slate-700/50 border-slate-600 text-white hover:bg-slate-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => setDeleteDialogOpen(false)}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-600/60 text-white">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-white">Delete Multiple Users</DialogTitle>
+            <DialogDescription className="text-slate-300">
+              Are you sure you want to delete {selectedUsers.size} user{selectedUsers.size > 1 ? 's' : ''}?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-60 overflow-y-auto space-y-1 py-2">
+            {Array.from(selectedUsers).map((userId) => {
+              const userData = userRolesQuery.data?.find((u: any) => u.userId === userId)
+              return userData ? (
+                <div key={userId} className="text-sm text-slate-300 px-2">
+                  • {userData.userEmail}
+                </div>
+              ) : null
+            })}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDeleteDialogOpen(false)}
+              className="bg-slate-700/50 border-slate-600 text-white hover:bg-slate-700"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                setBulkDeleteDialogOpen(false)
+                setSelectedUsers(new Set())
+              }}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

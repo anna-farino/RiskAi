@@ -11,6 +11,7 @@ import { corsOptions } from './utils/cors-options';
 import { helmetConfig, setNonce } from './utils/helmet-config';
 import { initializeSocketIO } from './services/live-logs/socket-server';
 import { initializeLogInterception } from './services/live-logs/log-interceptor';
+import { handleStripeWebhook } from './handlers/stripe/webhook';
 
 const port = Number(process.env.PORT) || 5000;
 
@@ -35,6 +36,10 @@ app.use(callId);
 app.use(logTime);
 app.use(setNonce)
 app.use(cors(corsOptions));
+app.post('/webhooks/stripe',
+ express.raw({ type: 'application/json' }),
+ handleStripeWebhook
+);
 app.use(express.json());
 app.use(cookieParser());
 app.use('/api', router);
