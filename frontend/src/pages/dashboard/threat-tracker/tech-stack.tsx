@@ -94,6 +94,9 @@ export default function TechStackPage() {
   const [vendorSearch, setVendorSearch] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   
+  // Track newly added items during this session
+  const [newlyAddedItems, setNewlyAddedItems] = useState<Set<string>>(new Set());
+  
   // File upload state
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -304,7 +307,11 @@ export default function TechStackPage() {
         variant: "destructive"
       });
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Track the newly added item
+      if (data?.id) {
+        setNewlyAddedItems(prev => new Set([...prev, data.id]));
+      }
       // Don't invalidate queries to preserve optimistic update
       // Toast removed - item added
     }
@@ -951,6 +958,48 @@ export default function TechStackPage() {
     }
   };
 
+  // Sorting function for software/hardware (by company first, then name)
+  const sortTechItems = (items: TechStackItem[] | undefined) => {
+    if (!items) return [];
+    
+    return [...items].sort((a, b) => {
+      // New items first
+      const aIsNew = newlyAddedItems.has(a.id);
+      const bIsNew = newlyAddedItems.has(b.id);
+      
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      
+      // Then sort by company (if available) + name
+      const aCompany = a.company || a.manufacturer || '';
+      const bCompany = b.company || b.manufacturer || '';
+      
+      // First compare by company
+      const companyCompare = aCompany.toLowerCase().localeCompare(bCompany.toLowerCase());
+      if (companyCompare !== 0) return companyCompare;
+      
+      // If companies are the same (or both empty), sort by name
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+  };
+
+  // Sorting function for vendors/clients (by name only)
+  const sortSimpleItems = (items: TechStackItem[] | undefined) => {
+    if (!items) return [];
+    
+    return [...items].sort((a, b) => {
+      // New items first
+      const aIsNew = newlyAddedItems.has(a.id);
+      const bIsNew = newlyAddedItems.has(b.id);
+      
+      if (aIsNew && !bIsNew) return -1;
+      if (!aIsNew && bIsNew) return 1;
+      
+      // Then sort alphabetically by name
+      return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+    });
+  };
+
   return (
     <div className="space-y-6 p-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-start">
@@ -1240,7 +1289,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.software?.map(item => (
+                  {sortTechItems(techStack?.software).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
@@ -1340,7 +1389,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.hardware?.map(item => (
+                  {sortTechItems(techStack?.hardware).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
@@ -1440,7 +1489,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.vendors?.map(item => (
+                  {sortSimpleItems(techStack?.vendors).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
@@ -1540,7 +1589,7 @@ export default function TechStackPage() {
                 </div>
                 
                 <div className="space-y-1">
-                  {techStack?.clients?.map(item => (
+                  {sortSimpleItems(techStack?.clients).map(item => (
                     <TechStackItem
                       key={item.id}
                       item={item}
