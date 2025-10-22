@@ -13,6 +13,8 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import { useFetch } from "@/hooks/use-fetch";
 import { Autocomplete } from "@/components/ui/autocomplete";
+import { Progress } from "@/components/ui/progress";
+import { useUploadProgress } from "@/hooks/useUploadProgress";
 import {
   Tooltip,
   TooltipContent,
@@ -28,6 +30,16 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Type definitions
 interface TechStackItem {
@@ -40,6 +52,11 @@ interface TechStackItem {
   manufacturer?: string | null; // For hardware items
   model?: string | null; // For hardware items
   source?: string | null; // For tracking auto-added vendors
+  criticalCount?: number;
+  highCount?: number;
+  mediumCount?: number;
+  lowCount?: number;
+  // Legacy fields - kept for backwards compatibility
   threats?: {
     count: number;
     highestLevel: 'critical' | 'high' | 'medium' | 'low';
@@ -83,6 +100,108 @@ export default function TechStackPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [extractedEntities, setExtractedEntities] = useState<ExtractedEntity[]>([]);
   const [selectedEntities, setSelectedEntities] = useState<Set<number>>(new Set());
+  const [currentUploadId, setCurrentUploadId] = useState<string | null>(null);
+  
+  // Entity routing dialog state
+  const [routingDialog, setRoutingDialog] = useState<{
+    open: boolean;
+    entity: { name: string; version?: string; priority?: number } | null;
+    currentType: 'software' | 'hardware' | 'vendor' | 'client' | null;
+    suggestedType: 'software' | 'hardware' | 'vendor' | 'client' | null;
+    message: string;
+  }>({ open: false, entity: null, currentType: null, suggestedType: null, message: '' });
+  
+  // Simple in-memory cache for validation results
+  const validationCache = useRef<Map<string, { suggestedType: string; timestamp: number }>>(new Map());
+  
+  // Use the upload progress hook
+  const { progress } = useUploadProgress(currentUploadId, {
+    onComplete: async (progressData) => {
+      // Handle upload completion - get entities from progress data
+      setIsUploading(false);
+      setCurrentUploadId(null);
+      
+      // Check if entities were returned in the progress response
+      if (progressData.entities && progressData.entities.length > 0) {
+        // Set extracted entities and show the preview dialog
+        setExtractedEntities(progressData.entities);
+        setSelectedEntities(new Set(progressData.entities.map((_: ExtractedEntity, i: number) => i)));
+        setShowPreview(true);
+        
+        // Toast removed - upload complete
+      } else if (progressData.entityCount && progressData.entityCount > 0) {
+        // Fallback if entities aren't in the progress response
+        // Toast removed - upload complete
+      }
+    },
+    onError: (error) => {
+      setIsUploading(false);
+      setCurrentUploadId(null);
+      toast({
+        title: "Upload failed",
+        description: error,
+        variant: "destructive"
+      });
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  });
+
+  // Validate entity type with AI
+  const validateEntityType = async (name: string, currentType: string) => {
+    // Check cache first (cache for 5 minutes)
+    const cacheKey = `${name}-${currentType}`;
+    const cached = validationCache.current.get(cacheKey);
+    if (cached && Date.now() - cached.timestamp < 5 * 60 * 1000) {
+      return { suggestedType: cached.suggestedType, shouldSuggestCorrection: cached.suggestedType !== currentType };
+    }
+    
+    try {
+      const response = await fetchWithAuth('/api/threat-tracker/tech-stack/validate-entity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, currentType })
+      });
+      
+      if (!response.ok) return null;
+      
+      const result = await response.json();
+      
+      // Cache the result
+      if (result.suggestedType) {
+        validationCache.current.set(cacheKey, {
+          suggestedType: result.suggestedType,
+          timestamp: Date.now()
+        });
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error validating entity type:', error);
+      return null;
+    }
+  };
+
+  // Handle adding item with validation
+  const handleAddItem = async (type: 'software' | 'hardware' | 'vendor' | 'client', name: string, version?: string, priority?: number) => {
+    // Validate entity type
+    const validation = await validateEntityType(name, type);
+    
+    if (validation?.shouldSuggestCorrection) {
+      // Show routing dialog
+      setRoutingDialog({
+        open: true,
+        entity: { name, version, priority },
+        currentType: type,
+        suggestedType: validation.suggestedType,
+        message: validation.message
+      });
+    } else {
+      // Add directly
+      addItem.mutate({ type, name, version, priority });
+    }
+  };
 
   // Autocomplete fetch functions
   const fetchSoftwareOptions = async (query: string) => {
@@ -187,10 +306,7 @@ export default function TechStackPage() {
     },
     onSuccess: () => {
       // Don't invalidate queries to preserve optimistic update
-      toast({
-        title: "Item added",
-        description: "Technology stack item has been added successfully"
-      });
+      // Toast removed - item added
     }
   });
 
@@ -241,10 +357,7 @@ export default function TechStackPage() {
     },
     onSuccess: () => {
       // Don't invalidate queries to preserve optimistic update
-      toast({
-        title: "Item removed",
-        description: "Technology stack item has been permanently removed"
-      });
+      // Toast removed - item removed
     }
   });
 
@@ -315,10 +428,7 @@ export default function TechStackPage() {
     onSuccess: (data) => {
       // Don't invalidate queries to preserve optimistic update
       // The optimistic update already has the correct state
-      toast({
-        title: data.isActive ? "Item enabled" : "Item disabled",
-        description: `Technology stack item has been ${data.isActive ? 'enabled' : 'disabled'}`
-      });
+      // Toast removed - item toggled
     }
   });
 
@@ -382,20 +492,13 @@ export default function TechStackPage() {
       if (context?.previousData) {
         queryClient.setQueryData(['/api/threat-tracker/tech-stack'], context.previousData);
       }
-      toast({
-        title: "Failed to bulk toggle items",
-        description: "There was an error updating the items",
-        variant: "destructive"
-      });
+      // Toast removed - failed to bulk toggle
     },
     onSuccess: (data, variables) => {
       // Don't invalidate queries to preserve optimistic update
       // The optimistic update already has the correct state
       const typeLabel = variables.type || 'all';
-      toast({
-        title: variables.isActive ? "Items enabled" : "Items disabled",
-        description: `${variables.isActive ? 'Enabled' : 'Disabled'} ${typeLabel} items`
-      });
+      // Toast removed - bulk toggle success
     }
   });
 
@@ -457,10 +560,7 @@ export default function TechStackPage() {
     onSuccess: (data, variables) => {
       // Don't invalidate queries to preserve optimistic update
       const typeLabel = variables.type || 'all';
-      toast({
-        title: "Items deleted",
-        description: `Deleted ${typeLabel} items from tech stack`
-      });
+      // Toast removed - items deleted
     }
   });
 
@@ -500,7 +600,7 @@ export default function TechStackPage() {
     return (
       <div 
         className={cn(
-          "flex items-center justify-between py-3 px-4 rounded-md transition-colors",
+          "flex items-center justify-between gap-4 py-3 px-4 rounded-md transition-colors",
           isActive ? "hover:bg-muted/50" : "opacity-60 hover:bg-muted/30"
         )}
         data-testid={`tech-item-${item.id}`}
@@ -544,29 +644,72 @@ export default function TechStackPage() {
           </div>
         </div>
 
-        {/* Threat indicator - shows if threats exist */}
-        {item.threats && item.threats.count > 0 && (
-          <button
-            onClick={() => {
-              // Navigate to threats page with filter for this specific entity
-              const filterParam = encodeURIComponent(`${type}:${item.name}`);
-              navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
-            }}
-            className="flex items-center gap-2 hover:opacity-80 transition-opacity mr-4 px-2 py-1 rounded-md hover:bg-muted/50"
-            data-testid={`button-threat-indicator-${item.id}`}
-          >
-            <span 
-              className={cn(
-                "w-2 h-2 rounded-full",
-                getThreatColor(item.threats.highestLevel)
-              )}
-              data-testid={`indicator-threat-${item.id}`}
-            />
-            <span className="text-sm text-muted-foreground" data-testid={`text-threat-count-${item.id}`}>
-              {item.threats.count} {getThreatLabel(item.threats.highestLevel)} threats
-            </span>
-          </button>
-        )}
+        {/* Threat indicators section */}
+        <div className="flex items-center gap-3">
+          {((item.criticalCount ?? 0) > 0 || 
+            (item.highCount ?? 0) > 0 || 
+            (item.mediumCount ?? 0) > 0 || 
+            (item.lowCount ?? 0) > 0) && (
+            <div className="flex flex-col items-end">
+              <button
+                onClick={() => {
+                  const filterParam = encodeURIComponent(`${type}:${item.name}`);
+                  navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                }}
+                className="px-1 py-0 text-xs text-primary hover:underline"
+                style={{ background: 'transparent' }}
+                data-testid={`button-see-all-threats-${item.id}`}
+              >
+                See Potential Threats
+              </button>
+              <div className="flex items-center gap-0">
+                {/* Show High for both critical and high counts */}
+                {((item.criticalCount ?? 0) > 0 || (item.highCount ?? 0) > 0) && (
+                  <button
+                    onClick={() => {
+                      const filterParam = encodeURIComponent(`${type}:${item.name}:${(item.criticalCount ?? 0) > 0 ? 'critical' : 'high'}`);
+                      navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                    }}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-0 text-xs rounded hover:bg-muted/50"
+                    style={{ background: 'transparent' }}
+                    data-testid={`button-threat-high-${item.id}`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                    <span className="text-muted-foreground">High</span>
+                  </button>
+                )}
+                {(item.mediumCount ?? 0) > 0 && (
+                  <button
+                    onClick={() => {
+                      const filterParam = encodeURIComponent(`${type}:${item.name}:medium`);
+                      navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                    }}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-0 text-xs rounded hover:bg-muted/50"
+                    style={{ background: 'transparent' }}
+                    data-testid={`button-threat-medium-${item.id}`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-yellow-500" />
+                    <span className="text-muted-foreground">Medium</span>
+                  </button>
+                )}
+                {(item.lowCount ?? 0) > 0 && (
+                  <button
+                    onClick={() => {
+                      const filterParam = encodeURIComponent(`${type}:${item.name}:low`);
+                      navigate(`/dashboard/threat/home?entityFilter=${filterParam}`);
+                    }}
+                    className="flex items-center gap-1 hover:opacity-80 transition-opacity px-1 py-0 text-xs rounded hover:bg-muted/50"
+                    style={{ background: 'transparent' }}
+                    data-testid={`button-threat-low-${item.id}`}
+                  >
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="text-muted-foreground">Low</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           {/* Enable/Disable Toggle */}
@@ -670,9 +813,14 @@ export default function TechStackPage() {
   const handleFileUpload = async (file: File) => {
     setIsUploading(true);
     
+    // Generate uploadId on the frontend BEFORE uploading
+    const uploadId = `upload-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    setCurrentUploadId(uploadId); // Start tracking progress immediately!
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('uploadId', uploadId); // Send uploadId with the request
       
       // Debug: Show all cookies
       console.log('[UPLOAD] All cookies:', document.cookie);
@@ -718,21 +866,26 @@ export default function TechStackPage() {
       });
       
       if (!response.ok) {
-        throw new Error('Failed to process file');
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to process file');
       }
       
       const data = await response.json();
-      setExtractedEntities(data.entities);
-      setSelectedEntities(new Set(data.entities.map((_: ExtractedEntity, i: number) => i)));
-      setShowPreview(true);
+      
+      // We already have the uploadId and are tracking progress
+      // The progress hook's onComplete handler will show entities when ready
+      // Just verify the upload was accepted
+      if (!data.success) {
+        throw new Error('Upload was not successful');
+      }
     } catch (error) {
+      setIsUploading(false);
+      setCurrentUploadId(null);
       toast({
         title: "Upload failed",
-        description: "Failed to process the spreadsheet. Please check the format and try again.",
+        description: error instanceof Error ? error.message : "Failed to process the spreadsheet. Please check the format and try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -743,11 +896,7 @@ export default function TechStackPage() {
     const entitiesToImport = extractedEntities.filter((_, index) => selectedEntities.has(index));
     
     if (entitiesToImport.length === 0) {
-      toast({
-        title: "No items selected",
-        description: "Please select at least one item to import",
-        variant: "destructive"
-      });
+      // Toast removed - no items selected
       return;
     }
 
@@ -768,10 +917,7 @@ export default function TechStackPage() {
       
       queryClient.invalidateQueries({ queryKey: ['/api/threat-tracker/tech-stack'] });
       
-      toast({
-        title: "Import successful",
-        description: `Imported ${result.imported} items to your tech stack`
-      });
+      // Toast removed - import successful
       
       setShowPreview(false);
       setExtractedEntities([]);
@@ -836,26 +982,62 @@ export default function TechStackPage() {
         </div>
       </div>
 
-      {/* Drag and Drop Zone */}
-      <Card
-        className={cn(
-          "border-2 border-dashed transition-colors",
-          isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
-        )}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <CardContent className="pt-6 pb-6 text-center">
-          <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <p className="text-sm text-muted-foreground">
-            Drag and drop an Excel or CSV file here, or click the Import button above
-          </p>
-          <p className="text-xs text-muted-foreground mt-2">
-            Supported formats: .xlsx, .xls, .csv
-          </p>
-        </CardContent>
-      </Card>
+      {/* Upload Progress OR Drag and Drop Zone - Only show one at a time */}
+      {progress ? (
+        // Show progress bar when upload is in progress
+        <Card className={cn(
+          "border-2 border-dashed",
+          "border-primary bg-primary/5"
+        )}>
+          <CardContent className="pt-6 pb-6">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm font-medium">
+                    {progress.status === 'validating' && '🔍 Validating file...'}
+                    {progress.status === 'parsing' && '📄 Parsing spreadsheet...'}
+                    {progress.status === 'extracting' && '⚙️ Extracting entities with AI...'}
+                    {progress.status === 'importing' && '📥 Importing to tech stack...'}
+                    {progress.status === 'completed' && '✅ Upload complete!'}
+                    {progress.status === 'failed' && '❌ Upload failed'}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {progress.message}
+                  </p>
+                  {progress.rowsProcessed && progress.totalRows && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Processing row {progress.rowsProcessed} of {progress.totalRows} • {progress.entityCount || 0} entities found
+                    </p>
+                  )}
+                </div>
+                <span className="text-sm font-medium">{progress.percentage}%</span>
+              </div>
+              <Progress value={progress.percentage} className="h-2" />
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        // Show drag and drop zone when no upload is in progress
+        <Card
+          className={cn(
+            "border-2 border-dashed transition-colors",
+            isDragging ? "border-primary bg-primary/5" : "border-muted-foreground/25"
+          )}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+        >
+          <CardContent className="pt-6 pb-6 text-center">
+            <FileSpreadsheet className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+            <p className="text-sm text-muted-foreground">
+              Drag and drop an Excel or CSV file here, or click the Import button above
+            </p>
+            <p className="text-xs text-muted-foreground mt-2">
+              Supported formats: .xlsx, .xls, .csv
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Preview Dialog */}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
@@ -999,12 +1181,7 @@ export default function TechStackPage() {
                       value={softwareSearch}
                       onValueChange={setSoftwareSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'software', 
-                          name: option.name,
-                          // Use the existing entity ID for linking
-                          priority: 1
-                        });
+                        handleAddItem('software', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchSoftwareOptions}
                       className="flex-1"
@@ -1013,10 +1190,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (softwareSearch.trim()) {
                           // Allow manual entry for software not in database
-                          addItem.mutate({ 
-                            type: 'software', 
-                            name: softwareSearch.trim() 
-                          });
+                          handleAddItem('software', softwareSearch.trim());
                           setSoftwareSearch("");
                         }
                       }}
@@ -1107,11 +1281,7 @@ export default function TechStackPage() {
                       value={hardwareSearch}
                       onValueChange={setHardwareSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'hardware', 
-                          name: option.name,
-                          priority: 1
-                        });
+                        handleAddItem('hardware', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchHardwareOptions}
                       className="flex-1"
@@ -1120,10 +1290,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (hardwareSearch.trim()) {
                           // Allow manual entry for hardware not in database
-                          addItem.mutate({ 
-                            type: 'hardware', 
-                            name: hardwareSearch.trim() 
-                          });
+                          handleAddItem('hardware', hardwareSearch.trim());
                           setHardwareSearch("");
                         }
                       }}
@@ -1214,11 +1381,7 @@ export default function TechStackPage() {
                       value={vendorSearch}
                       onValueChange={setVendorSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'vendor', 
-                          name: option.name,
-                          priority: 1
-                        });
+                        handleAddItem('vendor', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchVendorOptions}
                       className="flex-1"
@@ -1227,10 +1390,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (vendorSearch.trim()) {
                           // Allow manual entry for vendors not in database
-                          addItem.mutate({ 
-                            type: 'vendor', 
-                            name: vendorSearch.trim() 
-                          });
+                          handleAddItem('vendor', vendorSearch.trim());
                           setVendorSearch("");
                         }
                       }}
@@ -1321,11 +1481,7 @@ export default function TechStackPage() {
                       value={clientSearch}
                       onValueChange={setClientSearch}
                       onSelect={(option) => {
-                        addItem.mutate({ 
-                          type: 'client', 
-                          name: option.name,
-                          priority: 1
-                        });
+                        handleAddItem('client', option.name, undefined, 1);
                       }}
                       fetchOptions={fetchClientOptions}
                       className="flex-1"
@@ -1334,10 +1490,7 @@ export default function TechStackPage() {
                       onClick={() => {
                         if (clientSearch.trim()) {
                           // Allow manual entry for clients not in database
-                          addItem.mutate({ 
-                            type: 'client', 
-                            name: clientSearch.trim() 
-                          });
+                          handleAddItem('client', clientSearch.trim());
                           setClientSearch("");
                         }
                       }}
@@ -1405,6 +1558,46 @@ export default function TechStackPage() {
           </Collapsible>
         </CardContent>
       </Card>
+
+      {/* Entity Routing Suggestion Dialog */}
+      <AlertDialog open={routingDialog.open} onOpenChange={(open) => !open && setRoutingDialog(prev => ({ ...prev, open: false }))}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Suggested Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              {routingDialog.message}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              // Add to the originally selected category
+              if (routingDialog.entity && routingDialog.currentType) {
+                addItem.mutate({ 
+                  type: routingDialog.currentType, 
+                  name: routingDialog.entity.name, 
+                  version: routingDialog.entity.version,
+                  priority: routingDialog.entity.priority
+                });
+              }
+            }}>
+              Keep as {routingDialog.currentType}
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => {
+              // Add to the suggested category
+              if (routingDialog.entity && routingDialog.suggestedType) {
+                addItem.mutate({ 
+                  type: routingDialog.suggestedType, 
+                  name: routingDialog.entity.name, 
+                  version: routingDialog.entity.version,
+                  priority: routingDialog.entity.priority
+                });
+              }
+            }}>
+              Move to {routingDialog.suggestedType}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

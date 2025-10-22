@@ -1,5 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
+import { v4 as uuidv4 } from "uuid";
 import * as XLSX from "xlsx";
 import { db } from "../../../db/db";
 import {
@@ -24,9 +25,103 @@ import { relevanceScorer } from "../services/relevance-scorer";
 import { EntityManager } from "../../../services/entity-manager";
 import { extractArticleEntities, openai } from "../../../services/openai";
 import { UploadSecurity } from "../../../services/upload-security";
+import { uploadProgress } from "../../../services/upload-progress";
 import { doubleCsrfProtection } from "../../../middleware/csrf";
 
 const router = Router();
+
+// POST /api/tech-stack/validate-entity - Validate entity type before adding
+router.post("/validate-entity", async (req: any, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { name, currentType } = req.body;
+    if (!name || !currentType) {
+      return res.status(400).json({ error: "Name and type are required" });
+    }
+
+    // Use our existing AI extraction to determine the best category
+    const contextString = `User is trying to add "${name}" to their ${currentType} list.`;
+    
+    const extracted = await extractArticleEntities({
+      title: `Entity Classification: ${name}`,
+      content: contextString + " " + name,
+      url: "entity-validation",
+    });
+
+    // Determine suggested type based on extraction results
+    let suggestedType = currentType;
+    let confidence = 0;
+    let entityDetails = null;
+
+    if (extracted.software?.length > 0) {
+      const software = extracted.software[0];
+      if (software.confidence > confidence) {
+        suggestedType = 'software';
+        confidence = software.confidence;
+        entityDetails = {
+          vendor: software.vendor,
+          category: software.category,
+          version: software.version
+        };
+      }
+    }
+
+    if (extracted.hardware?.length > 0) {
+      const hardware = extracted.hardware[0];
+      if (hardware.confidence > confidence) {
+        suggestedType = 'hardware';
+        confidence = hardware.confidence;
+        entityDetails = {
+          manufacturer: hardware.manufacturer,
+          model: hardware.model,
+          category: hardware.category
+        };
+      }
+    }
+
+    if (extracted.companies?.length > 0) {
+      const company = extracted.companies[0];
+      // Check if it's more likely a vendor or client based on context
+      if (company.confidence > confidence) {
+        // If adding to software/hardware but it's a company, suggest vendor
+        if (currentType === 'software' || currentType === 'hardware') {
+          suggestedType = 'vendor';
+        } else if (currentType === 'vendor' || currentType === 'client') {
+          // Keep the current type if already in company categories
+          suggestedType = currentType;
+        }
+        confidence = company.confidence;
+        entityDetails = {
+          type: company.type
+        };
+      }
+    }
+
+    // If confidence is high and types don't match, suggest correction
+    const shouldSuggestCorrection = 
+      suggestedType !== currentType && 
+      confidence >= 0.7;
+
+    res.json({
+      currentType,
+      suggestedType,
+      confidence,
+      shouldSuggestCorrection,
+      entityDetails,
+      message: shouldSuggestCorrection 
+        ? `"${name}" appears to be ${suggestedType === 'vendor' || suggestedType === 'client' ? 'a' : ''} ${suggestedType}. Would you like to add it there instead?`
+        : null
+    });
+
+  } catch (error) {
+    console.error("Error validating entity type:", error);
+    res.status(500).json({ error: "Failed to validate entity type" });
+  }
+});
 
 // GET /api/tech-stack/autocomplete - Search for entities to add to tech stack
 router.get("/autocomplete", async (req: any, res) => {
@@ -216,7 +311,7 @@ router.get("/", async (req: any, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Fetch software with threat counts and company info
+    // Fetch software with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const softwareResults = await db
       .select({
@@ -226,17 +321,10 @@ router.get("/", async (req: any, res) => {
         priority: usersSoftware.priority,
         company: companies.name,
         isActive: usersSoftware.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersSoftware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersSoftware.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersSoftware.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersSoftware)
       .innerJoin(software, eq(usersSoftware.softwareId, software.id))
@@ -259,7 +347,7 @@ router.get("/", async (req: any, res) => {
         companies.name,
       );
 
-    // Fetch hardware with threat counts
+    // Fetch hardware with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const hardwareResults = await db
       .select({
@@ -270,17 +358,10 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersHardware.priority,
         isActive: usersHardware.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersHardware.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersHardware.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersHardware.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersHardware)
       .innerJoin(hardware, eq(usersHardware.hardwareId, hardware.id))
@@ -302,7 +383,7 @@ router.get("/", async (req: any, res) => {
         usersHardware.isActive,
       );
 
-    // Fetch vendors with threat counts
+    // Fetch vendors with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const vendorResults = await db
       .select({
@@ -312,17 +393,10 @@ router.get("/", async (req: any, res) => {
         priority: usersCompanies.priority,
         metadata: usersCompanies.metadata,
         isActive: usersCompanies.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersCompanies.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersCompanies)
       .innerJoin(companies, eq(usersCompanies.companyId, companies.id))
@@ -348,7 +422,7 @@ router.get("/", async (req: any, res) => {
         usersCompanies.isActive,
       );
 
-    // Fetch clients with threat counts
+    // Fetch clients with threat level breakdowns
     // Note: We can't filter by threat indicators in SQL as threat keywords are matched dynamically in memory
     const clientResults = await db
       .select({
@@ -357,17 +431,10 @@ router.get("/", async (req: any, res) => {
         version: sql<string>`NULL`,
         priority: usersCompanies.priority,
         isActive: usersCompanies.isActive,
-        threatCount: sql<number>`COALESCE(COUNT(DISTINCT CASE WHEN ${usersCompanies.isActive} = true THEN ${globalArticles.id} ELSE NULL END), 0)`,
-        highestLevel: sql<string>`
-          CASE 
-            WHEN ${usersCompanies.isActive} = false THEN NULL
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END) > 0 THEN 'critical'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END) > 0 THEN 'high'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END) > 0 THEN 'medium'
-            WHEN SUM(CASE WHEN ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END) > 0 THEN 'low'
-            ELSE NULL
-          END
-        `,
+        criticalCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'critical' THEN 1 ELSE 0 END), 0)`,
+        highCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'high' THEN 1 ELSE 0 END), 0)`,
+        mediumCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'medium' THEN 1 ELSE 0 END), 0)`,
+        lowCount: sql<number>`COALESCE(SUM(CASE WHEN ${usersCompanies.isActive} = true AND ${globalArticles.threatLevel} = 'low' THEN 1 ELSE 0 END), 0)`,
       })
       .from(usersCompanies)
       .innerJoin(companies, eq(usersCompanies.companyId, companies.id))
@@ -387,7 +454,7 @@ router.get("/", async (req: any, res) => {
       )
       .groupBy(companies.id, companies.name, usersCompanies.priority, usersCompanies.isActive);
 
-    // Format response
+    // Format response with severity level counts
     const response = {
       software: softwareResults.map((s) => ({
         id: s.id,
@@ -396,13 +463,10 @@ router.get("/", async (req: any, res) => {
         version: s.version,
         priority: s.priority,
         isActive: s.isActive,
-        threats:
-          parseInt(s.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(s.threatCount?.toString() || "0"),
-                highestLevel: s.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(s.criticalCount?.toString() || "0"),
+        highCount: parseInt(s.highCount?.toString() || "0"),
+        mediumCount: parseInt(s.mediumCount?.toString() || "0"),
+        lowCount: parseInt(s.lowCount?.toString() || "0"),
       })),
       hardware: hardwareResults.map((h) => ({
         id: h.id,
@@ -412,13 +476,10 @@ router.get("/", async (req: any, res) => {
         version: h.version,
         priority: h.priority,
         isActive: h.isActive,
-        threats:
-          parseInt(h.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(h.threatCount?.toString() || "0"),
-                highestLevel: h.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(h.criticalCount?.toString() || "0"),
+        highCount: parseInt(h.highCount?.toString() || "0"),
+        mediumCount: parseInt(h.mediumCount?.toString() || "0"),
+        lowCount: parseInt(h.lowCount?.toString() || "0"),
       })),
       vendors: vendorResults.map((v) => ({
         id: v.id,
@@ -427,13 +488,10 @@ router.get("/", async (req: any, res) => {
         priority: v.priority,
         isActive: v.isActive,
         source: (v.metadata as any)?.source || "manual", // Extract source from metadata
-        threats:
-          parseInt(v.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(v.threatCount?.toString() || "0"),
-                highestLevel: v.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(v.criticalCount?.toString() || "0"),
+        highCount: parseInt(v.highCount?.toString() || "0"),
+        mediumCount: parseInt(v.mediumCount?.toString() || "0"),
+        lowCount: parseInt(v.lowCount?.toString() || "0"),
       })),
       clients: clientResults.map((c) => ({
         id: c.id,
@@ -441,13 +499,10 @@ router.get("/", async (req: any, res) => {
         version: c.version,
         priority: c.priority,
         isActive: c.isActive,
-        threats:
-          parseInt(c.threatCount?.toString() || "0") > 0
-            ? {
-                count: parseInt(c.threatCount?.toString() || "0"),
-                highestLevel: c.highestLevel || "low",
-              }
-            : null,
+        criticalCount: parseInt(c.criticalCount?.toString() || "0"),
+        highCount: parseInt(c.highCount?.toString() || "0"),
+        mediumCount: parseInt(c.mediumCount?.toString() || "0"),
+        lowCount: parseInt(c.lowCount?.toString() || "0"),
       })),
     };
 
@@ -1487,14 +1542,25 @@ router.post(
 
     console.log("[UPLOAD] Request received, userId:", userId);
     console.log("[UPLOAD] File:", req.file);
+    console.log("[UPLOAD] Request body uploadId:", req.body?.uploadId);
 
+    // Use uploadId from frontend if provided, otherwise generate new one
+    const uploadId = req.body?.uploadId || uuidv4();
+    console.log("[UPLOAD] Using uploadId:", uploadId);
+    
     try {
       if (!userId) {
         return res.status(401).json({ error: "Unauthorized" });
       }
 
+      // Initialize progress tracking immediately - even before validation
+      // This ensures frontend can start polling right away
+      uploadProgress.create(uploadId, userId, req.file?.originalname || 'unknown');
+      uploadProgress.updateStatus(uploadId, 'validating', 'Starting upload...', 5);
+
       // Check rate limiting (3 uploads per minute - reduced from 5)
       if (!UploadSecurity.checkRateLimit(userId, 3, 1)) {
+        uploadProgress.updateStatus(uploadId, 'failed', 'Rate limit exceeded', 0);
         return res.status(429).json({
           error:
             "Too many upload attempts. Please wait a minute before trying again.",
@@ -1509,12 +1575,14 @@ router.post(
           false,
           "No file uploaded",
         );
+        uploadProgress.updateStatus(uploadId, 'failed', 'No file uploaded', 0);
         return res.status(400).json({ error: "No file uploaded" });
       }
 
       const uploadedFile = req.file;
       filename = uploadedFile.originalname;
       fileHash = UploadSecurity.generateFileHash(uploadedFile.buffer);
+      uploadProgress.updateStatus(uploadId, 'validating', 'Validating file...', 10);
 
       // Verify file type using magic bytes
       if (!UploadSecurity.verifyFileType(uploadedFile.buffer, filename)) {
@@ -1552,10 +1620,13 @@ router.post(
       // Parse the spreadsheet with STRICT security limits
       let data: any[][] = [];
       
-      // STRICT limits - significantly reduced
+      // Update progress to parsing phase
+      uploadProgress.updateStatus(uploadId, 'parsing', 'Parsing spreadsheet...', 20);
+      
+      // STRICT limits - optimized for large files
       const MAX_ROWS = 500;  // Reduced from 10000
       const MAX_SHEETS = 4;  // New limit on number of sheets
-      const MAX_COLUMNS = 50;  // Reduced from 100
+      const MAX_COLUMNS = 50;  // Lowered for security *Dont Change This*
       const MAX_CELL_LENGTH = 1000;  // Reduced from 5000
       const MAX_SHEET_SIZE = 1 * 1024 * 1024; // 1MB decompressed (reduced from 5MB)
 
@@ -1711,71 +1782,55 @@ router.post(
       console.log("[UPLOAD] First data row:", rows[0]);
       console.log("[UPLOAD] Data rows count:", rows.length);
 
-      // Process in batches of 50 rows to handle large files
+      // Process in batches of 50 rows with PARALLEL processing
       const BATCH_SIZE = 50;
-      let allEntities = [];
+      const PARALLEL_LIMIT = 5; // Process 5 batches concurrently
       
-      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE}`);
+      console.log(`[UPLOAD] Processing ${rows.length} rows in batches of ${BATCH_SIZE} (${PARALLEL_LIMIT} parallel)`);
       
-      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
-        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
-        const batchRows = rows.slice(batchStart, batchEnd);
+      // Helper function to sanitize spreadsheet text for prompt injection protection
+      const sanitizeForPrompt = (text: string): string => {
+        let sanitized = text
+          .replace(/\{\{.*?\}\}/g, '')
+          .replace(/\[\[.*?\]\]/g, '')
+          .replace(/<\|.*?\|>/g, '')
+          .replace(/ignore (previous|all|above|prior) (instructions?|prompts?|commands?)/gi, '[FILTERED]')
+          .replace(/disregard (everything|all|above|prior)/gi, '[FILTERED]')
+          .replace(/new instructions?:/gi, '[FILTERED]')
+          .replace(/system:/gi, '[FILTERED]')
+          .replace(/assistant:/gi, '[FILTERED]')
+          .replace(/^user:/gim, '[FILTERED]')
+          .replace(/show me (the|your) (system |original )?prompt/gi, '[FILTERED]')
+          .replace(/what (is|are) your instructions?/gi, '[FILTERED]')
+          .replace(/exec\(|eval\(|import\s|require\(/gi, '[FILTERED]')
+          .replace(/(\$\{.*?\})/g, '')
+          .replace(/(\\x[0-9a-fA-F]{2})+/g, '')
+          .replace(/(\\u[0-9a-fA-F]{4})+/g, '')
+          .replace(/([!@#$%^&*()_+=\[\]{};':"\\|,.<>\/?])\1{3,}/g, '$1$1');
         
-        console.log(`[UPLOAD] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
+        const MAX_TEXT_LENGTH = 5000;
+        if (sanitized.length > MAX_TEXT_LENGTH) {
+          sanitized = sanitized.substring(0, MAX_TEXT_LENGTH - 20) + '... [truncated]';
+        }
+        return sanitized;
+      };
+      
+      // Helper function to process a single batch
+      const processBatch = async (batchStart: number, batchEnd: number, batchRows: any[][]) => {
+        console.log(`[UPLOAD PARALLEL] Processing batch: rows ${batchStart + 1} to ${batchEnd}`);
         
-        // Create a structured text representation for this batch
-        let spreadsheetText = `Headers: ${headers.join(", ")}\n\n`;
-        spreadsheetText += "Data rows:\n";
-
+        let spreadsheetText = `Headers: ${headers.join(", ")}\n\nData rows:\n`;
         batchRows.forEach((row, index) => {
           if (row.some((cell) => cell)) {
-            // Skip empty rows
             const rowData = headers
               .map((header, i) => `${header}: ${row[i] || "N/A"}`)
               .join(", ");
             spreadsheetText += `Row ${batchStart + index + 1}: ${rowData}\n`;
           }
         });
-
-        // Sanitize spreadsheetText to prevent prompt injection
-        const sanitizeForPrompt = (text: string): string => {
-          // Remove dangerous prompt injection patterns
-          let sanitized = text
-            // Remove attempts to break out of prompts
-            .replace(/\{\{.*?\}\}/g, '')  // Remove template variables
-            .replace(/\[\[.*?\]\]/g, '')  // Remove double brackets
-            .replace(/<\|.*?\|>/g, '')    // Remove special markers
-            // Remove common prompt injection attempts
-            .replace(/ignore (previous|all|above|prior) (instructions?|prompts?|commands?)/gi, '[FILTERED]')
-            .replace(/disregard (everything|all|above|prior)/gi, '[FILTERED]')
-            .replace(/new instructions?:/gi, '[FILTERED]')
-            .replace(/system:/gi, '[FILTERED]')
-            .replace(/assistant:/gi, '[FILTERED]')
-            .replace(/^user:/gim, '[FILTERED]')
-            // Remove attempts to reveal system prompts
-            .replace(/show me (the|your) (system |original )?prompt/gi, '[FILTERED]')
-            .replace(/what (is|are) your instructions?/gi, '[FILTERED]')
-            // Remove code execution attempts
-            .replace(/exec\(|eval\(|import\s|require\(/gi, '[FILTERED]')
-            // Remove excessive special characters that might be used for escaping
-            .replace(/(\$\{.*?\})/g, '')  // Remove template literals
-            .replace(/(\\x[0-9a-fA-F]{2})+/g, '')  // Remove hex escapes
-            .replace(/(\\u[0-9a-fA-F]{4})+/g, '')  // Remove unicode escapes
-            // Limit consecutive special characters
-            .replace(/([!@#$%^&*()_+=\[\]{};':"\\|,.<>\/?])\1{3,}/g, '$1$1');
-          
-          // Truncate if too long
-          const MAX_TEXT_LENGTH = 5000;
-          if (sanitized.length > MAX_TEXT_LENGTH) {
-            sanitized = sanitized.substring(0, MAX_TEXT_LENGTH - 20) + '... [truncated]';
-          }
-          
-          return sanitized;
-        };
         
         const sanitizedSpreadsheetText = sanitizeForPrompt(spreadsheetText);
         
-        // Use OpenAI to intelligently extract entities from the sanitized spreadsheet batch
         const extractionPrompt = `Extract technology entities from this spreadsheet data. The spreadsheet may contain various formats and column names.
 
 Identify and extract:
@@ -1813,43 +1868,76 @@ Return a JSON array of extracted entities with this structure:
   }
 ]`;
 
-        const completion = await openai.chat.completions.create({
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an expert at extracting technology entities from spreadsheets. Return only valid JSON.",
-            },
-            {
-              role: "user",
-              content: extractionPrompt,
-            },
-          ],
-          model: "gpt-4o-mini", // Using 16K context model for better handling of large batches
-          response_format: { type: "json_object" },
-          max_tokens: 4000,
-        });
-
-        const extractedData = completion.choices[0].message.content || "{}";
-        let batchEntities = [];
-
         try {
+          const completion = await openai.chat.completions.create({
+            messages: [
+              {
+                role: "system",
+                content: "You are an expert at extracting technology entities from spreadsheets. Return only valid JSON.",
+              },
+              {
+                role: "user",
+                content: extractionPrompt,
+              },
+            ],
+            model: "gpt-4o-mini",
+            response_format: { type: "json_object" },
+            max_tokens: 4000,
+          });
+
+          const extractedData = completion.choices[0].message.content || "{}";
           const parsed = JSON.parse(extractedData);
-          // Handle both array and object with entities property
+          
+          let batchEntities = [];
           if (Array.isArray(parsed)) {
             batchEntities = parsed;
           } else if (parsed.entities && Array.isArray(parsed.entities)) {
             batchEntities = parsed.entities;
-          } else {
-            batchEntities = [];
           }
           
-          console.log(`[UPLOAD] Batch extracted ${batchEntities.length} entities`);
-          allEntities = allEntities.concat(batchEntities);
+          console.log(`[UPLOAD PARALLEL] Batch ${batchStart}-${batchEnd} extracted ${batchEntities.length} entities`);
+          return batchEntities;
         } catch (e) {
-          log(`Failed to parse extracted entities for batch ${batchStart}-${batchEnd}: ${e}`, "error");
-          // Continue with other batches even if one fails
+          log(`Failed to process batch ${batchStart}-${batchEnd}: ${e}`, "error");
+          return [];
         }
+      };
+      
+      // Create all batch tasks (as functions, not promises)
+      const batchTasks = [];
+      for (let batchStart = 0; batchStart < rows.length; batchStart += BATCH_SIZE) {
+        const batchEnd = Math.min(batchStart + BATCH_SIZE, rows.length);
+        const batchRows = rows.slice(batchStart, batchEnd);
+        // Store as function to defer execution
+        batchTasks.push(() => processBatch(batchStart, batchEnd, batchRows));
+      }
+      
+      // Process batches in parallel with PROPER concurrency limit
+      let allEntities = [];
+      const totalGroups = Math.ceil(batchTasks.length / PARALLEL_LIMIT);
+      
+      // Update progress to extraction phase
+      uploadProgress.updateStatus(uploadId, 'extracting', 'Extracting entities from spreadsheet...', 30);
+      
+      for (let i = 0; i < batchTasks.length; i += PARALLEL_LIMIT) {
+        const taskGroup = batchTasks.slice(i, i + PARALLEL_LIMIT);
+        const groupNum = Math.floor(i / PARALLEL_LIMIT) + 1;
+        console.log(`[UPLOAD] Processing group ${groupNum} of ${totalGroups} (${taskGroup.length} batches in parallel)`);
+        
+        // Execute the tasks NOW (not before) to enforce concurrency limit
+        const promises = taskGroup.map(task => task());
+        
+        const results = await Promise.all(promises);
+        results.forEach(entities => {
+          allEntities = allEntities.concat(entities);
+        });
+        
+        // Update progress based on groups processed (30% to 80%)
+        const extractionProgress = 30 + Math.round((groupNum / totalGroups) * 50);
+        const processedRows = Math.min(i + PARALLEL_LIMIT * BATCH_SIZE, rows.length);
+        uploadProgress.updateExtraction(uploadId, processedRows, rows.length, allEntities.length);
+        
+        console.log(`[UPLOAD] Group ${groupNum} completed. Total entities so far: ${allEntities.length}`);
       }
       
       console.log(`[UPLOAD] Total entities extracted: ${allEntities.length}`);
@@ -2020,9 +2108,16 @@ Return a JSON array of extracted entities with this structure:
         `Extracted ${processedEntities.length} entities`,
       );
 
+      // Store entities with the upload for later retrieval
+      uploadProgress.setEntities(uploadId, processedEntities);
+      
+      // Mark upload as complete
+      uploadProgress.complete(uploadId, processedEntities.length);
+      
       res.json({
         success: true,
         entities: processedEntities,
+        uploadId: uploadId, // Include uploadId for progress tracking
       });
     } catch (error: any) {
       log(
@@ -2044,6 +2139,37 @@ Return a JSON array of extracted entities with this structure:
 );
 
 // POST /api/tech-stack/import - Import selected entities to user's tech stack
+// GET endpoint to check upload progress
+router.get("/upload/:uploadId/progress", async (req: any, res) => {
+  // Check authentication
+  const userId = req.user?.id;
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  
+  const { uploadId } = req.params;
+  // Use getForUser to ensure users can only see their own uploads (security)
+  const progress = uploadProgress.getForUser(uploadId, userId);
+  
+  if (!progress) {
+    return res.status(404).json({ error: "Upload not found" });
+  }
+  
+  // Transform the internal progress format to match frontend expectations
+  res.json({
+    uploadId: progress.id,
+    status: progress.status,
+    message: progress.message,
+    percentage: progress.progress, // Map 'progress' to 'percentage' for frontend
+    entityCount: progress.entitiesFound,
+    rowsProcessed: progress.processedRows,
+    totalRows: progress.totalRows,
+    importedCount: progress.entitiesFound,
+    error: progress.errors?.join(', '),
+    entities: progress.entities, // Include entities if available
+  });
+});
+
 router.post("/import", async (req: any, res) => {
   try {
     const userId = req.user?.id;
@@ -2051,12 +2177,17 @@ router.post("/import", async (req: any, res) => {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const { entities } = req.body;
+    const { entities, uploadId } = req.body;
 
     if (!entities || !Array.isArray(entities)) {
       return res.status(400).json({ error: "Invalid entities data" });
     }
 
+    // Update progress to importing phase if we have an uploadId
+    if (uploadId) {
+      uploadProgress.updateStatus(uploadId, 'importing', 'Importing entities to tech stack...', 85);
+    }
+  
     const entityManager = new EntityManager();
     let imported = 0;
 
@@ -2189,14 +2320,25 @@ router.post("/import", async (req: any, res) => {
       }
     }
 
+    // Mark upload as complete if we have an uploadId
+    if (uploadId) {
+      uploadProgress.complete(uploadId, imported);
+    }
+    
     res.json({
       success: true,
       imported,
       message: `Successfully imported ${imported} items to your tech stack`,
+      ...(uploadId && { uploadId }), // Include uploadId only if it exists
     });
   } catch (error: any) {
     log(`Error importing entities: ${error.message || error}`, "error");
-    res.status(500).json({ error: "Failed to import entities" });
+    // Mark upload as failed if we have an uploadId
+    const { uploadId: failedUploadId } = req.body;
+    if (failedUploadId) {
+      uploadProgress.fail(failedUploadId, error.message || 'Unknown error');
+    }
+    res.status(500).json({ error: "Failed to import entities", ...(failedUploadId && { uploadId: failedUploadId }) });
   }
 });
 
