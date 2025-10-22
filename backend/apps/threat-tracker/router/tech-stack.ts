@@ -2033,6 +2033,18 @@ Return a JSON array of extracted entities with this structure:
 );
 
 // POST /api/tech-stack/import - Import selected entities to user's tech stack
+// GET endpoint to check upload progress
+router.get("/upload/:uploadId/progress", authenticateToken, async (req, res) => {
+  const { uploadId } = req.params;
+  const progress = uploadProgress.getProgress(uploadId);
+  
+  if (!progress) {
+    return res.status(404).json({ error: "Upload not found" });
+  }
+  
+  res.json(progress);
+});
+
 router.post("/import", async (req: any, res) => {
   try {
     const userId = req.user?.id;
