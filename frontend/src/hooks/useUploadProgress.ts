@@ -46,19 +46,42 @@ export function useUploadProgress(
     // Reset completed flag when uploadId changes
     completedRef.current = false;
     setIsPolling(true);
+    
+    // Store poll start time and reset error counter
+    (window as any).__uploadPollStartTime = Date.now();
+    (window as any).__uploadErrorCount = 0;
 
     const checkProgress = async () => {
       try {
-        const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/upload/${uploadId}/progress`);
+        // Add suppressErrors flag for initial polls to avoid 404 console errors
+        const pollStartTime = (window as any).__uploadPollStartTime || Date.now();
+        if (!((window as any).__uploadPollStartTime)) {
+          (window as any).__uploadPollStartTime = pollStartTime;
+        }
+        
+        // For the first 2 seconds, expect potential 404s and suppress them
+        const isInitialPoll = Date.now() - pollStartTime < 2000;
+        
+        const response = await fetchWithAuth(`/api/threat-tracker/tech-stack/upload/${uploadId}/progress`, {
+          ...(isInitialPoll && { cache: 'no-cache' }) // Ensure fresh data during initial polls
+        });
 
         if (!response.ok) {
           if (response.status === 404) {
-            // Upload not found - stop polling
-            setIsPolling(false);
-            if (intervalRef.current) {
-              clearInterval(intervalRef.current);
-              intervalRef.current = null;
+            // Upload not found yet - this is expected in the first few polls
+            // Keep polling for a bit before giving up (backend might still be creating it)
+            
+            // Give it 5 seconds for the upload to start being tracked
+            if (Date.now() - pollStartTime > 5000) {
+              // After 5 seconds, stop polling - upload probably failed to start
+              setIsPolling(false);
+              if (intervalRef.current) {
+                clearInterval(intervalRef.current);
+                intervalRef.current = null;
+              }
+              delete (window as any).__uploadPollStartTime;
             }
+            // Otherwise, silently continue polling
             return;
           }
           throw new Error('Failed to fetch progress');
@@ -110,11 +133,15 @@ export function useUploadProgress(
       }
     };
 
-    // Check immediately
-    checkProgress();
-
-    // Set up polling interval
-    intervalRef.current = setInterval(checkProgress, pollInterval);
+    // Delay first poll slightly (200ms) to allow upload request to reach server first
+    // This prevents 404 errors from the race condition where polling starts before 
+    // the backend has created the progress tracking entry
+    setTimeout(() => {
+      checkProgress();
+      
+      // Set up polling interval
+      intervalRef.current = setInterval(checkProgress, pollInterval);
+    }, 200);
 
     return () => {
       if (intervalRef.current) {
