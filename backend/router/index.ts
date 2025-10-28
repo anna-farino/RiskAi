@@ -22,7 +22,6 @@ import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
 import { handleTestScraping, handleTestScrapingHealth, handleTestAllSources } from "backend/test-scraping";
 import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
 import liveLogsRouter from "backend/api/live-logs-management";
-import adminGlobalSourcesRouter from "backend/api/admin-global-sources";
 import { adminRouter } from "./routes/admin";
 import { subsRouter } from "./routes/subscriptions";
 import handleCreateCheckoutSession from "backend/handlers/stripe/checkout-session";
@@ -104,9 +103,6 @@ router.post("/validate-promo-code", handleValidatePromoCode)
 
 router.use('/admin', adminRouter)
 router.use("/users", usersRouter);
-
-// ADMIN GLOBAL SOURCES MANAGEMENT (staging/dev only, requires admin permission)
-router.use("/admin/global-sources", adminGlobalSourcesRouter);
 
 router.use("/subscriptions", subsRouter)
 
