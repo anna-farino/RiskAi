@@ -3,6 +3,8 @@
 
 import { pgTable, uuid, text, boolean, timestamp, integer, jsonb, numeric, unique, primaryKey, index } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
+import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
+import { z } from 'zod';
 
 // Import existing users table (reference only - already exists)
 // import { users } from './existing/users';
@@ -152,3 +154,34 @@ export type NewUserSourcePreference = typeof userSourcePreferences.$inferInsert;
 
 export type UserKeyword = typeof userKeywords.$inferSelect;
 export type NewUserKeyword = typeof userKeywords.$inferInsert;
+
+// =====================================================
+// VALIDATION SCHEMAS (drizzle-zod)
+// =====================================================
+
+// Global Sources validation schemas
+export const insertGlobalSourceSchema = createInsertSchema(globalSources, {
+  url: z.string().url('Must be a valid URL'),
+  name: z.string().min(1, 'Name is required'),
+  category: z.string().optional(),
+  priority: z.number().int().min(0).max(100).optional(),
+}).omit({
+  id: true,
+  addedAt: true,
+  lastScraped: true,
+  lastSuccessfulScrape: true,
+  consecutiveFailures: true,
+});
+
+export const updateGlobalSourceSchema = createInsertSchema(globalSources, {
+  url: z.string().url('Must be a valid URL').optional(),
+  name: z.string().min(1, 'Name is required').optional(),
+  category: z.string().optional(),
+  priority: z.number().int().min(0).max(100).optional(),
+}).omit({
+  id: true,
+  addedAt: true,
+}).partial();
+
+export type InsertGlobalSource = z.infer<typeof insertGlobalSourceSchema>;
+export type UpdateGlobalSource = z.infer<typeof updateGlobalSourceSchema>;
