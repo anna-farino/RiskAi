@@ -104,7 +104,6 @@ adminSourceRouter.post("/sources", async (req, res) => {
     }
 
     // Create the source
-    // Note: Sources without user preferences are treated as disabled by default
     const [newSource] = await db
       .insert(globalSources)
       .values({
