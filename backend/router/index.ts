@@ -22,6 +22,7 @@ import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
 import { handleTestScraping, handleTestScrapingHealth, handleTestAllSources } from "backend/test-scraping";
 import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
 import liveLogsRouter from "backend/api/live-logs-management";
+import { adminSourceRouter } from "backend/apps/live-logs-management/admin-source-routes";
 import { adminRouter } from "./routes/admin";
 import { subsRouter } from "./routes/subscriptions";
 import handleCreateCheckoutSession from "backend/handlers/stripe/checkout-session";
@@ -55,6 +56,7 @@ router.get("/test-scraping/health", handleTestScrapingHealth);
 
 // LIVE LOGS MANAGEMENT (staging only)
 router.use("/live-logs-management", liveLogsRouter);
+router.use("/admin/global-sources", adminSourceRouter);
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
