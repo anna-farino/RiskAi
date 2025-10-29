@@ -12,6 +12,7 @@ import { Play, Square, Trash2, Activity, AlertCircle, Globe, Loader2, Download, 
 import { serverUrl } from '@/utils/server-url';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveLogsStore, LogEntry } from '@/stores/live-logs-store';
+import SourceManagement from '@/components/admin/SourceManagement';
 
 export default function LiveLogs() {
   const { user, isAuthenticated } = useAuth0();
@@ -439,7 +440,7 @@ export default function LiveLogs() {
       </div>
 
       <Tabs defaultValue="logs" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-black/40 border border-[#BF00FF]/20">
+        <TabsList className="grid w-full grid-cols-4 bg-black/40 border border-[#BF00FF]/20">
           <TabsTrigger value="logs" className="data-[state=active]:bg-[#BF00FF]/20">
             Logs
           </TabsTrigger>
@@ -448,6 +449,9 @@ export default function LiveLogs() {
           </TabsTrigger>
           <TabsTrigger value="test-all" className="data-[state=active]:bg-[#BF00FF]/20">
             Test All Sources
+          </TabsTrigger>
+          <TabsTrigger value="sources" className="data-[state=active]:bg-[#BF00FF]/20">
+            Source Management
           </TabsTrigger>
         </TabsList>
 
@@ -761,6 +765,10 @@ export default function LiveLogs() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sources">
+          <SourceManagement />
         </TabsContent>
       </Tabs>
     </div>
