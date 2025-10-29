@@ -1,7 +1,8 @@
 import { Router } from "express";
 import { db } from "backend/db/db";
-import { globalSources } from "@shared/db/schema/global-tables";
-import { eq } from "drizzle-orm";
+import { globalSources, userSourcePreferences } from "@shared/db/schema/global-tables";
+import { users } from "@shared/db/schema/user";
+import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { verifyDevLogPermission } from "../services/permissions";
 import { log } from "backend/utils/log";
@@ -34,6 +35,60 @@ async function requireAdminPermission(req: any, res: any, next: any) {
 
 // Apply permission middleware to all routes
 adminSourceRouter.use(requireAdminPermission);
+
+/**
+ * Helper function to add a global source to all users' preferences as disabled
+ * This allows users to opt-in to sources added/enabled by admins
+ */
+async function addSourceToAllUsersAsDisabled(sourceId: string, appContext: 'news_radar' | 'threat_tracker' = 'news_radar') {
+  try {
+    // Get all users
+    const allUsers = await db.select({ id: users.id }).from(users);
+    
+    if (allUsers.length === 0) {
+      log(`No users found to add source preferences`, 'admin-sources');
+      return { added: 0, skipped: 0 };
+    }
+
+    let added = 0;
+    let skipped = 0;
+
+    // Add source to each user's preferences as disabled
+    for (const user of allUsers) {
+      // Check if preference already exists
+      const existing = await db
+        .select()
+        .from(userSourcePreferences)
+        .where(
+          and(
+            eq(userSourcePreferences.userId, user.id),
+            eq(userSourcePreferences.sourceId, sourceId),
+            eq(userSourcePreferences.appContext, appContext)
+          )
+        )
+        .limit(1);
+
+      if (existing.length === 0) {
+        // Add as disabled so user can opt-in
+        await db.insert(userSourcePreferences).values({
+          userId: user.id,
+          sourceId: sourceId,
+          appContext: appContext,
+          isEnabled: false, // Disabled by default - user must enable
+        });
+        added++;
+      } else {
+        skipped++;
+      }
+    }
+
+    log(`Added source ${sourceId} to ${added} users as disabled, skipped ${skipped} existing preferences`, 'admin-sources');
+    return { added, skipped };
+  } catch (error: any) {
+    log(`Error adding source to user preferences: ${error.message}`, 'admin-sources-error');
+    throw error;
+  }
+}
 
 // Validation schemas
 const createSourceSchema = z.object({
@@ -103,7 +158,7 @@ adminSourceRouter.post("/sources", async (req, res) => {
       return res.status(409).json({ error: "A source with this URL already exists" });
     }
 
-    // Create the source
+    // Create the source (initially active for global scraping)
     const [newSource] = await db
       .insert(globalSources)
       .values({
@@ -116,7 +171,11 @@ adminSourceRouter.post("/sources", async (req, res) => {
       })
       .returning();
 
-    log(`Admin ${user.email} created new global source: ${newSource.name}`, 'admin-sources');
+    // Add source to all users' preferences as disabled
+    // Users must manually enable it if they want to see content from this source
+    const { added, skipped } = await addSourceToAllUsersAsDisabled(newSource.id);
+
+    log(`Admin ${user.email} created new global source: ${newSource.name} (added to ${added} users as disabled)`, 'admin-sources');
     res.status(201).json(newSource);
   } catch (error: any) {
     if (error instanceof z.ZodError) {
@@ -220,7 +279,15 @@ adminSourceRouter.put("/sources/:id/toggle", async (req, res) => {
       .where(eq(globalSources.id, id))
       .returning();
 
-    log(`Admin ${user.email} ${isActive ? 'enabled' : 'disabled'} global source: ${updated.name}`, 'admin-sources');
+    // If enabling a source, add it to all users' preferences as disabled
+    // This allows users to opt-in to newly enabled sources
+    if (isActive && !existing.isActive) {
+      const { added, skipped } = await addSourceToAllUsersAsDisabled(updated.id);
+      log(`Admin ${user.email} enabled global source: ${updated.name} (added to ${added} users as disabled)`, 'admin-sources');
+    } else {
+      log(`Admin ${user.email} ${isActive ? 'enabled' : 'disabled'} global source: ${updated.name}`, 'admin-sources');
+    }
+    
     res.json(updated);
   } catch (error: any) {
     log(`Error toggling source: ${error.message}`, 'admin-sources-error');
