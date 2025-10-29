@@ -5,7 +5,6 @@ import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import {
   Search,
-  Filter,
   CheckCircle,
   XCircle,
   HelpCircle,
@@ -30,6 +29,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface GlobalSource {
   id: string;
@@ -50,7 +56,6 @@ export default function SourceManagement() {
 
   // State
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
   const [sortBy, setSortBy] = useState<'enabled' | 'disabled' | 'alphabetical' | 'newest' | 'oldest'>('enabled');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
@@ -246,14 +251,7 @@ export default function SourceManagement() {
       const matchesSearch = source.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            source.url.toLowerCase().includes(searchTerm.toLowerCase());
       
-      let matchesStatus = true;
-      if (statusFilter === 'enabled') {
-        matchesStatus = source.isActive;
-      } else if (statusFilter === 'disabled') {
-        matchesStatus = !source.isActive;
-      }
-      
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     }) || [];
 
     // Apply sorting
@@ -356,7 +354,7 @@ export default function SourceManagement() {
           <span className="text-xl font-semibold text-white">Global Source Management</span>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid gap-4 lg:grid-cols-2">
           {/* Search */}
           <div className="col-span-1">
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
@@ -368,59 +366,11 @@ export default function SourceManagement() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                 <Input
                   placeholder="Search by name or URL..."
-                  className="pl-10 h-8 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
+                  className="pl-10 h-9 text-sm bg-slate-800/70 border-slate-700/50 text-white placeholder:text-slate-500"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   data-testid="input-source-search"
                 />
-              </div>
-            </div>
-          </div>
-
-          {/* Status Filter */}
-          <div className="col-span-1">
-            <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
-              <div className="flex items-center gap-2 mb-3">
-                <Filter className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-400">Status Filters</span>
-              </div>
-              <div className="grid grid-cols-3 gap-1">
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    statusFilter === 'all'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setStatusFilter('all')}
-                  data-testid="button-filter-all"
-                >
-                  All
-                </button>
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    statusFilter === 'enabled'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setStatusFilter('enabled')}
-                  data-testid="button-filter-enabled"
-                >
-                  Enabled
-                </button>
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    statusFilter === 'disabled'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setStatusFilter('disabled')}
-                  data-testid="button-filter-disabled"
-                >
-                  Disabled
-                </button>
               </div>
             </div>
           </div>
@@ -432,68 +382,31 @@ export default function SourceManagement() {
                 <ArrowUpDown className="h-4 w-4 text-purple-400" />
                 <span className="text-sm font-medium text-purple-400">Sort By</span>
               </div>
-              <div className="grid grid-cols-2 gap-1">
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    sortBy === 'enabled'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setSortBy('enabled')}
-                  data-testid="button-sort-enabled"
+              <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
+                <SelectTrigger 
+                  className="h-9 bg-slate-800/70 border-slate-700/50 text-white"
+                  data-testid="select-sort-trigger"
                 >
-                  Enabled
-                </button>
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    sortBy === 'disabled'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setSortBy('disabled')}
-                  data-testid="button-sort-disabled"
-                >
-                  Disabled
-                </button>
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    sortBy === 'alphabetical'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setSortBy('alphabetical')}
-                  data-testid="button-sort-alphabetical"
-                >
-                  A-Z
-                </button>
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
-                    sortBy === 'newest'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setSortBy('newest')}
-                  data-testid="button-sort-newest"
-                >
-                  Newest
-                </button>
-                <button
-                  className={cn(
-                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center col-span-2",
-                    sortBy === 'oldest'
-                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
-                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
-                  )}
-                  onClick={() => setSortBy('oldest')}
-                  data-testid="button-sort-oldest"
-                >
-                  Oldest
-                </button>
-              </div>
+                  <SelectValue placeholder="Select sort option" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectItem value="enabled" className="text-white hover:bg-slate-700 focus:bg-slate-700">
+                    Enabled First
+                  </SelectItem>
+                  <SelectItem value="disabled" className="text-white hover:bg-slate-700 focus:bg-slate-700">
+                    Disabled First
+                  </SelectItem>
+                  <SelectItem value="alphabetical" className="text-white hover:bg-slate-700 focus:bg-slate-700">
+                    Alphabetical (A-Z)
+                  </SelectItem>
+                  <SelectItem value="newest" className="text-white hover:bg-slate-700 focus:bg-slate-700">
+                    Newest First
+                  </SelectItem>
+                  <SelectItem value="oldest" className="text-white hover:bg-slate-700 focus:bg-slate-700">
+                    Oldest First
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </div>
         </div>
@@ -533,7 +446,7 @@ export default function SourceManagement() {
             </div>
             <h3 className="text-xl font-medium text-white mb-2">No sources found</h3>
             <p className="text-slate-400 max-w-md mb-6">
-              {searchTerm || statusFilter !== 'all' ? 'No sources match your filters.' : 'Get started by adding your first source.'}
+              {searchTerm ? 'No sources match your search.' : 'Get started by adding your first source.'}
             </p>
           </div>
         ) : (
