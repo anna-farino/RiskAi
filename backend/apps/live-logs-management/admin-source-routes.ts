@@ -207,6 +207,12 @@ adminSourceRouter.put("/sources/:id/toggle", async (req, res) => {
       return res.status(404).json({ error: "Source not found" });
     }
 
+    // Prevent toggling default sources
+    if (existing.isDefault) {
+      log(`Admin ${user.email} attempted to toggle default source: ${existing.name}`, 'admin-sources');
+      return res.status(403).json({ error: "Cannot enable/disable default sources." });
+    }
+
     // Update the source
     const [updated] = await db
       .update(globalSources)
@@ -241,7 +247,7 @@ adminSourceRouter.delete("/sources/:id", async (req, res) => {
 
     // Prevent deleting default sources
     if (existing.isDefault) {
-      return res.status(403).json({ error: "Cannot delete default sources. Disable them instead." });
+      return res.status(403).json({ error: "Cannot delete default sources. Default sources are protected and cannot be modified." });
     }
 
     // Delete the source

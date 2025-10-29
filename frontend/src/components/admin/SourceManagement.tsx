@@ -482,7 +482,7 @@ export default function SourceManagement() {
                           onCheckedChange={(checked) => {
                             toggleSource.mutate({ sourceId: source.id, isActive: checked });
                           }}
-                          disabled={toggleSource.isPending}
+                          disabled={toggleSource.isPending || source.isDefault}
                           data-testid={`switch-source-${source.id}`}
                         />
                       </div>
