@@ -14,9 +14,9 @@ import { azureAntiDetectionManager } from "backend/services/scraping/core/azure-
 import { TestScrapingResponse, TestArticle, LogEntry, ScrapingDiagnostics, SavedTestArticle } from "./types";
 // AI services for full test mode
 import { analyzeCybersecurity, calculateSecurityRisk } from "backend/services/openai";
-import { analyzeContent } from "../apps/news-radar/services/openai";
+import { analyzeContent } from "backend/apps/news-radar/services/openai";
 // Content validation for full test mode
-import { isValidArticleContent, isValidTitle, extractTitleFromUrl } from "../services/scraping/validators/content-validator";
+import { isValidArticleContent, isValidTitle, extractTitleFromUrl } from "backend/services/scraping/validators/content-validator";
 
 // Create global context for testing
 const globalStrategy = new GlobalStrategy();
