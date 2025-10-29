@@ -1,8 +1,8 @@
 import { Server as HttpServer } from 'http';
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { log } from '../../utils/log';
+import { log } from 'backend/utils/log';
 import { verifyDevLogPermission } from './permissions';
-import { handleAllSourcesTestWebSocket } from '../../test-scraping/websocket-integration';
+import { handleAllSourcesTestWebSocket } from '../test-scraping/websocket-integration';
 
 // Global Socket.IO server instance
 let io: SocketIOServer | null = null;

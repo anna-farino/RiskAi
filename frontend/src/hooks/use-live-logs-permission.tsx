@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { serverUrl } from '@/utils/server-url';
 
@@ -10,15 +10,22 @@ interface LiveLogsPermissionState {
 }
 
 export function useLiveLogsPermission(): LiveLogsPermissionState {
-  const { user, isAuthenticated, isLoading: authLoading } = useAuth0();
+  const { user, isAuthenticated, isLoading: authLoading, getAccessTokenSilently } = useAuth0();
   const [state, setState] = useState<LiveLogsPermissionState>({
     available: false,
     hasPermission: false,
     loading: true,
     error: null
   });
+  
+  const hasCheckedRef = useRef(false); // Prevent duplicate checks
 
   useEffect(() => {
+    // Prevent duplicate permission checks
+    if (hasCheckedRef.current) {
+      return;
+    }
+
     const checkPermission = async () => {
       console.log("VITE_ENV=", (import.meta as any).env.VITE_ENV)
       // Check if feature is enabled via environment variable
@@ -29,6 +36,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
           loading: false,
           error: null
         });
+        hasCheckedRef.current = true;
         return;
       }
 
@@ -45,17 +53,27 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
           loading: false,
           error: 'Not authenticated'
         });
+        hasCheckedRef.current = true;
         return;
       }
 
       try {
+        hasCheckedRef.current = true; // Mark as checked before making request
         setState(prev => ({ ...prev, loading: true, error: null }));
+
+        // Get JWT token
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
+          }
+        });
 
         const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ email: user.email })
         });
@@ -80,7 +98,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
           throw new Error(`HTTP ${response.status}`);
         }
       } catch (error) {
-        console.error('Error checking live logs permission:', error);
+        console.error('[useLiveLogsPermission] Error checking permission:', error);
         setState({
           available: false,
           hasPermission: false,
@@ -91,7 +109,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
     };
 
     checkPermission();
-  }, [isAuthenticated, authLoading, user?.email]);
+  }, [isAuthenticated, authLoading, user?.email, getAccessTokenSilently]);
 
   return state;
 }

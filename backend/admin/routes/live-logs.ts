@@ -4,8 +4,8 @@ import {
   removeDevLogPermission,
   listDevLogPermissions,
   verifyDevLogPermission
-} from '../services/live-logs/permissions';
-import { log } from '../utils/log';
+} from '../services/permissions';
+import { log } from 'backend/utils/log';
 import dotenv from 'dotenv'
 import dotenvConfig from 'backend/utils/dotenv-config';
 
