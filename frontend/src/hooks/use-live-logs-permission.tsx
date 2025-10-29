@@ -10,7 +10,7 @@ interface LiveLogsPermissionState {
 }
 
 export function useLiveLogsPermission(): LiveLogsPermissionState {
-  const { user, isAuthenticated, isLoading: authLoading, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, isLoading: authLoading, getAccessTokenSilently } = useAuth0();
   const [state, setState] = useState<LiveLogsPermissionState>({
     available: false,
     hasPermission: false,
@@ -46,7 +46,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
       }
 
       // Check if user is authenticated
-      if (!isAuthenticated || !user?.email) {
+      if (!isAuthenticated) {
         setState({
           available: false,
           hasPermission: false,
@@ -68,6 +68,8 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
           }
         });
 
+        // Send permission check request with JWT token
+        // The backend will extract userId from the token
         const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
@@ -75,7 +77,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({ email: user.email })
+          body: JSON.stringify({}) // No need to send email/userId - extracted from JWT
         });
 
         if (response.ok) {
@@ -90,6 +92,14 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
           // Service not available (probably production environment)
           setState({
             available: false,
+            hasPermission: false,
+            loading: false,
+            error: null
+          });
+        } else if (response.status === 401 || response.status === 403) {
+          // Not authorized
+          setState({
+            available: true,
             hasPermission: false,
             loading: false,
             error: null
@@ -109,7 +119,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
     };
 
     checkPermission();
-  }, [isAuthenticated, authLoading, user?.email, getAccessTokenSilently]);
+  }, [isAuthenticated, authLoading, getAccessTokenSilently]);
 
   return state;
 }
