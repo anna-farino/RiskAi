@@ -54,9 +54,6 @@ router.post("/test-scraping", limiter, handleTestScraping);
 router.post("/test-scraping/all-sources", limiter, handleTestAllSources);
 router.get("/test-scraping/health", handleTestScrapingHealth);
 
-// LIVE LOGS MANAGEMENT (staging only)
-router.use("/live-logs-management", liveLogsRouter);
-
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
 
@@ -93,6 +90,9 @@ router.use(noSimpleRequests);
 router.use(auth0middleware);
 
 // PROTECTED ROUTES
+
+// Live Logs Management (staging only - requires auth + live logs permission)
+router.use("/live-logs-management", liveLogsRouter);
 
 // Admin source management (requires auth + live logs permission)
 router.use("/admin/global-sources", adminSourceRouter);
