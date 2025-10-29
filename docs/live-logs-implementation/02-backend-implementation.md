@@ -12,7 +12,7 @@
 
 ### 2. Core Backend Services ✅
 
-#### Socket Server (`backend/services/live-logs/socket-server.ts`)
+#### Socket Server (`backend/admin/services/socket-server.ts`)
 - **Environment Restriction**: Only enabled in `NODE_ENV=staging`
 - **Authentication**: Email-based permission checking via WebSocket middleware
 - **CORS Configuration**: Supports both development and production origins
@@ -26,7 +26,7 @@
 - Authentication middleware for permission verification
 ```
 
-#### Permission System (`backend/services/live-logs/permissions.ts`)
+#### Permission System (`backend/admin/services/permissions.ts`)
 - **Database Integration**: Uses `devs_allowed_logs` table via Drizzle ORM
 - **Security**: Fail-secure approach (deny on error)
 - **Management Functions**: Add, remove, and list developer permissions
@@ -40,7 +40,7 @@
 - listDevLogPermissions() - List all permissions
 ```
 
-#### Log Interceptor (`backend/services/live-logs/log-interceptor.ts`)
+#### Log Interceptor (`backend/admin/services/log-interceptor.ts`)
 - **Non-Invasive**: Wraps existing `log()` function without breaking it
 - **Dual Output**: Maintains console logging + WebSocket streaming
 - **Environment-Aware**: Only intercepts logs in staging environment
@@ -55,7 +55,7 @@
 
 ### 3. Management API ✅
 
-#### Live Logs Management (`backend/api/live-logs-management.ts`)
+#### Live Logs Management (`backend/admin/routes/live-logs.ts`)
 - **Environment Check**: All endpoints return 404 unless staging
 - **CRUD Operations**: Full permission management via REST API
 - **Health Check**: System status endpoint
