@@ -14,6 +14,7 @@ import {
   Pencil,
   Trash2,
   Shield,
+  ArrowUpDown,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ export default function SourceManagement() {
   // State
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [sortBy, setSortBy] = useState<'enabled' | 'disabled' | 'alphabetical' | 'newest' | 'oldest'>('enabled');
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -238,20 +240,61 @@ export default function SourceManagement() {
     },
   });
 
-  // Filter sources
-  const filteredSources = sources.data?.filter(source => {
-    const matchesSearch = source.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         source.url.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchesStatus = true;
-    if (statusFilter === 'enabled') {
-      matchesStatus = source.isActive;
-    } else if (statusFilter === 'disabled') {
-      matchesStatus = !source.isActive;
-    }
-    
-    return matchesSearch && matchesStatus;
-  }) || [];
+  // Filter and sort sources
+  const filteredSources = (() => {
+    let filtered = sources.data?.filter(source => {
+      const matchesSearch = source.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           source.url.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let matchesStatus = true;
+      if (statusFilter === 'enabled') {
+        matchesStatus = source.isActive;
+      } else if (statusFilter === 'disabled') {
+        matchesStatus = !source.isActive;
+      }
+      
+      return matchesSearch && matchesStatus;
+    }) || [];
+
+    // Apply sorting
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'enabled':
+          // Enabled first, then by name
+          if (a.isActive !== b.isActive) {
+            return a.isActive ? -1 : 1;
+          }
+          return a.name.localeCompare(b.name);
+        
+        case 'disabled':
+          // Disabled first, then by name
+          if (a.isActive !== b.isActive) {
+            return a.isActive ? 1 : -1;
+          }
+          return a.name.localeCompare(b.name);
+        
+        case 'alphabetical':
+          return a.name.localeCompare(b.name);
+        
+        case 'newest':
+          // Newest first (most recent addedAt)
+          const dateA = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+          const dateB = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+          return dateB - dateA;
+        
+        case 'oldest':
+          // Oldest first (earliest addedAt)
+          const dateA2 = a.addedAt ? new Date(a.addedAt).getTime() : 0;
+          const dateB2 = b.addedAt ? new Date(b.addedAt).getTime() : 0;
+          return dateA2 - dateB2;
+        
+        default:
+          return 0;
+      }
+    });
+
+    return sorted;
+  })();
 
   // Handlers
   const handleAddSource = () => {
@@ -382,22 +425,74 @@ export default function SourceManagement() {
             </div>
           </div>
 
-          {/* Source Info */}
+          {/* Sort Options */}
           <div className="col-span-1">
             <div className="bg-purple-500/10 border border-purple-500/20 rounded-md p-3">
               <div className="flex items-center gap-2 mb-3">
-                <HelpCircle className="h-4 w-4 text-purple-400" />
-                <span className="text-sm font-medium text-purple-400">Source Info</span>
+                <ArrowUpDown className="h-4 w-4 text-purple-400" />
+                <span className="text-sm font-medium text-purple-400">Sort By</span>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="h-8 text-xs px-2 rounded-md border border-slate-700 bg-slate-800/70 text-white inline-flex items-center justify-center">
-                  <Shield className="h-3 w-3 mr-1" />
-                  Total: {sources.data?.length || 0}
-                </div>
-                <div className="h-8 text-xs px-2 rounded-md border border-slate-700 bg-slate-800/70 text-white inline-flex items-center justify-center">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Active: {sources.data?.filter(s => s.isActive).length || 0}
-                </div>
+              <div className="grid grid-cols-2 gap-1">
+                <button
+                  className={cn(
+                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
+                    sortBy === 'enabled'
+                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                  )}
+                  onClick={() => setSortBy('enabled')}
+                  data-testid="button-sort-enabled"
+                >
+                  Enabled
+                </button>
+                <button
+                  className={cn(
+                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
+                    sortBy === 'disabled'
+                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                  )}
+                  onClick={() => setSortBy('disabled')}
+                  data-testid="button-sort-disabled"
+                >
+                  Disabled
+                </button>
+                <button
+                  className={cn(
+                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
+                    sortBy === 'alphabetical'
+                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                  )}
+                  onClick={() => setSortBy('alphabetical')}
+                  data-testid="button-sort-alphabetical"
+                >
+                  A-Z
+                </button>
+                <button
+                  className={cn(
+                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center",
+                    sortBy === 'newest'
+                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                  )}
+                  onClick={() => setSortBy('newest')}
+                  data-testid="button-sort-newest"
+                >
+                  Newest
+                </button>
+                <button
+                  className={cn(
+                    "h-8 text-xs px-1 transition-colors duration-200 rounded-md border inline-flex items-center justify-center col-span-2",
+                    sortBy === 'oldest'
+                      ? "border-purple-500 bg-purple-500/20 text-purple-400"
+                      : "border-slate-700 bg-slate-800/70 text-white hover:bg-slate-700/50"
+                  )}
+                  onClick={() => setSortBy('oldest')}
+                  data-testid="button-sort-oldest"
+                >
+                  Oldest
+                </button>
               </div>
             </div>
           </div>
