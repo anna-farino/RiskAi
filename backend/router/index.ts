@@ -56,7 +56,6 @@ router.get("/test-scraping/health", handleTestScrapingHealth);
 
 // LIVE LOGS MANAGEMENT (staging only)
 router.use("/live-logs-management", liveLogsRouter);
-router.use("/admin/global-sources", adminSourceRouter);
 
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
@@ -94,6 +93,9 @@ router.use(noSimpleRequests);
 router.use(auth0middleware);
 
 // PROTECTED ROUTES
+
+// Admin source management (requires auth + live logs permission)
+router.use("/admin/global-sources", adminSourceRouter);
 
 router.post("/create-checkout-session", handleCreateCheckoutSession)
 router.get("/session-status", handleSessionStatus)
