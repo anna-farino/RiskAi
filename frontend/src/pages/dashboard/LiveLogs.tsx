@@ -13,10 +13,12 @@ import { serverUrl } from '@/utils/server-url';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveLogsStore, LogEntry } from '@/stores/live-logs-store';
 import SourceManagement from '@/components/admin/SourceManagement';
+import { useFetch } from '@/hooks/use-fetch';
 
 export default function LiveLogs() {
   const { user, isAuthenticated } = useAuth0();
   const { toast } = useToast();
+  const authenticatedFetch = useFetch();
 
   // Zustand store
   const {
@@ -64,9 +66,8 @@ export default function LiveLogs() {
 
     const checkPermissions = async () => {
       try {
-        const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
+        const response = await authenticatedFetch('/api/live-logs-management/check-permission', {
           method: 'POST',
-          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -101,7 +102,7 @@ export default function LiveLogs() {
     };
 
     checkPermissions();
-  }, [isAuthenticated, user?.email, toast]);
+  }, [isAuthenticated, user?.email, toast, authenticatedFetch]);
 
   // Initialize socket connection
   useEffect(() => {
