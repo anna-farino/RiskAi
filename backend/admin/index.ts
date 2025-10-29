@@ -21,5 +21,5 @@ export {
   verifyDevLogPermission,
 } from './services/permissions';
 
-export { logInterceptor } from './services/log-interceptor';
-export { initializeSocketServer } from './services/socket-server';
+export { initializeLogInterception } from './services/log-interceptor';
+export { initializeSocketIO } from './services/socket-server';
