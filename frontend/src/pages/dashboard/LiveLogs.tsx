@@ -48,6 +48,7 @@ export default function LiveLogs() {
 
   const socketRef = useRef<Socket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const permissionCheckRef = useRef<boolean>(false); // Prevent duplicate permission checks
 
   // Auto-scroll to bottom when new logs arrive
   const scrollToBottom = () => {
@@ -61,11 +62,20 @@ export default function LiveLogs() {
   // Check permissions on component mount (only once)
   useEffect(() => {
     if (!isAuthenticated || !user?.email) return;
+    
+    // Prevent duplicate checks (React StrictMode protection)
+    if (permissionCheckRef.current) {
+      console.log('[LiveLogs] Permission check already in progress, skipping');
+      return;
+    }
 
+    permissionCheckRef.current = true;
     let isMounted = true; // Prevent state updates if component unmounts
 
     const checkPermissions = async () => {
       try {
+        console.log('[LiveLogs] Starting permission check for:', user.email);
+        
         // Get token
         const token = await getAccessTokenSilently({
           authorizationParams: {
@@ -87,6 +97,7 @@ export default function LiveLogs() {
 
         if (response.ok) {
           const data = await response.json();
+          console.log('[LiveLogs] Permission check result:', data.hasPermission);
           setPermission(data.hasPermission);
 
           if (!data.hasPermission) {
@@ -107,7 +118,7 @@ export default function LiveLogs() {
           }
         }
       } catch (error) {
-        console.error('Error checking permissions:', error);
+        console.error('[LiveLogs] Error checking permissions:', error);
         if (isMounted) {
           setPermission(false);
         }
@@ -118,6 +129,7 @@ export default function LiveLogs() {
 
     return () => {
       isMounted = false; // Cleanup
+      permissionCheckRef.current = false; // Reset for next mount
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.email]);
