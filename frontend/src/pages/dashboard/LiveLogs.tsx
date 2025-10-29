@@ -12,9 +12,10 @@ import { Play, Square, Trash2, Activity, AlertCircle, Globe, Loader2, Download, 
 import { serverUrl } from '@/utils/server-url';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveLogsStore, LogEntry } from '@/stores/live-logs-store';
+import SourceManagement from '@/components/admin/SourceManagement';
 
 export default function LiveLogs() {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const { toast } = useToast();
 
   // Zustand store
@@ -47,6 +48,7 @@ export default function LiveLogs() {
 
   const socketRef = useRef<Socket | null>(null);
   const logsEndRef = useRef<HTMLDivElement>(null);
+  const permissionCheckRef = useRef<boolean>(false); // Prevent duplicate permission checks
 
   // Auto-scroll to bottom when new logs arrive
   const scrollToBottom = () => {
@@ -57,23 +59,45 @@ export default function LiveLogs() {
     scrollToBottom();
   }, [logs]);
 
-  // Check permissions on component mount
+  // Check permissions on component mount (only once)
   useEffect(() => {
     if (!isAuthenticated || !user?.email) return;
+    
+    // Prevent duplicate checks (React StrictMode protection)
+    if (permissionCheckRef.current) {
+      console.log('[LiveLogs] Permission check already in progress, skipping');
+      return;
+    }
+
+    permissionCheckRef.current = true;
+    let isMounted = true; // Prevent state updates if component unmounts
 
     const checkPermissions = async () => {
       try {
+        console.log('[LiveLogs] Starting permission check for:', user.email);
+        
+        // Get token
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
+          }
+        });
+
         const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ email: user.email })
         });
 
+        if (!isMounted) return; // Don't update state if unmounted
+
         if (response.ok) {
           const data = await response.json();
+          console.log('[LiveLogs] Permission check result:', data.hasPermission);
           setPermission(data.hasPermission);
 
           if (!data.hasPermission) {
@@ -94,13 +118,21 @@ export default function LiveLogs() {
           }
         }
       } catch (error) {
-        console.error('Error checking permissions:', error);
-        setPermission(false);
+        console.error('[LiveLogs] Error checking permissions:', error);
+        if (isMounted) {
+          setPermission(false);
+        }
       }
     };
 
     checkPermissions();
-  }, [isAuthenticated, user?.email, toast]);
+
+    return () => {
+      isMounted = false; // Cleanup
+      permissionCheckRef.current = false; // Reset for next mount
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.email]);
 
   // Initialize socket connection
   useEffect(() => {
@@ -439,7 +471,7 @@ export default function LiveLogs() {
       </div>
 
       <Tabs defaultValue="logs" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-black/40 border border-[#BF00FF]/20">
+        <TabsList className="grid w-full grid-cols-4 bg-black/40 border border-[#BF00FF]/20">
           <TabsTrigger value="logs" className="data-[state=active]:bg-[#BF00FF]/20">
             Logs
           </TabsTrigger>
@@ -448,6 +480,9 @@ export default function LiveLogs() {
           </TabsTrigger>
           <TabsTrigger value="test-all" className="data-[state=active]:bg-[#BF00FF]/20">
             Test All Sources
+          </TabsTrigger>
+          <TabsTrigger value="sources" className="data-[state=active]:bg-[#BF00FF]/20">
+            Source Management
           </TabsTrigger>
         </TabsList>
 
@@ -761,6 +796,10 @@ export default function LiveLogs() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="sources">
+          <SourceManagement />
         </TabsContent>
       </Tabs>
     </div>

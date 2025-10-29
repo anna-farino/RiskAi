@@ -1,7 +1,7 @@
-import { db } from '../../db/db';
+import { db } from 'backend/db/db';
 import { devsAllowedLogs } from '@shared/db/schema/devs-allowed-logs';
 import { eq } from 'drizzle-orm';
-import { log } from '../../utils/log';
+import { log } from 'backend/utils/log';
 
 /**
  * Verify if a developer email is allowed to access live logs
