@@ -9,7 +9,8 @@ import logTime from './middleware/log-time';
 import { callId } from './middleware/call-id';
 import { corsOptions } from './utils/cors-options';
 import { helmetConfig, setNonce } from './utils/helmet-config';
-import { initializeLogInterception, initializeSocketIO } from './admin';
+import { initializeSocketIO } from './services/live-logs/socket-server';
+import { initializeLogInterception } from './services/live-logs/log-interceptor';
 import { handleStripeWebhook } from './handlers/stripe/webhook';
 
 const port = Number(process.env.PORT) || 5000;

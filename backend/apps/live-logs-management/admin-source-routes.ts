@@ -3,8 +3,8 @@ import { db } from "backend/db/db";
 import { globalSources } from "@shared/db/schema/global-tables";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
-import { verifyDevLogPermission } from "../services/permissions";
-import { log } from "../../utils/log";
+import { verifyDevLogPermission } from "backend/services/live-logs/permissions";
+import { log } from "backend/utils/log";
 import { User } from "@shared/db/schema/user";
 
 export const adminSourceRouter = Router();

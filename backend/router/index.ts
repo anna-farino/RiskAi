@@ -15,18 +15,14 @@ import {
   handleCheckSampleDataStatus,
 } from "backend/handlers/populate-sample-data";
 import { auth0CheckJwt, jwtErrorHandler } from "backend/middleware/auth0";
+import { testDatadomeBypass } from "backend/handlers/test-datadome";
 import { auth0middleware } from "backend/middleware/auth0middleware";
 import { handleChangePassword } from "backend/handlers/auth0/change-password";
 import { handleDatabaseHealthCheck } from "backend/handlers/health-check";
+import { handleTestScraping, handleTestScrapingHealth, handleTestAllSources } from "backend/test-scraping";
 import { handleCryptoHealth, handleTestDecrypt, handleTestEncryptDecrypt } from "backend/handlers/test-crypto";
-import {
-  liveLogsRouter,
-  adminSourceRouter,
-  handleTestScraping,
-  handleTestScrapingHealth,
-  handleTestAllSources,
-  testDatadomeBypass,
-} from "backend/admin";
+import liveLogsRouter from "backend/api/live-logs-management";
+import { adminSourceRouter } from "backend/apps/live-logs-management/admin-source-routes";
 import { adminRouter } from "./routes/admin";
 import { subsRouter } from "./routes/subscriptions";
 import handleCreateCheckoutSession from "backend/handlers/stripe/checkout-session";
