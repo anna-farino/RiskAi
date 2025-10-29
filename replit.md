@@ -24,6 +24,7 @@ The RisqAi platform employs a monorepo architecture, featuring a React 18 (TypeS
 - **Web Scraping**: Puppeteer with stealth plugins
 - **AI Integration**: OpenAI API
 - **Background Jobs**: Global scheduler system (runs every 3 hours)
+- **Admin Tools Structure**: All admin/dev tools (live logs, test scraping, source management) consolidated under `backend/admin/` directory with routes, services, and test-scraping subdirectories. Access controlled via `devs_allowed_logs` table.
 
 ### Core Architectural Decisions
 - **Global Scraping Infrastructure**: Transformed from per-user to a global scraping system. All sources are scraped every 3 hours globally, with articles saved to a shared pool. Users apply query-time filtering to see relevant content.
