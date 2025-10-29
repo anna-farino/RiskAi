@@ -5,28 +5,24 @@ import { users } from "./user";
 
 /**
  * Developer permissions for accessing live server logs
- * Only developers with userId in this table can view real-time logs via WebSocket
+ * Only developers with emails in this table can view real-time logs via WebSocket
  * This table is only effective when NODE_ENV=staging
  */
 export const devsAllowedLogs = pgTable("devs_allowed_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull().unique().references(() => users.id), // References users.id
-  email: text("email").notNull(), // Kept for display/audit purposes (not unique anymore)
+  email: text("email").notNull().unique(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-  createdBy: uuid("created_by_user_id").notNull().references(() => users.id), // User ID of who added this
+  createdBy: text("created_by").notNull(), // Email of the person who added this permission
   notes: text("notes") // Optional notes about why this dev was granted access
 });
 
-// Relations
+// Relations - optional, in case we want to link to existing users later
 export const devsAllowedLogsRelations = relations(devsAllowedLogs, ({ one }) => ({
-  user: one(users, {
-    fields: [devsAllowedLogs.userId],
-    references: [users.id],
-  }),
-  createdByUser: one(users, {
-    fields: [devsAllowedLogs.createdBy],
-    references: [users.id],
-  })
+  // Future: could relate to users table if needed
+  // user: one(users, {
+  //   fields: [devsAllowedLogs.email],
+  //   references: [users.email],
+  // })
 }));
 
 // Zod schema for validation

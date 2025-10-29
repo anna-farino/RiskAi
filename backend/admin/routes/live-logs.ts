@@ -6,39 +6,24 @@ import {
   verifyDevLogPermission
 } from '../services/permissions';
 import { log } from 'backend/utils/log';
-import dotenv from 'dotenv';
+import dotenv from 'dotenv'
 import dotenvConfig from 'backend/utils/dotenv-config';
-import { FullRequest } from 'backend/middleware';
 
-dotenvConfig(dotenv);
+dotenvConfig(dotenv)
 
 const router = express.Router();
 
 /**
  * Get all developers with live logs permissions
  * GET /api/live-logs-management/permissions
- * Protected: Requires JWT authentication + live logs permission
  */
-router.get('/permissions', async (req, res) => {
+router.get('/permissions', async (_req, res) => {
   try {
     if (
       process.env.NODE_ENV === 'production' || 
       (process.env.NODE_ENV !== 'staging' && process.env.NODE_ENV !== 'development')
     ) {
       return res.status(404).json({ error: 'Live logs not available in production' });
-    }
-
-    // Extract userId from authenticated request (set by auth0middleware)
-    const userId = (req as FullRequest).user?.id;
-    
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
-    }
-
-    // Verify user has live logs permission
-    const hasPermission = await verifyDevLogPermission(userId);
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'Access denied - live logs permission required' });
     }
 
     const permissions = await listDevLogPermissions();
@@ -57,8 +42,7 @@ router.get('/permissions', async (req, res) => {
 /**
  * Add a developer to live logs permissions
  * POST /api/live-logs-management/permissions
- * Body: { userId: string, notes?: string }
- * Protected: Requires JWT authentication + live logs permission
+ * Body: { email: string, createdBy: string, notes?: string }
  */
 router.post('/permissions', async (req, res) => {
   try {
@@ -66,31 +50,18 @@ router.post('/permissions', async (req, res) => {
       return res.status(404).json({ error: 'Live logs not available in production' });
     }
 
-    // Extract userId from authenticated request
-    const createdByUserId = (req as FullRequest).user?.id;
-    
-    if (!createdByUserId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+    const { email, createdBy, notes } = req.body;
+
+    if (!email || !createdBy) {
+      return res.status(400).json({ error: 'Email and createdBy are required' });
     }
 
-    // Verify user has live logs permission
-    const hasPermission = await verifyDevLogPermission(createdByUserId);
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'Access denied - live logs permission required' });
-    }
-
-    const { userId, notes } = req.body;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
-
-    const success = await addDevLogPermission(userId, createdByUserId, notes);
+    const success = await addDevLogPermission(email, createdBy, notes);
 
     if (success) {
       res.json({
         success: true,
-        message: `Live logs permission added for user ${userId}`
+        message: `Live logs permission added for ${email}`
       });
     } else {
       res.status(400).json({ error: 'Failed to add permission' });
@@ -104,40 +75,26 @@ router.post('/permissions', async (req, res) => {
 
 /**
  * Remove a developer from live logs permissions
- * DELETE /api/live-logs-management/permissions/:userId
- * Protected: Requires JWT authentication + live logs permission
+ * DELETE /api/live-logs-management/permissions/:email
  */
-router.delete('/permissions/:userId', async (req, res) => {
+router.delete('/permissions/:email', async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production') {
       return res.status(404).json({ error: 'Live logs not available in production' });
     }
 
-    // Extract userId from authenticated request
-    const requestingUserId = (req as FullRequest).user?.id;
-    
-    if (!requestingUserId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Verify user has live logs permission
-    const hasPermission = await verifyDevLogPermission(requestingUserId);
-    if (!hasPermission) {
-      return res.status(403).json({ error: 'Access denied - live logs permission required' });
-    }
-
-    const { userId } = req.params;
-
-    if (!userId) {
-      return res.status(400).json({ error: 'userId is required' });
-    }
-
-    const success = await removeDevLogPermission(userId);
+    const success = await removeDevLogPermission(email);
 
     if (success) {
       res.json({
         success: true,
-        message: `Live logs permission removed for user ${userId}`
+        message: `Live logs permission removed for ${email}`
       });
     } else {
       res.status(400).json({ error: 'Failed to remove permission' });
@@ -150,9 +107,9 @@ router.delete('/permissions/:userId', async (req, res) => {
 });
 
 /**
- * Check if the authenticated user has live logs permission
+ * Check if a developer has live logs permission
  * POST /api/live-logs-management/check-permission
- * Protected: Requires JWT authentication
+ * Body: { email: string }
  */
 router.post('/check-permission', async (req, res) => {
   try {
@@ -160,18 +117,17 @@ router.post('/check-permission', async (req, res) => {
       return res.status(404).json({ error: 'Live logs not available in production' });
     }
 
-    // Extract userId from authenticated request
-    const userId = (req as FullRequest).user?.id;
-    
-    if (!userId) {
-      return res.status(401).json({ error: 'User not authenticated' });
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
     }
 
-    const hasPermission = await verifyDevLogPermission(userId);
+    const hasPermission = await verifyDevLogPermission(email);
 
     res.json({
       hasPermission,
-      userId
+      email: email
     });
 
   } catch (error: any) {
@@ -183,7 +139,6 @@ router.post('/check-permission', async (req, res) => {
 /**
  * Health check for live logs system
  * GET /api/live-logs-management/health
- * Public endpoint
  */
 router.get('/health', (_req, res) => {
   const isAvailable = process.env.NODE_ENV !== 'production';

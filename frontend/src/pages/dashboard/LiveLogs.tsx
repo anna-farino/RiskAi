@@ -61,7 +61,7 @@ export default function LiveLogs() {
 
   // Check permissions on component mount (only once)
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || !user?.email) return;
     
     // Prevent duplicate checks (React StrictMode protection)
     if (permissionCheckRef.current) {
@@ -74,9 +74,9 @@ export default function LiveLogs() {
 
     const checkPermissions = async () => {
       try {
-        console.log('[LiveLogs] Starting permission check');
+        console.log('[LiveLogs] Starting permission check for:', user.email);
         
-        // Get JWT token
+        // Get token
         const token = await getAccessTokenSilently({
           authorizationParams: {
             audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
@@ -90,7 +90,7 @@ export default function LiveLogs() {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token}`
           },
-          body: JSON.stringify({}) // No need to send email - extracted from JWT
+          body: JSON.stringify({ email: user.email })
         });
 
         if (!isMounted) return; // Don't update state if unmounted
@@ -132,120 +132,97 @@ export default function LiveLogs() {
       permissionCheckRef.current = false; // Reset for next mount
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, user?.email]);
 
   // Initialize socket connection
   useEffect(() => {
-    if (!hasPermission || !isAuthenticated) return;
+    if (!hasPermission || !user?.email) return;
 
-    const initializeSocket = async () => {
-      try {
-        // Get JWT token for Socket.IO authentication
-        const token = await getAccessTokenSilently({
-          authorizationParams: {
-            audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
-          }
-        });
+    const socket = io(serverUrl, {
+      auth: {
+        email: user.email
+      },
+      transports: ['websocket', 'polling']
+    });
 
-        const socket = io(serverUrl, {
-          auth: {
-            token // Pass JWT token instead of email
-          },
-          transports: ['websocket', 'polling']
-        });
+    socketRef.current = socket;
 
-        socketRef.current = socket;
+    socket.on('connect', () => {
+      setConnectionState(true);
+      toast({
+        title: "Connected",
+        description: "WebSocket connection established.",
+      });
+    });
 
-        socket.on('connect', () => {
-          setConnectionState(true);
-          toast({
-            title: "Connected",
-            description: "WebSocket connection established.",
-          });
-        });
+    socket.on('disconnect', () => {
+      setConnectionState(false);
+    });
 
-        socket.on('disconnect', () => {
-          setConnectionState(false);
-        });
+    socket.on('log-entry', (logEntry: Omit<LogEntry, 'id'>) => {
+      addLog(logEntry);
+    });
 
-        socket.on('log-entry', (logEntry: Omit<LogEntry, 'id'>) => {
-          addLog(logEntry);
-        });
+    socket.on('auth_error', (error: string) => {
+      toast({
+        title: "Authentication Error",
+        description: error,
+        variant: "destructive"
+      });
+      setPermission(false);
+    });
 
-        socket.on('auth_error', (error: string) => {
-          toast({
-            title: "Authentication Error",
-            description: error,
-            variant: "destructive"
-          });
-          setPermission(false);
-        });
+    // All sources test event handlers
+    socket.on('all-sources-test-started', (data: { totalSources: number; timestamp: string }) => {
+      clearAllSourcesTestResults();
+      toast({
+        title: "Test Started",
+        description: `Testing ${data.totalSources} active sources`,
+      });
+    });
 
-        // All sources test event handlers
-        socket.on('all-sources-test-started', (data: { totalSources: number; timestamp: string }) => {
-          clearAllSourcesTestResults();
-          toast({
-            title: "Test Started",
-            description: `Testing ${data.totalSources} active sources`,
-          });
-        });
+    socket.on('source-test-start', (data: any) => {
+      updateAllSourcesTestProgress({
+        sourceId: data.sourceId,
+        sourceName: data.sourceName,
+        sourceUrl: data.sourceUrl,
+        status: 'testing',
+        articlesFound: 0,
+        articleScrapingSuccess: false,
+        errors: [],
+        testDuration: 0,
+        timestamp: data.timestamp
+      });
+    });
 
-        socket.on('source-test-start', (data: any) => {
-          updateAllSourcesTestProgress({
-            sourceId: data.sourceId,
-            sourceName: data.sourceName,
-            sourceUrl: data.sourceUrl,
-            status: 'testing',
-            articlesFound: 0,
-            articleScrapingSuccess: false,
-            errors: [],
-            testDuration: 0,
-            timestamp: data.timestamp
-          });
-        });
+    socket.on('source-test-complete', (result: any) => {
+      updateAllSourcesTestProgress(result);
+    });
 
-        socket.on('source-test-complete', (result: any) => {
-          updateAllSourcesTestProgress(result);
-        });
+    socket.on('all-sources-test-completed', (data: any) => {
+      setAllSourcesTestRunning(false);
+      const passedCount = data.passedSources;
+      const totalCount = data.totalSources;
+      toast({
+        title: "Test Completed",
+        description: `${passedCount}/${totalCount} sources passed successfully`,
+        variant: passedCount === totalCount ? "default" : "destructive"
+      });
+    });
 
-        socket.on('all-sources-test-completed', (data: any) => {
-          setAllSourcesTestRunning(false);
-          const passedCount = data.passedSources;
-          const totalCount = data.totalSources;
-          toast({
-            title: "Test Completed",
-            description: `${passedCount}/${totalCount} sources passed successfully`,
-            variant: passedCount === totalCount ? "default" : "destructive"
-          });
-        });
-
-        socket.on('all-sources-test-error', (data: { error: string }) => {
-          setAllSourcesTestRunning(false);
-          toast({
-            title: "Test Error",
-            description: data.error,
-            variant: "destructive"
-          });
-        });
-
-      } catch (error) {
-        console.error('[LiveLogs] Error initializing socket:', error);
-        toast({
-          title: "Connection Error",
-          description: "Failed to establish WebSocket connection.",
-          variant: "destructive"
-        });
-      }
-    };
-
-    initializeSocket();
+    socket.on('all-sources-test-error', (data: { error: string }) => {
+      setAllSourcesTestRunning(false);
+      toast({
+        title: "Test Error",
+        description: data.error,
+        variant: "destructive"
+      });
+    });
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
+      socket.disconnect();
     };
-  }, [hasPermission, isAuthenticated, toast, clearAllSourcesTestResults, updateAllSourcesTestProgress, setAllSourcesTestRunning, getAccessTokenSilently]);
+  }, [hasPermission, user?.email, toast, clearAllSourcesTestResults, updateAllSourcesTestProgress, setAllSourcesTestRunning]);
 
   const startStreaming = () => {
     if (socketRef.current && isConnected) {

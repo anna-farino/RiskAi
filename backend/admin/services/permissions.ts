@@ -1,118 +1,94 @@
 import { db } from 'backend/db/db';
 import { devsAllowedLogs } from '@shared/db/schema/devs-allowed-logs';
-import { users } from '@shared/db/schema/user';
 import { eq } from 'drizzle-orm';
 import { log } from 'backend/utils/log';
 
 /**
- * Verify if a user is allowed to access live logs (by userId from JWT)
- * This function is used in WebSocket and REST middleware to authorize connections
+ * Verify if a developer email is allowed to access live logs
+ * This function is used in WebSocket middleware to authorize connections
  */
-export async function verifyDevLogPermission(userId: string): Promise<boolean> {
+export async function verifyDevLogPermission(email: string): Promise<boolean> {
   try {
-    if (!userId || typeof userId !== 'string') {
-      log('Invalid userId provided for permission check', 'permissions-error');
+    if (!email || typeof email !== 'string') {
       return false;
     }
 
-    // Query the devs_allowed_logs table by userId
+    // Query the devs_allowed_logs table
     const allowedDevs = await db
       .select()
       .from(devsAllowedLogs)
-      .where(eq(devsAllowedLogs.userId, userId))
+      .where(eq(devsAllowedLogs.email, email.toLowerCase().trim()))
       .limit(1);
 
     const isAllowed = allowedDevs.length > 0;
 
     if (isAllowed) {
-      log(`Permission granted for live logs: userId=${userId}`, 'permissions');
+      log(`Permission granted for live logs: ${email}`, 'permissions');
     } else {
-      log(`Permission denied for live logs: userId=${userId}`, 'permissions');
+      log(`Permission denied for live logs: ${email}`, 'permissions');
     }
 
     return isAllowed;
 
   } catch (error: any) {
-    log(`Error checking live logs permission for userId=${userId}: ${error.message}`, 'permissions-error');
+    log(`Error checking live logs permission for ${email}: ${error.message}`, 'permissions-error');
     return false; // Fail secure - deny access on error
   }
 }
 
 /**
- * Add a developer to the live logs permission list (by userId)
+ * Add a developer to the live logs permission list
  * This is a utility function for managing permissions
  */
-export async function addDevLogPermission(userId: string, createdByUserId: string, notes?: string): Promise<boolean> {
+export async function addDevLogPermission(email: string, createdBy: string, notes?: string): Promise<boolean> {
   try {
-    if (!userId || !createdByUserId) {
-      log('Missing userId or createdByUserId', 'permissions-error');
-      return false;
-    }
-
-    // Get user email for logging/display purposes
-    const [user] = await db
-      .select({ email: users.email })
-      .from(users)
-      .where(eq(users.id, userId))
-      .limit(1);
-
-    if (!user) {
-      log(`User not found: userId=${userId}`, 'permissions-error');
+    if (!email || !createdBy) {
       return false;
     }
 
     await db
       .insert(devsAllowedLogs)
       .values({
-        userId,
-        email: user.email, // Store email for display/audit
-        createdBy: createdByUserId,
+        email: email.toLowerCase().trim(),
+        createdBy: createdBy.toLowerCase().trim(),
         notes: notes || `Added for live logs access`
       });
 
-    log(`Added live logs permission for userId=${userId} (${user.email}) by ${createdByUserId}`, 'permissions');
+    log(`Added live logs permission for ${email} by ${createdBy}`, 'permissions');
     return true;
 
   } catch (error: any) {
-    log(`Error adding live logs permission for userId=${userId}: ${error.message}`, 'permissions-error');
+    log(`Error adding live logs permission for ${email}: ${error.message}`, 'permissions-error');
     return false;
   }
 }
 
 /**
- * Remove a developer from the live logs permission list (by userId)
+ * Remove a developer from the live logs permission list
  */
-export async function removeDevLogPermission(userId: string): Promise<boolean> {
+export async function removeDevLogPermission(email: string): Promise<boolean> {
   try {
-    if (!userId) {
-      log('Missing userId', 'permissions-error');
+    if (!email) {
       return false;
     }
 
-    await db
+    const result = await db
       .delete(devsAllowedLogs)
-      .where(eq(devsAllowedLogs.userId, userId));
+      .where(eq(devsAllowedLogs.email, email.toLowerCase().trim()));
 
-    log(`Removed live logs permission for userId=${userId}`, 'permissions');
+    log(`Removed live logs permission for ${email}`, 'permissions');
     return true;
 
   } catch (error: any) {
-    log(`Error removing live logs permission for userId=${userId}: ${error.message}`, 'permissions-error');
+    log(`Error removing live logs permission for ${email}: ${error.message}`, 'permissions-error');
     return false;
   }
 }
 
 /**
  * List all developers with live logs permissions
- * Returns userId, email, and metadata
  */
-export async function listDevLogPermissions(): Promise<Array<{
-  userId: string;
-  email: string;
-  createdAt: Date;
-  createdBy: string;
-  notes?: string;
-}>> {
+export async function listDevLogPermissions(): Promise<Array<{email: string, createdAt: Date, createdBy: string, notes?: string}>> {
   try {
     const devs = await db
       .select()
@@ -120,7 +96,6 @@ export async function listDevLogPermissions(): Promise<Array<{
       .orderBy(devsAllowedLogs.createdAt);
 
     return devs.map(dev => ({
-      userId: dev.userId,
       email: dev.email,
       createdAt: dev.createdAt,
       createdBy: dev.createdBy,
