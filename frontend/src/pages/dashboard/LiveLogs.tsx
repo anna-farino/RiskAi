@@ -102,7 +102,8 @@ export default function LiveLogs() {
     };
 
     checkPermissions();
-  }, [isAuthenticated, user?.email, toast, authenticatedFetch]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?.email]);
 
   // Initialize socket connection
   useEffect(() => {
