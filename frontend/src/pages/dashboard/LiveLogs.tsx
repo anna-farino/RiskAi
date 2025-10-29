@@ -13,12 +13,10 @@ import { serverUrl } from '@/utils/server-url';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveLogsStore, LogEntry } from '@/stores/live-logs-store';
 import SourceManagement from '@/components/admin/SourceManagement';
-import { useFetch } from '@/hooks/use-fetch';
 
 export default function LiveLogs() {
-  const { user, isAuthenticated } = useAuth0();
+  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
   const { toast } = useToast();
-  const authenticatedFetch = useFetch();
 
   // Zustand store
   const {
@@ -60,19 +58,32 @@ export default function LiveLogs() {
     scrollToBottom();
   }, [logs]);
 
-  // Check permissions on component mount
+  // Check permissions on component mount (only once)
   useEffect(() => {
     if (!isAuthenticated || !user?.email) return;
 
+    let isMounted = true; // Prevent state updates if component unmounts
+
     const checkPermissions = async () => {
       try {
-        const response = await authenticatedFetch('/api/live-logs-management/check-permission', {
+        // Get token
+        const token = await getAccessTokenSilently({
+          authorizationParams: {
+            audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
+          }
+        });
+
+        const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
           method: 'POST',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ email: user.email })
         });
+
+        if (!isMounted) return; // Don't update state if unmounted
 
         if (response.ok) {
           const data = await response.json();
@@ -97,11 +108,17 @@ export default function LiveLogs() {
         }
       } catch (error) {
         console.error('Error checking permissions:', error);
-        setPermission(false);
+        if (isMounted) {
+          setPermission(false);
+        }
       }
     };
 
     checkPermissions();
+
+    return () => {
+      isMounted = false; // Cleanup
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, user?.email]);
 
