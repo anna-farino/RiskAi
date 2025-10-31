@@ -1091,6 +1091,31 @@ export const storage: IStorage = {
           : new Map<string, string[]>(),
       ]);
       
+      // Fetch user's tech stack entity IDs to filter displayed entities
+      const [userSoftwareIds, userHardwareIds, userCompanyIds] = await Promise.all([
+        db.select({ softwareId: usersSoftware.softwareId })
+          .from(usersSoftware)
+          .where(and(
+            eq(usersSoftware.userId, userId),
+            eq(usersSoftware.isActive, true)
+          ))
+          .then(rows => new Set(rows.map(r => r.softwareId))),
+        db.select({ hardwareId: usersHardware.hardwareId })
+          .from(usersHardware)
+          .where(and(
+            eq(usersHardware.userId, userId),
+            eq(usersHardware.isActive, true)
+          ))
+          .then(rows => new Set(rows.map(r => r.hardwareId))),
+        db.select({ companyId: usersCompanies.companyId })
+          .from(usersCompanies)
+          .where(and(
+            eq(usersCompanies.userId, userId),
+            eq(usersCompanies.isActive, true)
+          ))
+          .then(rows => new Set(rows.map(r => r.companyId)))
+      ]);
+      
       // Collect all unique entity IDs from the article entity maps
       const allSoftwareIds = new Set<string>();
       const allCompanyIds = new Set<string>();
@@ -1204,6 +1229,11 @@ export const storage: IStorage = {
         const articleCompanyIds = articleCompanyMap.get(row.article.id) || [];
         const articleHardwareIds = articleHardwareMap.get(row.article.id) || [];
         
+        // Filter entities to only show those in BOTH the article AND user's tech stack
+        const matchedSoftwareIds = articleSoftwareIds.filter(id => userSoftwareIds.has(id));
+        const matchedCompanyIds = articleCompanyIds.filter(id => userCompanyIds.has(id));
+        const matchedHardwareIds = articleHardwareIds.filter(id => userHardwareIds.has(id));
+        
         return {
           id: row.article.id,
           sourceId: row.article.sourceId,
@@ -1223,23 +1253,23 @@ export const storage: IStorage = {
           scrapeDate: row.article.scrapedAt || new Date(),
           userId: userId || null,
           markedForCapsule: false,
-          // Map actual article entity IDs to names for display, separate malware
-          matchedSoftware: articleSoftwareIds
+          // Display only entities that match user's tech stack, separate malware
+          matchedSoftware: matchedSoftwareIds
             .map(id => {
               const softwareInfo = softwareMap.get(id);
               return softwareInfo && !softwareInfo.isMalware ? softwareInfo.name : null;
             })
             .filter(name => name != null) as string[],
-          matchedMalware: articleSoftwareIds
+          matchedMalware: matchedSoftwareIds
             .map(id => {
               const softwareInfo = softwareMap.get(id);
               return softwareInfo && softwareInfo.isMalware ? softwareInfo.name : null;
             })
             .filter(name => name != null) as string[],
-          matchedCompanies: articleCompanyIds
+          matchedCompanies: matchedCompanyIds
             .map(id => companyMap.get(id))
             .filter(name => name != null) as string[],
-          matchedHardware: articleHardwareIds
+          matchedHardware: matchedHardwareIds
             .map(id => hardwareMap.get(id))
             .filter(name => name != null) as string[],
           matchedKeywords: [], // Keywords are user-specific, not article-specific
