@@ -142,7 +142,13 @@ export default function LiveLogs() {
       auth: {
         email: user.email
       },
-      transports: ['websocket', 'polling']
+      transports: ['websocket', 'polling'],
+      // Automatic reconnection with exponential backoff
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,        // Start at 1 second
+      reconnectionDelayMax: 5000,     // Max 5 seconds between attempts
+      timeout: 20000                   // 20 second connection timeout
     });
 
     socketRef.current = socket;
@@ -155,8 +161,55 @@ export default function LiveLogs() {
       });
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', (reason) => {
+      console.log('[LiveLogs] Disconnected:', reason);
       setConnectionState(false);
+
+      // Notify user if disconnect was unexpected
+      if (reason === 'io server disconnect') {
+        toast({
+          title: "Disconnected",
+          description: "Server closed the connection. Reconnecting...",
+          variant: "destructive"
+        });
+      } else if (reason === 'ping timeout') {
+        toast({
+          title: "Connection Timeout",
+          description: "No response from server. Reconnecting...",
+          variant: "destructive"
+        });
+      }
+    });
+
+    // Reconnection attempt handlers
+    socket.on('reconnect_attempt', (attemptNumber) => {
+      console.log(`[LiveLogs] Reconnection attempt #${attemptNumber}`);
+    });
+
+    socket.on('reconnect', (attemptNumber) => {
+      console.log(`[LiveLogs] Reconnected after ${attemptNumber} attempts`);
+      toast({
+        title: "Reconnected",
+        description: "WebSocket connection restored successfully.",
+      });
+
+      // If we were streaming before, restart streaming
+      if (isStreaming) {
+        socket.emit('start_streaming');
+      }
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.error('[LiveLogs] Reconnection error:', error);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('[LiveLogs] Reconnection failed after all attempts');
+      toast({
+        title: "Connection Failed",
+        description: "Unable to reconnect to live logs. Please refresh the page.",
+        variant: "destructive"
+      });
     });
 
     socket.on('log-entry', (logEntry: Omit<LogEntry, 'id'>) => {
