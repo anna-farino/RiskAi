@@ -236,6 +236,7 @@ export default function ThreatHome() {
       sortOrder,
       entityFilter,
     ],
+    staleTime: 0, // Always refetch - don't use cache
     queryFn: async () => {
       try {
         // Build request body for POST request
