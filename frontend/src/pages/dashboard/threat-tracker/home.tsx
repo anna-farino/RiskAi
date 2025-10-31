@@ -848,7 +848,11 @@ export default function ThreatHome() {
                           onClick={() => {
                             const actualRange = range === "YTD" ? "Year to Date" : range;
                             setDateRange(actualRange);
-                            setOriginalDateRange(getDateRangeFromLabel(actualRange));
+                            const newDateRange = getDateRangeFromLabel(actualRange);
+                            setOriginalDateRange(newDateRange);
+                            // Clear custom date inputs when preset is selected
+                            setFromDate(newDateRange.startDate || "");
+                            setToDate(newDateRange.endDate || "");
                           }}
                           className={cn(
                             "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
