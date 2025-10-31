@@ -266,6 +266,12 @@ export default function ThreatHome() {
           Object.entries(requestBody).filter(([_, v]) => v !== undefined)
         );
 
+        console.log("=== THREAT TRACKER QUERY ===");
+        console.log("Date Range State:", dateRange);
+        console.log("Original Date Range:", originalDateRange);
+        console.log("Request Body:", cleanBody);
+        console.log("===========================");
+
         const response = await fetchWithAuth("/api/threat-tracker/articles/query", {
           method: "POST",
           headers: {

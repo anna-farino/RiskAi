@@ -970,12 +970,13 @@ export const storage: IStorage = {
       // For now, we show ALL articles matching tech stack, not just those with threat indicators
       // This ensures the count matches the displayed articles
 
-      // Add date range filters - use publishDate for filtering
+      // Add date range filters - use COALESCE of publishDate and scrapedAt for filtering
+      // This ensures we capture all articles even if publishDate is null (most articles only have scrapedAt)
       if (startDate) {
-        conditions.push(gte(globalArticles.publishDate, startDate));
+        conditions.push(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt}) >= ${startDate}`);
       }
       if (endDate) {
-        conditions.push(lte(globalArticles.publishDate, endDate));
+        conditions.push(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt}) <= ${endDate}`);
       }
 
       // Build the query with relevance scores (but NOT matched entities - those come from entity association tables)
