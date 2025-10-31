@@ -258,7 +258,7 @@ export default function ThreatHome() {
             ? `${originalDateRange.endDate}T23:59:59.999Z` 
             : undefined,
           sortBy: sortOrder.toLowerCase().replace(" ", "_"),
-          limit: 100, // Backend maximum
+          limit: 1000, // Backend maximum
           page: 1
         };
 

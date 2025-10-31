@@ -708,7 +708,7 @@ const articleQuerySchema = z.object({
   }).optional(),
   startDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
   endDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
-  limit: z.number().int().min(1).max(100).optional().default(50),
+  limit: z.number().int().min(1).max(1000).optional().default(50),
   page: z.number().int().min(1).optional().default(1),
   sortBy: z.string().optional(),
   entityFilter: z.object({

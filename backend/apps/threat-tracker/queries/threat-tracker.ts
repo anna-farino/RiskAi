@@ -756,7 +756,7 @@ export const storage: IStorage = {
       
       // Defensive caps for limit and page (belt-and-suspenders with router validation)
       const pageNum = Math.max(1, page || 1);
-      const pageSize = Math.min(100, Math.max(1, limit || 50));
+      const pageSize = Math.min(1000, Math.max(1, limit || 50));
 
       // Step 1: Get user's enabled sources
       const sourceIds = await getUserEnabledSources(userId, "threat_tracker");
