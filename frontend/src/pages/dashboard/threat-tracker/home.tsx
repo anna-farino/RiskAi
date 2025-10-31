@@ -249,11 +249,11 @@ export default function ThreatHome() {
           search: (!entityFilter && searchTerm) ? searchTerm : undefined,
           // Don't send keywordIds when entity filter is active (to match count logic)
           keywordIds: (!entityFilter && selectedKeywordIds.length > 0) ? selectedKeywordIds : undefined,
-          // Don't send date range when entity filter is active (to match count logic)
-          startDate: (!entityFilter && originalDateRange.startDate) 
+          // Always send date range - backend supports it with entity filtering
+          startDate: originalDateRange.startDate 
             ? `${originalDateRange.startDate}T00:00:00.000Z` 
             : undefined,
-          endDate: (!entityFilter && originalDateRange.endDate) 
+          endDate: originalDateRange.endDate 
             ? `${originalDateRange.endDate}T23:59:59.999Z` 
             : undefined,
           sortBy: sortOrder.toLowerCase().replace(" ", "_"),
