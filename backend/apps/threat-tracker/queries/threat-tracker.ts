@@ -756,7 +756,7 @@ export const storage: IStorage = {
       
       // Defensive caps for limit and page (belt-and-suspenders with router validation)
       const pageNum = Math.max(1, page || 1);
-      const pageSize = Math.min(100, Math.max(1, limit || 50));
+      const pageSize = Math.min(1000, Math.max(1, limit || 50));
 
       // Step 1: Get user's enabled sources
       const sourceIds = await getUserEnabledSources(userId, "threat_tracker");
@@ -970,23 +970,20 @@ export const storage: IStorage = {
       // For now, we show ALL articles matching tech stack, not just those with threat indicators
       // This ensures the count matches the displayed articles
 
-      // Add date range filters - use publishDate for filtering
+      // Add date range filters - use COALESCE of publishDate and scrapedAt for filtering
+      // This ensures we capture all articles even if publishDate is null (most articles only have scrapedAt)
       if (startDate) {
-        conditions.push(gte(globalArticles.publishDate, startDate));
+        conditions.push(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt}) >= ${startDate}`);
       }
       if (endDate) {
-        conditions.push(lte(globalArticles.publishDate, endDate));
+        conditions.push(sql`COALESCE(${globalArticles.publishDate}, ${globalArticles.scrapedAt}) <= ${endDate}`);
       }
 
-      // Build the query with relevance scores and matched entities
+      // Build the query with relevance scores (but NOT matched entities - those come from entity association tables)
       const baseQuery = db.select({
         article: globalArticles,
         relevanceScore: articleRelevanceScores.relevanceScore,
         relevanceMetadata: articleRelevanceScores.metadata,
-        matchedSoftware: articleRelevanceScores.matchedSoftware,
-        matchedCompanies: articleRelevanceScores.matchedCompanies,
-        matchedHardware: articleRelevanceScores.matchedHardware,
-        matchedKeywords: articleRelevanceScores.matchedKeywords
       })
       .from(globalArticles)
       .leftJoin(
@@ -1029,20 +1026,107 @@ export const storage: IStorage = {
       // Execute the query
       const result = await finalQuery.execute();
       
-      // Collect all entity IDs to fetch names
+      // Collect all article IDs
+      const allArticleIds = Array.from(new Set(result.map(row => row.article.id)));
+      
+      // First, fetch article entity associations
+      const [articleSoftwareMap, articleCompanyMap, articleHardwareMap] = await Promise.all([
+        // Fetch software entity IDs for each article
+        allArticleIds.length > 0
+          ? db.select({ 
+              articleId: articleSoftware.articleId,
+              softwareId: articleSoftware.softwareId 
+            })
+              .from(articleSoftware)
+              .where(inArray(articleSoftware.articleId, allArticleIds))
+              .then(rows => {
+                const map = new Map<string, string[]>();
+                rows.forEach(row => {
+                  if (!map.has(row.articleId)) {
+                    map.set(row.articleId, []);
+                  }
+                  map.get(row.articleId)!.push(row.softwareId);
+                });
+                return map;
+              })
+          : new Map<string, string[]>(),
+        
+        // Fetch company entity IDs for each article
+        allArticleIds.length > 0
+          ? db.select({ 
+              articleId: articleCompanies.articleId,
+              companyId: articleCompanies.companyId 
+            })
+              .from(articleCompanies)
+              .where(inArray(articleCompanies.articleId, allArticleIds))
+              .then(rows => {
+                const map = new Map<string, string[]>();
+                rows.forEach(row => {
+                  if (!map.has(row.articleId)) {
+                    map.set(row.articleId, []);
+                  }
+                  map.get(row.articleId)!.push(row.companyId);
+                });
+                return map;
+              })
+          : new Map<string, string[]>(),
+        
+        // Fetch hardware entity IDs for each article
+        allArticleIds.length > 0
+          ? db.select({ 
+              articleId: articleHardware.articleId,
+              hardwareId: articleHardware.hardwareId 
+            })
+              .from(articleHardware)
+              .where(inArray(articleHardware.articleId, allArticleIds))
+              .then(rows => {
+                const map = new Map<string, string[]>();
+                rows.forEach(row => {
+                  if (!map.has(row.articleId)) {
+                    map.set(row.articleId, []);
+                  }
+                  map.get(row.articleId)!.push(row.hardwareId);
+                });
+                return map;
+              })
+          : new Map<string, string[]>(),
+      ]);
+      
+      // Fetch user's tech stack entity IDs to filter displayed entities
+      const [userSoftwareIds, userHardwareIds, userCompanyIds] = await Promise.all([
+        db.select({ softwareId: usersSoftware.softwareId })
+          .from(usersSoftware)
+          .where(and(
+            eq(usersSoftware.userId, userId),
+            eq(usersSoftware.isActive, true)
+          ))
+          .then(rows => new Set(rows.map(r => r.softwareId))),
+        db.select({ hardwareId: usersHardware.hardwareId })
+          .from(usersHardware)
+          .where(and(
+            eq(usersHardware.userId, userId),
+            eq(usersHardware.isActive, true)
+          ))
+          .then(rows => new Set(rows.map(r => r.hardwareId))),
+        db.select({ companyId: usersCompanies.companyId })
+          .from(usersCompanies)
+          .where(and(
+            eq(usersCompanies.userId, userId),
+            eq(usersCompanies.isActive, true)
+          ))
+          .then(rows => new Set(rows.map(r => r.companyId)))
+      ]);
+      
+      // Collect all unique entity IDs from the article entity maps
       const allSoftwareIds = new Set<string>();
       const allCompanyIds = new Set<string>();
       const allHardwareIds = new Set<string>();
-      const allArticleIds = new Set<string>();
       
-      result.forEach(row => {
-        (row.matchedSoftware || []).forEach(id => allSoftwareIds.add(id));
-        (row.matchedCompanies || []).forEach(id => allCompanyIds.add(id));
-        (row.matchedHardware || []).forEach(id => allHardwareIds.add(id));
-        allArticleIds.add(row.article.id);
-      });
+      articleSoftwareMap.forEach(ids => ids.forEach(id => allSoftwareIds.add(id)));
+      articleCompanyMap.forEach(ids => ids.forEach(id => allCompanyIds.add(id)));
+      articleHardwareMap.forEach(ids => ids.forEach(id => allHardwareIds.add(id)));
       
-      // Fetch entity names and threat data in parallel
+      // Now fetch entity names and threat data in parallel
       const [softwareMap, companyMap, hardwareMap, threatActorsMap, cvesMap, threatKeywordsMap] = await Promise.all([
         // Fetch software names and malware status from metadata
         allSoftwareIds.size > 0 
@@ -1072,7 +1156,7 @@ export const storage: IStorage = {
           : new Map<string, string | null>(),
           
         // Fetch threat actors for articles
-        allArticleIds.size > 0
+        allArticleIds.length > 0
           ? db.select({ 
               articleId: articleThreatActors.articleId,
               actorName: threatActors.name 
@@ -1093,7 +1177,7 @@ export const storage: IStorage = {
           : new Map<string, string[]>(),
           
         // Fetch CVEs for articles
-        allArticleIds.size > 0
+        allArticleIds.length > 0
           ? db.select({ 
               articleId: articleCves.articleId,
               cveId: articleCves.cveId 
@@ -1113,7 +1197,7 @@ export const storage: IStorage = {
           : new Map<string, string[]>(),
           
         // Process threat keywords for each article
-        allArticleIds.size > 0 && threatTerms.length > 0
+        allArticleIds.length > 0 && threatTerms.length > 0
           ? Promise.all(Array.from(allArticleIds).map(async (articleId) => {
               const [article] = await db.select()
                 .from(globalArticles)
@@ -1140,50 +1224,62 @@ export const storage: IStorage = {
       ]);
 
       // Map global articles to ThreatArticle format for compatibility
-      const mappedArticles = result.map((row) => ({
-        id: row.article.id,
-        sourceId: row.article.sourceId,
-        title: row.article.title,
-        content: row.article.content,
-        url: row.article.url,
-        author: row.article.author || null,
-        publishDate: row.article.publishDate,
-        summary: row.article.summary || null,
-        relevanceScore: row.relevanceScore || null,
-        relevanceMetadata: row.relevanceMetadata || null,
-        securityScore: row.article.securityScore ? String(row.article.securityScore) : null,
-        threatSeverityScore: row.article.threatSeverityScore || null,
-        threatLevel: row.article.threatLevel || null,
-        threatMetadata: row.article.threatMetadata || null,
-        detectedKeywords: row.article.detectedKeywords || {},
-        scrapeDate: row.article.scrapedAt || new Date(),
-        userId: userId || null,
-        markedForCapsule: false,
-        // Map entity IDs to names for display, separate malware
-        matchedSoftware: (row.matchedSoftware || [])
-          .map(id => {
-            const softwareInfo = softwareMap.get(id);
-            return softwareInfo && !softwareInfo.isMalware ? softwareInfo.name : null;
-          })
-          .filter(name => name != null) as string[],
-        matchedMalware: (row.matchedSoftware || [])
-          .map(id => {
-            const softwareInfo = softwareMap.get(id);
-            return softwareInfo && softwareInfo.isMalware ? softwareInfo.name : null;
-          })
-          .filter(name => name != null) as string[],
-        matchedCompanies: (row.matchedCompanies || [])
-          .map(id => companyMap.get(id))
-          .filter(name => name != null) as string[],
-        matchedHardware: (row.matchedHardware || [])
-          .map(id => hardwareMap.get(id))
-          .filter(name => name != null) as string[],
-        matchedKeywords: row.matchedKeywords || [],
-        // Add threat-related data
-        matchedThreatActors: threatActorsMap.get(row.article.id) || [],
-        matchedCves: cvesMap.get(row.article.id) || [],
-        matchedThreatKeywords: threatKeywordsMap.get(row.article.id) || [],
-      }));
+      const mappedArticles = result.map((row) => {
+        // Get actual article entities from association tables
+        const articleSoftwareIds = articleSoftwareMap.get(row.article.id) || [];
+        const articleCompanyIds = articleCompanyMap.get(row.article.id) || [];
+        const articleHardwareIds = articleHardwareMap.get(row.article.id) || [];
+        
+        // Filter entities to only show those in BOTH the article AND user's tech stack
+        const matchedSoftwareIds = articleSoftwareIds.filter(id => userSoftwareIds.has(id));
+        const matchedCompanyIds = articleCompanyIds.filter(id => userCompanyIds.has(id));
+        const matchedHardwareIds = articleHardwareIds.filter(id => userHardwareIds.has(id));
+        
+        return {
+          id: row.article.id,
+          sourceId: row.article.sourceId,
+          title: row.article.title,
+          content: row.article.content,
+          url: row.article.url,
+          author: row.article.author || null,
+          publishDate: row.article.publishDate,
+          summary: row.article.summary || null,
+          relevanceScore: row.relevanceScore || null,
+          relevanceMetadata: row.relevanceMetadata || null,
+          securityScore: row.article.securityScore ? String(row.article.securityScore) : null,
+          threatSeverityScore: row.article.threatSeverityScore || null,
+          threatLevel: row.article.threatLevel || null,
+          threatMetadata: row.article.threatMetadata || null,
+          detectedKeywords: row.article.detectedKeywords || {},
+          scrapeDate: row.article.scrapedAt || new Date(),
+          userId: userId || null,
+          markedForCapsule: false,
+          // Display only entities that match user's tech stack, separate malware
+          matchedSoftware: matchedSoftwareIds
+            .map(id => {
+              const softwareInfo = softwareMap.get(id);
+              return softwareInfo && !softwareInfo.isMalware ? softwareInfo.name : null;
+            })
+            .filter(name => name != null) as string[],
+          matchedMalware: matchedSoftwareIds
+            .map(id => {
+              const softwareInfo = softwareMap.get(id);
+              return softwareInfo && softwareInfo.isMalware ? softwareInfo.name : null;
+            })
+            .filter(name => name != null) as string[],
+          matchedCompanies: matchedCompanyIds
+            .map(id => companyMap.get(id))
+            .filter(name => name != null) as string[],
+          matchedHardware: matchedHardwareIds
+            .map(id => hardwareMap.get(id))
+            .filter(name => name != null) as string[],
+          matchedKeywords: [], // Keywords are user-specific, not article-specific
+          // Add threat-related data
+          matchedThreatActors: threatActorsMap.get(row.article.id) || [],
+          matchedCves: cvesMap.get(row.article.id) || [],
+          matchedThreatKeywords: threatKeywordsMap.get(row.article.id) || [],
+        };
+      });
 
       // Filter articles to require BOTH tech stack AND threat elements
       const filteredArticles = mappedArticles.filter(article => {

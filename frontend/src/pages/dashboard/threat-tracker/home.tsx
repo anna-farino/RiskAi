@@ -236,6 +236,7 @@ export default function ThreatHome() {
       sortOrder,
       entityFilter,
     ],
+    staleTime: 0, // Always refetch - don't use cache
     queryFn: async () => {
       try {
         // Build request body for POST request
@@ -249,15 +250,15 @@ export default function ThreatHome() {
           search: (!entityFilter && searchTerm) ? searchTerm : undefined,
           // Don't send keywordIds when entity filter is active (to match count logic)
           keywordIds: (!entityFilter && selectedKeywordIds.length > 0) ? selectedKeywordIds : undefined,
-          // Don't send date range when entity filter is active (to match count logic)
-          startDate: (!entityFilter && originalDateRange.startDate) 
+          // Always send date range - backend supports it with entity filtering
+          startDate: originalDateRange.startDate 
             ? `${originalDateRange.startDate}T00:00:00.000Z` 
             : undefined,
-          endDate: (!entityFilter && originalDateRange.endDate) 
+          endDate: originalDateRange.endDate 
             ? `${originalDateRange.endDate}T23:59:59.999Z` 
             : undefined,
           sortBy: sortOrder.toLowerCase().replace(" ", "_"),
-          limit: 100, // Backend maximum
+          limit: 1000, // Backend maximum
           page: 1
         };
 
@@ -265,6 +266,12 @@ export default function ThreatHome() {
         const cleanBody = Object.fromEntries(
           Object.entries(requestBody).filter(([_, v]) => v !== undefined)
         );
+
+        console.log("=== THREAT TRACKER QUERY ===");
+        console.log("Date Range State:", dateRange);
+        console.log("Original Date Range:", originalDateRange);
+        console.log("Request Body:", cleanBody);
+        console.log("===========================");
 
         const response = await fetchWithAuth("/api/threat-tracker/articles/query", {
           method: "POST",
@@ -848,7 +855,11 @@ export default function ThreatHome() {
                           onClick={() => {
                             const actualRange = range === "YTD" ? "Year to Date" : range;
                             setDateRange(actualRange);
-                            setOriginalDateRange(getDateRangeFromLabel(actualRange));
+                            const newDateRange = getDateRangeFromLabel(actualRange);
+                            setOriginalDateRange(newDateRange);
+                            // Clear custom date inputs when preset is selected
+                            setFromDate(newDateRange.startDate || "");
+                            setToDate(newDateRange.endDate || "");
                           }}
                           className={cn(
                             "w-full h-8 px-1 text-xs font-medium justify-center transition-all duration-200 border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#9333EA]/30",
