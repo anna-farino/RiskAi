@@ -708,7 +708,7 @@ const articleQuerySchema = z.object({
   }).optional(),
   startDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
   endDate: z.union([z.string().datetime(), z.literal('')]).optional().transform(val => !val || val === '' ? undefined : val),
-  limit: z.number().int().min(1).max(100).optional().default(50),
+  limit: z.number().int().min(1).max(1000).optional().default(50),
   page: z.number().int().min(1).optional().default(1),
   sortBy: z.string().optional(),
   entityFilter: z.object({
@@ -761,6 +761,15 @@ threatRouter.post("/articles/query", async (req, res) => {
     }
     
     // Call threat-tracker storage directly with Technology Stack support
+    console.log("=== BACKEND QUERY PARAMS ===");
+    console.log("User ID:", userId);
+    console.log("Entity Filter:", entityFilter);
+    console.log("Start Date:", startDate);
+    console.log("End Date:", endDate);
+    console.log("Limit:", limit);
+    console.log("Page:", page);
+    console.log("===========================");
+    
     const articles = await storage.getArticles({
       search,
       keywordIds,
@@ -772,6 +781,16 @@ threatRouter.post("/articles/query", async (req, res) => {
       sortBy,
       entityFilter: entityFilter as { type: 'software' | 'hardware' | 'vendor' | 'client'; name: string } | undefined
     });
+    
+    console.log("=== BACKEND QUERY RESULTS ===");
+    console.log("Articles returned:", articles.length);
+    if (articles.length > 0) {
+      const first = articles[0].article || articles[0];
+      const last = articles[articles.length - 1].article || articles[articles.length - 1];
+      console.log("First article date:", first.publishDate || first.scrapedAt);
+      console.log("Last article date:", last.publishDate || last.scrapedAt);
+    }
+    console.log("============================");
     
     res.json(articles);
   } catch (error: any) {
