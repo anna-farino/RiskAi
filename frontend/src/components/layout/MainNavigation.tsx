@@ -1,20 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Newspaper, 
-  Search, 
-  Radar, 
-  FileText, 
-  Settings, 
-  AlertTriangle, 
-  ChevronDown, 
+import {
+  LayoutDashboard,
+  Newspaper,
+  Search,
+  Radar,
+  FileText,
+  Settings,
+  AlertTriangle,
+  ChevronDown,
   ChevronUp,
   Shield,
   ShieldAlert,
   Menu,
   X,
-  Terminal
+  Terminal,
+  Database
 } from 'lucide-react';
 
 import {
@@ -98,12 +99,16 @@ const NavGroup = ({ title, children, defaultOpen = false }: NavGroupProps) => {
   );
 };
 
+const viteEnv = (import.meta as any).env.VITE_ENV 
+
 export const MainNavigation = ({ className }: { className?: string }) => {
   const location = useLocation();
   const pathname = location.pathname;
   const liveLogsPermission = useLiveLogsPermission();
   const userData = useAuth();
-  console.log("From Main Navigation. UserData: ", userData.data)
+  if (viteEnv==='development' || viteEnv==='staging') {
+    console.log("From Main Navigation. UserData: ", userData.data)
+  }
 
   const isActive = (path: string) => {
     if (path === '/dashboard' && pathname === '/dashboard') {
@@ -188,7 +193,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
                   ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
                   : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
               )}>
-                <Link to="/dashboard/news/home" className="flex items-center gap-3 flex-1">
+                <Link to="/dashboard/news/home" className="flex items-center gap-3 flex-1" onClick={(e) => e.stopPropagation()}>
                   <div className="relative">
                     <Newspaper size={20} className="text-[#BF00FF]" />
                   </div>
@@ -242,7 +247,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
                   ? "from-[#300A45]/80 to-black/80 border-[#00FFFF]/30 text-white shadow-lg shadow-[#00FFFF]/15"
                   : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#00FFFF]/30 hover:shadow-lg hover:shadow-[#00FFFF]/10"
               )}>
-                <Link to="/dashboard/threat/home" className="flex items-center gap-3 flex-1">
+                <Link to="/dashboard/threat/home" className="flex items-center gap-3 flex-1" onClick={(e) => e.stopPropagation()}>
                   <div className="relative">
                     <ShieldAlert size={20} className="text-[#00FFFF]" />
                   </div>
@@ -296,7 +301,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
                     ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
                     : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
                 )}>
-                  <Link to="/dashboard/news-capsule/research" className="flex items-center gap-3 flex-1">
+                  <Link to="/dashboard/news-capsule/research" className="flex items-center gap-3 flex-1" onClick={(e) => e.stopPropagation()}>
                     <div className="relative">
                       <Search size={20} className="text-[#BF00FF]" />
                     </div>
@@ -338,7 +343,15 @@ export const MainNavigation = ({ className }: { className?: string }) => {
             </CollapsibleContent>
           </Collapsible>
         </div>
-        
+
+        <NavItem
+          href="/dashboard/tech-stack"
+          icon={<Database size={18} className="text-[#FF6B00]" />}
+          active={location.pathname.startsWith('/dashboard/tech-stack')}
+        >
+          Technology Stack
+        </NavItem>
+
         <NavItem
           href="/dashboard/settings"
           icon={<Settings size={18} className="text-gray-300" />}
@@ -468,7 +481,7 @@ export const MobileNavigation = () => {
                           ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
                           : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
                       )}>
-                        <Link to="/dashboard/news/home" className="flex items-center gap-3 flex-1">
+                        <Link to="/dashboard/news/home" className="flex items-center gap-3 flex-1" onClick={(e) => e.stopPropagation()}>
                           <div className="relative">
                             <Newspaper size={20} className="text-[#BF00FF]" />
                           </div>
@@ -522,7 +535,7 @@ export const MobileNavigation = () => {
                           ? "from-[#300A45]/80 to-black/80 border-[#00FFFF]/30 text-white shadow-lg shadow-[#00FFFF]/15"
                           : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#00FFFF]/30 hover:shadow-lg hover:shadow-[#00FFFF]/10"
                       )}>
-                        <Link to="/dashboard/threat/home" className="flex items-center gap-3 flex-1">
+                        <Link to="/dashboard/threat/home" className="flex items-center gap-3 flex-1" onClick={(e) => e.stopPropagation()}>
                           <div className="relative">
                             <ShieldAlert size={20} className="text-[#00FFFF]" />
                           </div>
@@ -575,7 +588,7 @@ export const MobileNavigation = () => {
                           ? "from-[#300A45]/80 to-black/80 border-[#BF00FF]/30 text-white shadow-lg shadow-[#BF00FF]/15"
                           : "from-slate-900/20 to-slate-800/10 border-slate-700/20 text-gray-300 hover:text-white hover:from-[#300A45]/60 hover:to-black/60 hover:border-[#BF00FF]/30 hover:shadow-lg hover:shadow-[#BF00FF]/10"
                       )}>
-                        <Link to="/dashboard/news-capsule/research" className="flex items-center gap-3 flex-1">
+                        <Link to="/dashboard/news-capsule/research" className="flex items-center gap-3 flex-1" onClick={(e) => e.stopPropagation()}>
                           <div className="relative">
                             <Search size={20} className="text-[#BF00FF]" />
                           </div>

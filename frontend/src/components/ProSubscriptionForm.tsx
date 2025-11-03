@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { LegacyRef, ReactHTMLElement, useState } from 'react';
 import {
   PaymentElement,
   useStripe,
@@ -7,23 +7,27 @@ import {
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { useFetch } from '@/hooks/use-fetch';
+import { X } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ProSubscriptionFormProps {
   onSuccess: () => void;
   onCancel: () => void;
-  isUpgrade: boolean; // true if upgrading from free, false if new Pro signup
+  isChangeOfPlan?: boolean; // true if upgrading from free, false if new Pro signup
   customerId?: string; // passed from setup intent
   priceAmount: number; // price in cents
   currency: string; // currency code (e.g., 'usd')
+  billingPeriod: 'monthly' | 'yearly';
 }
 
 export default function ProSubscriptionForm({
   onSuccess,
   onCancel,
-  isUpgrade,
+  isChangeOfPlan,
   customerId,
   priceAmount,
   currency,
+  billingPeriod,
 }: ProSubscriptionFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -34,6 +38,7 @@ export default function ProSubscriptionForm({
   const [discount, setDiscount] = useState<{ percentOff?: number; amountOff?: number } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoInput, setPromoInput] = useState<LegacyRef<HTMLInputElement> | undefined>(undefined)
   const fetchWithAuth = useFetch();
 
   // Calculate final price
@@ -67,12 +72,15 @@ export default function ProSubscriptionForm({
     setPromoError(null);
 
     try {
-      const response = await fetchWithAuth('/api/validate-promo-code', {
+      const response = await fetchWithAuth('/api/subscriptions/validate-promo-code', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ promoCode: promoCode.trim() }),
+        body: JSON.stringify({ 
+          promoCode: promoCode.trim(),
+          billingPeriod
+        }),
       });
 
       const data = await response.json();
@@ -118,17 +126,19 @@ export default function ProSubscriptionForm({
       }
 
       // 2. Call appropriate backend endpoint
-      const endpoint = isUpgrade ? '/api/upgrade-subscription' : '/api/subscribe-to-pro';
+      const endpoint = isChangeOfPlan ? '/api/subscriptions/upgrade-subscription' : '/api/subscriptions/subscribe-to-pro';
 
-      const body = isUpgrade
+      const body = isChangeOfPlan
         ? {
             paymentMethodId: setupIntent.payment_method,
-            promotionCodeId: promotionCodeId
+            promotionCodeId: promotionCodeId,
+            billingPeriod
           }
         : {
             paymentMethodId: setupIntent.payment_method,
             customerId: customerId,
-            promotionCodeId: promotionCodeId
+            promotionCodeId: promotionCodeId,
+            billingPeriod
           };
 
       const response = await fetchWithAuth(endpoint, {
@@ -144,7 +154,7 @@ export default function ProSubscriptionForm({
         throw new Error(data.error || 'Operation failed');
       }
 
-      console.log(isUpgrade ? '✅ Subscription upgraded' : '✅ Pro subscription created');
+      console.log(isChangeOfPlan ? '✅ Plan changed' : '✅ Pro subscription created');
       onSuccess();
 
     } catch (err) {
@@ -161,14 +171,14 @@ export default function ProSubscriptionForm({
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <h3 className="text-lg font-medium text-white mb-2">
-          {isUpgrade ? 'Upgrade to Pro' : 'Subscribe to Pro'}
+          {isChangeOfPlan ? 'Change your plan' : 'Subscribe to Pro'}
         </h3>
         <div className="text-2xl font-bold text-white mb-1">
-          {formatPrice(finalPrice)}<span className="text-base font-normal text-slate-400">/month</span>
+          {formatPrice(finalPrice)}<span className="text-base font-normal text-slate-400">/{billingPeriod}</span>
         </div>
         {discount && (
           <div className="text-sm text-slate-400 line-through">
-            {formatPrice(priceAmount)}/month
+            {formatPrice(priceAmount)}/{billingPeriod}
           </div>
         )}
       </div>
@@ -192,6 +202,19 @@ export default function ProSubscriptionForm({
             placeholder="Enter code"
             disabled={isValidating || !!promotionCodeId}
             className="flex-1 bg-slate-800 border-slate-700 text-white placeholder:text-slate-500"
+          />
+          <X
+            className={cn(
+              "flex relative -left-[36px] top-[6px]",
+              "text-slate-500 hover:text-slate-400 hover:cursor-pointer"
+            )}
+            onClick={()=>{
+              setPromoCode('')        
+              setPromoError(null)   
+              setPromotionCodeId(null)
+              setDiscount(null)
+              setPromoError(null)
+            }}
           />
           <Button
             type="button"
@@ -240,8 +263,8 @@ export default function ProSubscriptionForm({
         >
           {isLoading
             ? 'Processing...'
-            : isUpgrade
-              ? `Upgrade - ${formatPrice(finalPrice)}`
+            : isChangeOfPlan
+              ? `Change Plan - ${formatPrice(finalPrice)}`
               : `Subscribe - ${formatPrice(finalPrice)}`}
         </Button>
       </div>

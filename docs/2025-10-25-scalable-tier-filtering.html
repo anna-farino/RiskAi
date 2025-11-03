@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025-10-25: Scalable Tier-Based Source Filtering</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header .subtitle {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #f5576c;
+            font-size: 2em;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #f5576c;
+        }
+
+        h3 {
+            color: #f093fb;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .approach-card {
+            background: #f8f9fa;
+            border-left: 4px solid #f5576c;
+            padding: 25px;
+            margin: 25px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .approach-card.winner {
+            border-left: 4px solid #28a745;
+            background: linear-gradient(135deg, #d4edda 0%, #f1f9f4 100%);
+        }
+
+        .approach-card h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .badge {
+            background: #28a745;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .badge.warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge.danger {
+            background: #dc3545;
+        }
+
+        .pros {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .cons {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #d4edda 0%, #f1f9f4 100%);
+            border: 2px solid #28a745;
+            padding: 30px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+
+        .recommendation h3 {
+            color: #28a745;
+            margin-top: 0;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .keyword { color: #66d9ef; }
+        .string { color: #a6e22e; }
+        .comment { color: #75715e; font-style: italic; }
+        .function { color: #e6db74; }
+        .number { color: #ae81ff; }
+        .type { color: #f92672; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        table th {
+            background: #f5576c;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        table tr:hover {
+            background: #f5f5f5;
+        }
+
+        table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .comparison-table th {
+            background: #f093fb;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .note strong {
+            color: #856404;
+        }
+
+        .warning {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .warning strong {
+            color: #721c24;
+        }
+
+        .example-box {
+            background: #f1f8ff;
+            border: 1px solid #c8e1ff;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+
+        .example-box h4 {
+            color: #0366d6;
+            margin-top: 0;
+        }
+
+        .visual-diagram {
+            background: white;
+            border: 2px solid #e1e4e8;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 6px;
+            font-family: monospace;
+        }
+
+        .tier-row {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 10px;
+            background: #f6f8fa;
+            border-radius: 4px;
+        }
+
+        .tier-name {
+            width: 150px;
+            font-weight: bold;
+            color: #f5576c;
+        }
+
+        .tier-level {
+            width: 80px;
+            text-align: center;
+            color: #666;
+        }
+
+        .tier-sources {
+            flex: 1;
+            color: #0366d6;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+
+        .implementation-section {
+            background: white;
+            border: 2px solid #e1e4e8;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 6px;
+        }
+
+        .implementation-section h4 {
+            color: #f5576c;
+            margin-top: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Scalable Tier-Based Source Filtering</h1>
+            <p class="subtitle">Generic, Maintainable Design for Free → Pro → Enterprise → Future Tiers</p>
+        </header>
+
+        <div class="content">
+            <h2>🎪 The Challenge</h2>
+            <p>Design a source filtering system that:</p>
+            <ul>
+                <li>✅ Works for <strong>Free, Pro, and Enterprise</strong> tiers</li>
+                <li>✅ Scales to <strong>any number of future tiers</strong> without code changes</li>
+                <li>✅ Is <strong>performant</strong> (minimal queries, efficient filtering)</li>
+                <li>✅ Is <strong>maintainable</strong> (clear logic, easy to debug)</li>
+                <li>✅ Handles <strong>tier hierarchies</strong> (Enterprise gets Pro + Free sources)</li>
+            </ul>
+
+            <h2>📊 Tier Hierarchy Model</h2>
+
+            <div class="visual-diagram">
+                <div style="text-align: center; margin-bottom: 20px; font-weight: bold; color: #f5576c;">
+                    Hierarchical Access Model
+                </div>
+                <div class="tier-row">
+                    <div class="tier-name">🆓 Free</div>
+                    <div class="tier-level">Level 0</div>
+                    <div class="tier-sources">→ Free sources only (10 sources)</div>
+                </div>
+                <div class="tier-row">
+                    <div class="tier-name">⭐ Pro</div>
+                    <div class="tier-level">Level 1</div>
+                    <div class="tier-sources">→ Free + Pro sources (40 sources)</div>
+                </div>
+                <div class="tier-row">
+                    <div class="tier-name">🏢 Enterprise</div>
+                    <div class="tier-level">Level 2</div>
+                    <div class="tier-sources">→ Free + Pro + Enterprise sources (80 sources)</div>
+                </div>
+                <div class="tier-row">
+                    <div class="tier-name">💎 Custom</div>
+                    <div class="tier-level">Level 3</div>
+                    <div class="tier-sources">→ All sources + custom integrations (100+ sources)</div>
+                </div>
+            </div>
+
+            <div class="note">
+                <strong>Key Insight:</strong> Tiers are hierarchical - higher tiers inherit access from lower tiers. Enterprise users get everything Pro users get, plus more.
+            </div>
+
+            <h2>💡 Approach Comparison</h2>
+
+            <div class="approach-card">
+                <h3>❌ Approach 1: Hardcoded Tier Checks</h3>
+                <p><strong>How it works:</strong> Use if/else or switch statements to check each tier.</p>
+
+                <pre><code><span class="comment">// ❌ BAD: Hardcoded, not scalable</span>
+<span class="keyword">function</span> <span class="function">getAvailableSources</span>(userTier: <span class="keyword">string</span>) {
+  <span class="keyword">if</span> (userTier === <span class="string">'free'</span>) {
+    <span class="keyword">return</span> sources.<span class="function">filter</span>(s => s.tierRequired === <span class="string">'free'</span>);
+  } <span class="keyword">else if</span> (userTier === <span class="string">'pro'</span>) {
+    <span class="keyword">return</span> sources.<span class="function">filter</span>(s =>
+      s.tierRequired === <span class="string">'free'</span> || s.tierRequired === <span class="string">'pro'</span>
+    );
+  } <span class="keyword">else if</span> (userTier === <span class="string">'enterprise'</span>) {
+    <span class="keyword">return</span> sources.<span class="function">filter</span>(s =>
+      s.tierRequired === <span class="string">'free'</span> || s.tierRequired === <span class="string">'pro'</span> || s.tierRequired === <span class="string">'enterprise'</span>
+    );
+  }
+  <span class="comment">// Need to add another else if for each new tier!</span>
+}</code></pre>
+
+                <div class="cons">
+                    <strong>❌ Fatal Flaws:</strong>
+                    <ul>
+                        <li>Every new tier requires code changes</li>
+                        <li>Query complexity grows with each tier</li>
+                        <li>Error-prone (easy to forget a tier in the OR chain)</li>
+                        <li>Not maintainable</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="approach-card">
+                <h3>⚠️ Approach 2: Array-Based Tier Mapping</h3>
+                <p><strong>How it works:</strong> Map tiers to arrays of accessible tiers.</p>
+
+                <pre><code><span class="comment">// ⚠️ BETTER: But still needs updates for new tiers</span>
+<span class="keyword">const</span> TIER_ACCESS_MAP = {
+  <span class="string">free</span>: [<span class="string">'free'</span>],
+  <span class="string">pro</span>: [<span class="string">'free'</span>, <span class="string">'pro'</span>],
+  <span class="string">enterprise</span>: [<span class="string">'free'</span>, <span class="string">'pro'</span>, <span class="string">'enterprise'</span>],
+  <span class="comment">// Need to manually add each new tier here</span>
+};
+
+<span class="keyword">function</span> <span class="function">getAvailableSources</span>(userTier: <span class="keyword">string</span>) {
+  <span class="keyword">const</span> accessibleTiers = TIER_ACCESS_MAP[userTier] || [<span class="string">'free'</span>];
+
+  <span class="keyword">return</span> db
+    .<span class="function">select</span>()
+    .<span class="function">from</span>(globalSources)
+    .<span class="function">where</span>(<span class="function">inArray</span>(globalSources.tierRequired, accessibleTiers));
+}</code></pre>
+
+                <div class="pros">
+                    <strong>✅ Better:</strong>
+                    <ul>
+                        <li>Cleaner than if/else</li>
+                        <li>Single query with SQL IN clause</li>
+                        <li>More readable</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Still Problems:</strong>
+                    <ul>
+                        <li>Must update map for each new tier</li>
+                        <li>Risk of typos in array values</li>
+                        <li>No validation that tier exists</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="approach-card winner">
+                <h3>✅ Approach 3: Tier Level/Priority System <span class="badge">RECOMMENDED</span></h3>
+                <p><strong>How it works:</strong> Assign numeric levels to tiers. Higher levels get all lower-level sources.</p>
+
+                <h4>Schema Design</h4>
+                <pre><code><span class="comment">-- subscription_tiers table</span>
+<span class="keyword">ALTER TABLE</span> subscription_tiers
+  <span class="keyword">ADD COLUMN</span> tier_level <span class="keyword">INTEGER NOT NULL DEFAULT</span> <span class="number">0</span>;
+
+<span class="comment">-- global_sources table</span>
+<span class="keyword">ALTER TABLE</span> global_sources
+  <span class="keyword">ADD COLUMN</span> required_tier_level <span class="keyword">INTEGER NOT NULL DEFAULT</span> <span class="number">0</span>;
+
+<span class="comment">-- Populate tier levels</span>
+<span class="keyword">UPDATE</span> subscription_tiers <span class="keyword">SET</span> tier_level = <span class="number">0</span> <span class="keyword">WHERE</span> name = <span class="string">'free'</span>;
+<span class="keyword">UPDATE</span> subscription_tiers <span class="keyword">SET</span> tier_level = <span class="number">1</span> <span class="keyword">WHERE</span> name = <span class="string">'pro'</span>;
+<span class="keyword">UPDATE</span> subscription_tiers <span class="keyword">SET</span> tier_level = <span class="number">2</span> <span class="keyword">WHERE</span> name = <span class="string">'enterprise'</span>;
+
+<span class="comment">-- Mark sources with required levels</span>
+<span class="keyword">UPDATE</span> global_sources <span class="keyword">SET</span> required_tier_level = <span class="number">0</span> <span class="keyword">WHERE</span> <span class="comment">/* free sources */</span>;
+<span class="keyword">UPDATE</span> global_sources <span class="keyword">SET</span> required_tier_level = <span class="number">1</span> <span class="keyword">WHERE</span> <span class="comment">/* pro sources */</span>;
+<span class="keyword">UPDATE</span> global_sources <span class="keyword">SET</span> required_tier_level = <span class="number">2</span> <span class="keyword">WHERE</span> <span class="comment">/* enterprise sources */</span>;</code></pre>
+
+                <h4>Generic Filtering Logic</h4>
+                <pre><code><span class="comment">// ✅ PERFECT: Completely generic, scales infinitely</span>
+<span class="keyword">async function</span> <span class="function">getAvailableSources</span>(
+  userId: <span class="keyword">string</span>,
+  appContext: <span class="string">'news_radar'</span> | <span class="string">'threat_tracker'</span>
+) {
+  <span class="comment">// 1. Get user's tier level</span>
+  <span class="keyword">const</span> userTierLevel = <span class="keyword">await</span> <span class="function">getUserTierLevel</span>(userId);
+
+  <span class="comment">// 2. Query sources where required_tier_level &lt;= user's tier level</span>
+  <span class="comment">//    This automatically includes all lower-tier sources!</span>
+  <span class="keyword">const</span> sources = <span class="keyword">await</span> db
+    .<span class="function">select</span>()
+    .<span class="function">from</span>(globalSources)
+    .<span class="function">where</span>(
+      <span class="function">and</span>(
+        <span class="function">eq</span>(globalSources.isActive, <span class="keyword">true</span>),
+        <span class="function">lte</span>(globalSources.requiredTierLevel, userTierLevel) <span class="comment">// 🔑 KEY!</span>
+      )
+    );
+
+  <span class="keyword">return</span> sources;
+}
+
+<span class="comment">// Helper: Get user's tier level from DB</span>
+<span class="keyword">async function</span> <span class="function">getUserTierLevel</span>(userId: <span class="keyword">string</span>): <span class="keyword">Promise</span>&lt;<span class="keyword">number</span>&gt; {
+  <span class="keyword">const</span> result = <span class="keyword">await</span> db
+    .<span class="function">select</span>({ tierLevel: subscriptionTiers.tierLevel })
+    .<span class="function">from</span>(subsUser)
+    .<span class="function">innerJoin</span>(subscriptionTiers, <span class="function">eq</span>(subsUser.tierId, subscriptionTiers.id))
+    .<span class="function">where</span>(<span class="function">eq</span>(subsUser.userId, userId))
+    .<span class="function">limit</span>(<span class="number">1</span>);
+
+  <span class="keyword">return</span> result[<span class="number">0</span>]?.tierLevel ?? <span class="number">0</span>; <span class="comment">// Default to free (level 0)</span>
+}</code></pre>
+
+                <div class="pros">
+                    <strong>✅ Perfect Solution:</strong>
+                    <ul>
+                        <li><strong>Zero code changes</strong> for new tiers - just add DB row</li>
+                        <li><strong>Single integer comparison</strong> in SQL (<code>&lt;=</code>)</li>
+                        <li><strong>Automatic hierarchy</strong> - higher tiers inherit lower sources</li>
+                        <li><strong>Performant</strong> - uses indexed integer column</li>
+                        <li><strong>Type-safe</strong> - numbers can't be typo'd like strings</li>
+                        <li><strong>Easy to understand</strong> - clear numeric hierarchy</li>
+                    </ul>
+                </div>
+
+                <div class="note">
+                    <strong>🎯 Why This Works:</strong> The SQL query <code>required_tier_level &lt;= user_tier_level</code> automatically returns all sources at or below the user's tier. Enterprise (level 2) gets sources with levels 0, 1, and 2. Pro (level 1) gets levels 0 and 1. Free (level 0) gets level 0 only.
+                </div>
+            </div>
+
+            <div class="approach-card">
+                <h3>🎨 Approach 4: Hybrid - Levels + Named Tiers</h3>
+                <p><strong>How it works:</strong> Use levels for filtering, but keep tier names for readability.</p>
+
+                <pre><code><span class="comment">-- Keep BOTH tier name and level</span>
+<span class="keyword">ALTER TABLE</span> global_sources
+  <span class="keyword">ADD COLUMN</span> tier_required <span class="keyword">TEXT DEFAULT</span> <span class="string">'free'</span>,  <span class="comment">-- For display/admin</span>
+  <span class="keyword">ADD COLUMN</span> required_tier_level <span class="keyword">INTEGER DEFAULT</span> <span class="number">0</span>; <span class="comment">-- For filtering</span>
+
+<span class="comment">-- Use trigger to auto-sync level when name changes</span>
+<span class="keyword">CREATE OR REPLACE FUNCTION</span> <span class="function">sync_tier_level</span>()
+<span class="keyword">RETURNS TRIGGER AS</span> $$
+<span class="keyword">BEGIN</span>
+  <span class="keyword">NEW</span>.required_tier_level := <span class="keyword">CASE NEW</span>.tier_required
+    <span class="keyword">WHEN</span> <span class="string">'free'</span> <span class="keyword">THEN</span> <span class="number">0</span>
+    <span class="keyword">WHEN</span> <span class="string">'pro'</span> <span class="keyword">THEN</span> <span class="number">1</span>
+    <span class="keyword">WHEN</span> <span class="string">'enterprise'</span> <span class="keyword">THEN</span> <span class="number">2</span>
+    <span class="keyword">WHEN</span> <span class="string">'custom'</span> <span class="keyword">THEN</span> <span class="number">3</span>
+    <span class="keyword">ELSE</span> <span class="number">0</span>
+  <span class="keyword">END</span>;
+  <span class="keyword">RETURN NEW</span>;
+<span class="keyword">END</span>;
+$$ <span class="keyword">LANGUAGE</span> plpgsql;</code></pre>
+
+                <div class="pros">
+                    <strong>✅ Benefits:</strong>
+                    <ul>
+                        <li>Human-readable tier names in admin UI</li>
+                        <li>Still uses numeric filtering for performance</li>
+                        <li>Automatic sync between name and level</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Downsides:</strong>
+                    <ul>
+                        <li>More complex schema (two columns instead of one)</li>
+                        <li>Trigger maintenance overhead</li>
+                        <li>Potential for sync issues</li>
+                    </ul>
+                </div>
+            </div>
+
+            <h2>🏆 Final Recommendation: Approach 3 (Tier Levels)</h2>
+
+            <div class="recommendation">
+                <h3>Use Integer Tier Levels - Simple, Scalable, Performant</h3>
+
+                <h4>Why This Is The Best Choice:</h4>
+                <ol>
+                    <li><strong>Infinite Scalability:</strong> Add tiers forever without touching code</li>
+                    <li><strong>Performance:</strong> Single integer comparison, indexed</li>
+                    <li><strong>Simplicity:</strong> One column, one comparison operator (<code>&lt;=</code>)</li>
+                    <li><strong>Automatic Hierarchy:</strong> Math handles inheritance automatically</li>
+                    <li><strong>Type Safety:</strong> Numbers can't be misspelled</li>
+                </ol>
+
+                <h4>Complete Implementation</h4>
+
+                <div class="implementation-section">
+                    <h4>Step 1: Schema Migration</h4>
+                    <pre><code><span class="comment">-- File: backend/db/migrations/XXXX_add_tier_levels.sql</span>
+
+<span class="comment">-- Add tier_level to subscription_tiers</span>
+<span class="keyword">ALTER TABLE</span> subscription_tiers
+  <span class="keyword">ADD COLUMN</span> tier_level <span class="keyword">INTEGER NOT NULL DEFAULT</span> <span class="number">0</span>;
+
+<span class="comment">-- Add required_tier_level to global_sources</span>
+<span class="keyword">ALTER TABLE</span> global_sources
+  <span class="keyword">ADD COLUMN</span> required_tier_level <span class="keyword">INTEGER NOT NULL DEFAULT</span> <span class="number">0</span>;
+
+<span class="comment">-- Create indexes for performance</span>
+<span class="keyword">CREATE INDEX</span> idx_subscription_tiers_level
+  <span class="keyword">ON</span> subscription_tiers(tier_level);
+
+<span class="keyword">CREATE INDEX</span> idx_global_sources_tier_level
+  <span class="keyword">ON</span> global_sources(required_tier_level);
+
+<span class="comment">-- Populate tier levels</span>
+<span class="keyword">UPDATE</span> subscription_tiers <span class="keyword">SET</span> tier_level = <span class="number">0</span> <span class="keyword">WHERE</span> name = <span class="string">'free'</span>;
+<span class="keyword">UPDATE</span> subscription_tiers <span class="keyword">SET</span> tier_level = <span class="number">1</span> <span class="keyword">WHERE</span> name = <span class="string">'pro'</span>;
+<span class="keyword">UPDATE</span> subscription_tiers <span class="keyword">SET</span> tier_level = <span class="number">2</span> <span class="keyword">WHERE</span> name = <span class="string">'enterprise'</span>;
+
+<span class="comment">-- All existing sources default to free (level 0)</span>
+<span class="keyword">UPDATE</span> global_sources <span class="keyword">SET</span> required_tier_level = <span class="number">0</span>;</code></pre>
+                </div>
+
+                <div class="implementation-section">
+                    <h4>Step 2: Update TypeScript Types</h4>
+                    <pre><code><span class="comment">// shared/db/schema/organizations.ts</span>
+<span class="keyword">export const</span> subscriptionTiers = <span class="function">pgTable</span>(<span class="string">"subscription_tiers"</span>, {
+  id: <span class="function">uuid</span>(<span class="string">"id"</span>).<span class="function">defaultRandom</span>().<span class="function">primaryKey</span>(),
+  name: <span class="function">text</span>(<span class="string">"name"</span>).<span class="function">notNull</span>().<span class="function">unique</span>(),
+  displayName: <span class="function">text</span>(<span class="string">"display_name"</span>).<span class="function">notNull</span>(),
+  tierLevel: <span class="function">integer</span>(<span class="string">"tier_level"</span>).<span class="function">notNull</span>().<span class="function">default</span>(<span class="number">0</span>), <span class="comment">// ✅ NEW</span>
+  <span class="comment">// ... other fields</span>
+});
+
+<span class="comment">// shared/db/schema/global-tables.ts</span>
+<span class="keyword">export const</span> globalSources = <span class="function">pgTable</span>(<span class="string">'global_sources'</span>, {
+  id: <span class="function">uuid</span>(<span class="string">'id'</span>).<span class="function">defaultRandom</span>().<span class="function">primaryKey</span>(),
+  url: <span class="function">text</span>(<span class="string">'url'</span>).<span class="function">notNull</span>().<span class="function">unique</span>(),
+  name: <span class="function">text</span>(<span class="string">'name'</span>).<span class="function">notNull</span>(),
+  requiredTierLevel: <span class="function">integer</span>(<span class="string">'required_tier_level'</span>).<span class="function">notNull</span>().<span class="function">default</span>(<span class="number">0</span>), <span class="comment">// ✅ NEW</span>
+  <span class="comment">// ... other fields</span>
+});</code></pre>
+                </div>
+
+                <div class="implementation-section">
+                    <h4>Step 3: Generic Filtering Utility</h4>
+                    <pre><code><span class="comment">// backend/utils/tier-filtering.ts</span>
+<span class="keyword">import</span> { db } <span class="keyword">from</span> <span class="string">'backend/db/db'</span>;
+<span class="keyword">import</span> { subscriptionTiers, subsUser } <span class="keyword">from</span> <span class="string">'@shared/db/schema'</span>;
+<span class="keyword">import</span> { globalSources } <span class="keyword">from</span> <span class="string">'@shared/db/schema/global-tables'</span>;
+<span class="keyword">import</span> { eq, lte, and } <span class="keyword">from</span> <span class="string">'drizzle-orm'</span>;
+
+<span class="comment">/**
+ * Get user's subscription tier level
+ * Returns 0 (free) if no subscription found
+ */</span>
+<span class="keyword">export async function</span> <span class="function">getUserTierLevel</span>(userId: <span class="keyword">string</span>): <span class="keyword">Promise</span>&lt;<span class="keyword">number</span>&gt; {
+  <span class="keyword">try</span> {
+    <span class="keyword">const</span> result = <span class="keyword">await</span> db
+      .<span class="function">select</span>({ tierLevel: subscriptionTiers.tierLevel })
+      .<span class="function">from</span>(subsUser)
+      .<span class="function">innerJoin</span>(
+        subscriptionTiers,
+        <span class="function">eq</span>(subsUser.tierId, subscriptionTiers.id)
+      )
+      .<span class="function">where</span>(<span class="function">eq</span>(subsUser.userId, userId))
+      .<span class="function">limit</span>(<span class="number">1</span>);
+
+    <span class="keyword">return</span> result[<span class="number">0</span>]?.tierLevel ?? <span class="number">0</span>;
+  } <span class="keyword">catch</span> (error) {
+    console.<span class="function">error</span>(<span class="string">'Error getting user tier level:'</span>, error);
+    <span class="keyword">return</span> <span class="number">0</span>; <span class="comment">// Default to free tier</span>
+  }
+}
+
+<span class="comment">/**
+ * Get available sources for user based on tier level
+ * Automatically includes all sources at or below user's tier
+ */</span>
+<span class="keyword">export async function</span> <span class="function">getAvailableSourcesForUser</span>(
+  userId: <span class="keyword">string</span>
+): <span class="keyword">Promise</span>&lt;GlobalSource[]&gt; {
+  <span class="keyword">const</span> userTierLevel = <span class="keyword">await</span> <span class="function">getUserTierLevel</span>(userId);
+
+  <span class="keyword">const</span> sources = <span class="keyword">await</span> db
+    .<span class="function">select</span>()
+    .<span class="function">from</span>(globalSources)
+    .<span class="function">where</span>(
+      <span class="function">and</span>(
+        <span class="function">eq</span>(globalSources.isActive, <span class="keyword">true</span>),
+        <span class="function">lte</span>(globalSources.requiredTierLevel, userTierLevel) <span class="comment">// 🔑 Magic!</span>
+      )
+    )
+    .<span class="function">orderBy</span>(globalSources.name);
+
+  <span class="keyword">return</span> sources;
+}
+
+<span class="comment">/**
+ * Check if user can access a specific source
+ */</span>
+<span class="keyword">export async function</span> <span class="function">canAccessSource</span>(
+  userId: <span class="keyword">string</span>,
+  sourceId: <span class="keyword">string</span>
+): <span class="keyword">Promise</span>&lt;{
+  allowed: <span class="keyword">boolean</span>;
+  reason?: <span class="keyword">string</span>;
+  requiredTier?: <span class="keyword">string</span>;
+}&gt; {
+  <span class="keyword">const</span> userTierLevel = <span class="keyword">await</span> <span class="function">getUserTierLevel</span>(userId);
+
+  <span class="keyword">const</span> [source] = <span class="keyword">await</span> db
+    .<span class="function">select</span>()
+    .<span class="function">from</span>(globalSources)
+    .<span class="function">where</span>(<span class="function">eq</span>(globalSources.id, sourceId))
+    .<span class="function">limit</span>(<span class="number">1</span>);
+
+  <span class="keyword">if</span> (!source) {
+    <span class="keyword">return</span> { allowed: <span class="keyword">false</span>, reason: <span class="string">'Source not found'</span> };
+  }
+
+  <span class="keyword">if</span> (source.requiredTierLevel &lt;= userTierLevel) {
+    <span class="keyword">return</span> { allowed: <span class="keyword">true</span> };
+  }
+
+  <span class="comment">// Get required tier name for error message</span>
+  <span class="keyword">const</span> [requiredTier] = <span class="keyword">await</span> db
+    .<span class="function">select</span>({ name: subscriptionTiers.name })
+    .<span class="function">from</span>(subscriptionTiers)
+    .<span class="function">where</span>(<span class="function">eq</span>(subscriptionTiers.tierLevel, source.requiredTierLevel))
+    .<span class="function">limit</span>(<span class="number">1</span>);
+
+  <span class="keyword">return</span> {
+    allowed: <span class="keyword">false</span>,
+    reason: <span class="string">'tier_required'</span>,
+    requiredTier: requiredTier?.name || <span class="string">'pro'</span>
+  };
+}</code></pre>
+                </div>
+
+                <div class="implementation-section">
+                    <h4>Step 4: Use in API Handlers</h4>
+                    <pre><code><span class="comment">// Example: GET /api/sources</span>
+<span class="keyword">import</span> { getAvailableSourcesForUser } <span class="keyword">from</span> <span class="string">'backend/utils/tier-filtering'</span>;
+
+<span class="keyword">export async function</span> <span class="function">handleGetSources</span>(req: FullRequest, res: Response) {
+  <span class="keyword">try</span> {
+    <span class="keyword">const</span> userId = req.user.id;
+
+    <span class="comment">// This automatically filters by tier level!</span>
+    <span class="keyword">const</span> sources = <span class="keyword">await</span> <span class="function">getAvailableSourcesForUser</span>(userId);
+
+    res.<span class="function">json</span>({ sources });
+  } <span class="keyword">catch</span> (error) {
+    res.<span class="function">status</span>(<span class="number">500</span>).<span class="function">json</span>({ error: <span class="string">'Failed to fetch sources'</span> });
+  }
+}
+
+<span class="comment">// Example: POST /api/user-source-preferences</span>
+<span class="keyword">import</span> { canAccessSource } <span class="keyword">from</span> <span class="string">'backend/utils/tier-filtering'</span>;
+
+<span class="keyword">export async function</span> <span class="function">handleToggleSource</span>(req: FullRequest, res: Response) {
+  <span class="keyword">const</span> { sourceId, isEnabled } = req.body;
+  <span class="keyword">const</span> userId = req.user.id;
+
+  <span class="keyword">if</span> (isEnabled) {
+    <span class="comment">// Check tier access before enabling</span>
+    <span class="keyword">const</span> accessCheck = <span class="keyword">await</span> <span class="function">canAccessSource</span>(userId, sourceId);
+
+    <span class="keyword">if</span> (!accessCheck.allowed) {
+      <span class="keyword">return</span> res.<span class="function">status</span>(<span class="number">403</span>).<span class="function">json</span>({
+        error: <span class="string">'Access denied'</span>,
+        message: <span class="string">`This source requires ${accessCheck.requiredTier} tier`</span>,
+        requiredTier: accessCheck.requiredTier
+      });
+    }
+
+    <span class="comment">// Also check quantity limit...</span>
+  }
+
+  <span class="comment">// Proceed with toggle...</span>
+}</code></pre>
+                </div>
+            </div>
+
+            <h2>📊 Comparison Matrix</h2>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Hardcoded Checks</th>
+                        <th>Array Mapping</th>
+                        <th>Tier Levels ⭐</th>
+                        <th>Hybrid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Scalability</strong></td>
+                        <td>❌ Poor</td>
+                        <td>⚠️ Medium</td>
+                        <td>✅ Excellent</td>
+                        <td>✅ Good</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Code Changes for New Tier</strong></td>
+                        <td>❌ Required</td>
+                        <td>⚠️ Required</td>
+                        <td>✅ None</td>
+                        <td>⚠️ Trigger update</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Query Performance</strong></td>
+                        <td>⚠️ OR chain</td>
+                        <td>✅ IN clause</td>
+                        <td>✅ Single comparison</td>
+                        <td>✅ Single comparison</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Maintainability</strong></td>
+                        <td>❌ Poor</td>
+                        <td>⚠️ Medium</td>
+                        <td>✅ Excellent</td>
+                        <td>⚠️ Medium</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Type Safety</strong></td>
+                        <td>⚠️ Strings</td>
+                        <td>⚠️ Strings</td>
+                        <td>✅ Numbers</td>
+                        <td>✅ Numbers</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Readability</strong></td>
+                        <td>⚠️ Verbose</td>
+                        <td>✅ Good</td>
+                        <td>✅ Excellent</td>
+                        <td>✅ Good</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Schema Complexity</strong></td>
+                        <td>✅ None</td>
+                        <td>✅ None</td>
+                        <td>✅ One column</td>
+                        <td>⚠️ Two columns + trigger</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>🚀 Adding a New Tier (Zero Code Changes!)</h2>
+
+            <div class="example-box">
+                <h4>Example: Adding "VIP" Tier Above Enterprise</h4>
+
+                <pre><code><span class="comment">-- 1. Add new tier to subscription_tiers</span>
+<span class="keyword">INSERT INTO</span> subscription_tiers (
+  name,
+  display_name,
+  tier_level,  <span class="comment">-- ✅ Just assign next number!</span>
+  price,
+  yearly_price,
+  max_users
+) <span class="keyword">VALUES</span> (
+  <span class="string">'vip'</span>,
+  <span class="string">'VIP Plan'</span>,
+  <span class="number">3</span>,  <span class="comment">-- ✅ Higher than enterprise (2)</span>
+  <span class="number">99900</span>,  <span class="comment">-- $999/month</span>
+  <span class="number">999900</span>,
+  <span class="number">100</span>
+);
+
+<span class="comment">-- 2. Mark some sources as VIP-only</span>
+<span class="keyword">UPDATE</span> global_sources
+<span class="keyword">SET</span> required_tier_level = <span class="number">3</span>  <span class="comment">-- ✅ That's it!</span>
+<span class="keyword">WHERE</span> name <span class="keyword">IN</span> (<span class="string">'Bloomberg'</span>, <span class="string">'WSJ Premium'</span>, <span class="string">'Custom Feed'</span>);
+
+<span class="comment">-- ✅ Done! Code automatically works:</span>
+<span class="comment">-- - VIP users (level 3) get sources 0, 1, 2, 3</span>
+<span class="comment">-- - Enterprise users (level 2) get sources 0, 1, 2 (blocked from 3)</span>
+<span class="comment">-- - Pro users (level 1) get sources 0, 1</span>
+<span class="comment">-- - Free users (level 0) get sources 0</span></code></pre>
+            </div>
+
+            <h2>⚡ Performance Considerations</h2>
+
+            <div class="implementation-section">
+                <h4>Query Optimization</h4>
+                <ul>
+                    <li>✅ <strong>Index:</strong> <code>CREATE INDEX idx_global_sources_tier_level ON global_sources(required_tier_level)</code></li>
+                    <li>✅ <strong>Single comparison:</strong> <code>WHERE required_tier_level &lt;= $1</code> is very fast</li>
+                    <li>✅ <strong>Composite index:</strong> <code>CREATE INDEX idx_sources_active_tier ON global_sources(is_active, required_tier_level)</code></li>
+                </ul>
+
+                <h4>Caching Strategy</h4>
+                <pre><code><span class="comment">// Cache user's tier level (rarely changes)</span>
+<span class="keyword">const</span> TIER_CACHE_TTL = <span class="number">3600</span>; <span class="comment">// 1 hour</span>
+
+<span class="keyword">export async function</span> <span class="function">getUserTierLevelCached</span>(userId: <span class="keyword">string</span>): <span class="keyword">Promise</span>&lt;<span class="keyword">number</span>&gt; {
+  <span class="keyword">const</span> cacheKey = <span class="string">`tier:${userId}`</span>;
+  <span class="keyword">const</span> cached = <span class="keyword">await</span> redis.<span class="function">get</span>(cacheKey);
+
+  <span class="keyword">if</span> (cached) {
+    <span class="keyword">return</span> <span class="function">parseInt</span>(cached, <span class="number">10</span>);
+  }
+
+  <span class="keyword">const</span> tierLevel = <span class="keyword">await</span> <span class="function">getUserTierLevel</span>(userId);
+  <span class="keyword">await</span> redis.<span class="function">setex</span>(cacheKey, TIER_CACHE_TTL, tierLevel.<span class="function">toString</span>());
+
+  <span class="keyword">return</span> tierLevel;
+}
+
+<span class="comment">// Invalidate cache on tier change</span>
+<span class="keyword">export async function</span> <span class="function">invalidateUserTierCache</span>(userId: <span class="keyword">string</span>) {
+  <span class="keyword">await</span> redis.<span class="function">del</span>(<span class="string">`tier:${userId}`</span>);
+}</code></pre>
+            </div>
+
+            <h2>🧪 Testing</h2>
+
+            <div class="implementation-section">
+                <h4>Unit Tests</h4>
+                <pre><code><span class="keyword">describe</span>(<span class="string">'Tier Filtering'</span>, () => {
+  <span class="function">test</span>(<span class="string">'Free user sees only level 0 sources'</span>, <span class="keyword">async</span> () => {
+    <span class="keyword">const</span> sources = <span class="keyword">await</span> <span class="function">getAvailableSourcesForUser</span>(freeUserId);
+    <span class="function">expect</span>(sources.<span class="function">every</span>(s => s.requiredTierLevel === <span class="number">0</span>)).<span class="function">toBe</span>(<span class="keyword">true</span>);
+  });
+
+  <span class="function">test</span>(<span class="string">'Pro user sees level 0 and 1 sources'</span>, <span class="keyword">async</span> () => {
+    <span class="keyword">const</span> sources = <span class="keyword">await</span> <span class="function">getAvailableSourcesForUser</span>(proUserId);
+    <span class="function">expect</span>(sources.<span class="function">every</span>(s => s.requiredTierLevel &lt;= <span class="number">1</span>)).<span class="function">toBe</span>(<span class="keyword">true</span>);
+    <span class="function">expect</span>(sources.<span class="function">some</span>(s => s.requiredTierLevel === <span class="number">1</span>)).<span class="function">toBe</span>(<span class="keyword">true</span>);
+  });
+
+  <span class="function">test</span>(<span class="string">'Enterprise user sees all sources'</span>, <span class="keyword">async</span> () => {
+    <span class="keyword">const</span> sources = <span class="keyword">await</span> <span class="function">getAvailableSourcesForUser</span>(enterpriseUserId);
+    <span class="function">expect</span>(sources.<span class="function">every</span>(s => s.requiredTierLevel &lt;= <span class="number">2</span>)).<span class="function">toBe</span>(<span class="keyword">true</span>);
+  });
+
+  <span class="function">test</span>(<span class="string">'Cannot access higher tier source'</span>, <span class="keyword">async</span> () => {
+    <span class="keyword">const</span> result = <span class="keyword">await</span> <span class="function">canAccessSource</span>(freeUserId, proSourceId);
+    <span class="function">expect</span>(result.allowed).<span class="function">toBe</span>(<span class="keyword">false</span>);
+    <span class="function">expect</span>(result.requiredTier).<span class="function">toBe</span>(<span class="string">'pro'</span>);
+  });
+});</code></pre>
+            </div>
+
+            <h2>✅ Implementation Checklist</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Step</th>
+                        <th>Task</th>
+                        <th>Files</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>1</strong></td>
+                        <td>Add <code>tier_level</code> to <code>subscription_tiers</code></td>
+                        <td>Migration SQL</td>
+                    </tr>
+                    <tr>
+                        <td><strong>2</strong></td>
+                        <td>Add <code>required_tier_level</code> to <code>global_sources</code></td>
+                        <td>Migration SQL</td>
+                    </tr>
+                    <tr>
+                        <td><strong>3</strong></td>
+                        <td>Create indexes</td>
+                        <td>Migration SQL</td>
+                    </tr>
+                    <tr>
+                        <td><strong>4</strong></td>
+                        <td>Populate tier levels for existing tiers</td>
+                        <td>Migration SQL</td>
+                    </tr>
+                    <tr>
+                        <td><strong>5</strong></td>
+                        <td>Update TypeScript schema types</td>
+                        <td><code>shared/db/schema/*.ts</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>6</strong></td>
+                        <td>Create <code>tier-filtering.ts</code> utility</td>
+                        <td><code>backend/utils/tier-filtering.ts</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>7</strong></td>
+                        <td>Update API handlers to use filtering</td>
+                        <td><code>backend/handlers/sources/*.ts</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>8</strong></td>
+                        <td>Add unit tests</td>
+                        <td><code>backend/utils/__tests__/tier-filtering.test.ts</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>9</strong></td>
+                        <td>Add caching (optional)</td>
+                        <td><code>backend/utils/tier-filtering.ts</code></td>
+                    </tr>
+                    <tr>
+                        <td><strong>10</strong></td>
+                        <td>Test with all tier levels</td>
+                        <td>Manual/E2E tests</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <footer>
+            <p>Generated by Claude Code | October 25, 2025</p>
+            <p><strong>Recommendation:</strong> Use Tier Levels (Approach 3) - Simple integer comparison, infinitely scalable, zero code changes for new tiers</p>
+        </footer>
+    </div>
+</body>
+</html>

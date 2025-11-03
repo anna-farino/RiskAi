@@ -1,7 +1,5 @@
 import express from 'express';
 import {
-  addDevLogPermission,
-  removeDevLogPermission,
   listDevLogPermissions,
   verifyDevLogPermission
 } from '../services/permissions';
@@ -39,78 +37,6 @@ router.get('/permissions', async (_req, res) => {
   }
 });
 
-/**
- * Add a developer to live logs permissions
- * POST /api/live-logs-management/permissions
- * Body: { email: string, createdBy: string, notes?: string }
- */
-router.post('/permissions', async (req, res) => {
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(404).json({ error: 'Live logs not available in production' });
-    }
-
-    const { email, createdBy, notes } = req.body;
-
-    if (!email || !createdBy) {
-      return res.status(400).json({ error: 'Email and createdBy are required' });
-    }
-
-    const success = await addDevLogPermission(email, createdBy, notes);
-
-    if (success) {
-      res.json({
-        success: true,
-        message: `Live logs permission added for ${email}`
-      });
-    } else {
-      res.status(400).json({ error: 'Failed to add permission' });
-    }
-
-  } catch (error: any) {
-    log(`Error adding live logs permission: ${error.message}`, 'api-error');
-    res.status(500).json({ error: 'Failed to add permission' });
-  }
-});
-
-/**
- * Remove a developer from live logs permissions
- * DELETE /api/live-logs-management/permissions/:email
- */
-router.delete('/permissions/:email', async (req, res) => {
-  try {
-    if (process.env.NODE_ENV === 'production') {
-      return res.status(404).json({ error: 'Live logs not available in production' });
-    }
-
-    const { email } = req.params;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    const success = await removeDevLogPermission(email);
-
-    if (success) {
-      res.json({
-        success: true,
-        message: `Live logs permission removed for ${email}`
-      });
-    } else {
-      res.status(400).json({ error: 'Failed to remove permission' });
-    }
-
-  } catch (error: any) {
-    log(`Error removing live logs permission: ${error.message}`, 'api-error');
-    res.status(500).json({ error: 'Failed to remove permission' });
-  }
-});
-
-/**
- * Check if a developer has live logs permission
- * POST /api/live-logs-management/check-permission
- * Body: { email: string }
- */
 router.post('/check-permission', async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production') {

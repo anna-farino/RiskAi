@@ -4,6 +4,8 @@ import { handleEditUsersRoles, handleGetUsersRoles } from "../../../handlers/use
 import { handleSetMfa } from "backend/handlers/auth0/set-mfa"
 import getUsersInfoHandler from "backend/handlers/auth0/manage-users/get-users"
 import deleteUsersHandler from "backend/handlers/auth0/manage-users/delete-users"
+import deleteAccountHandler from "backend/handlers/users/delete-account"
+import undoAccountDeletionHandler from "backend/handlers/users/undo-account-deletion"
 
 
 export const usersRouter = Router()
@@ -22,9 +24,13 @@ usersRouter.post('/:userId/2fa',
   handleSetMfa
 )
 
-usersRouter.get('/info/:organizationId', 
+usersRouter.get('/info/:organizationId',
   getUsersInfoHandler
 )
 
 usersRouter.delete('/', deleteUsersHandler)
+
+// Account deletion routes
+usersRouter.delete('/account', deleteAccountHandler)
+usersRouter.post('/account/undo-deletion', undoAccountDeletionHandler)
 

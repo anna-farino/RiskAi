@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scheduled Downgrade Implementation - October 29, 2025</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .date {
+            color: #7f8c8d;
+            font-style: italic;
+        }
+        .highlight {
+            background: #fff3cd;
+            padding: 15px;
+            border-left: 4px solid #ffc107;
+            margin: 15px 0;
+        }
+        .success {
+            background: #d4edda;
+            padding: 15px;
+            border-left: 4px solid #28a745;
+            margin: 15px 0;
+        }
+        .info {
+            background: #d1ecf1;
+            padding: 15px;
+            border-left: 4px solid #17a2b8;
+            margin: 15px 0;
+        }
+        .warning {
+            background: #f8d7da;
+            padding: 15px;
+            border-left: 4px solid #dc3545;
+            margin: 15px 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #e74c3c;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        pre code {
+            color: #ecf0f1;
+            background: none;
+        }
+        ul, ol {
+            margin: 10px 0;
+            padding-left: 30px;
+        }
+        li {
+            margin: 8px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+        .flow-diagram {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+        .badge-new {
+            background: #28a745;
+            color: white;
+        }
+        .badge-updated {
+            background: #ffc107;
+            color: black;
+        }
+        .badge-backend {
+            background: #6f42c1;
+            color: white;
+        }
+        .badge-frontend {
+            background: #17a2b8;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Scheduled Downgrade Implementation</h1>
+        <p class="date">Documentation Date: October 29, 2025</p>
+        <p class="date">Author: Development Team</p>
+
+        <div class="success">
+            <strong>✅ Implementation Status:</strong> Complete and Production-Ready
+            <br>
+            <strong>Feature:</strong> Users now keep Pro access until billing period end when downgrading, then automatically transition to Free.
+        </div>
+
+        <h2>📋 Table of Contents</h2>
+        <ol>
+            <li><a href="#problem">Problem Statement</a></li>
+            <li><a href="#solution">Solution Overview</a></li>
+            <li><a href="#implementation">Implementation Details</a></li>
+            <li><a href="#user-flow">User Flow</a></li>
+            <li><a href="#technical-flow">Technical Flow</a></li>
+            <li><a href="#files-changed">Files Changed</a></li>
+            <li><a href="#testing">Testing Checklist</a></li>
+            <li><a href="#edge-cases">Edge Cases</a></li>
+        </ol>
+
+        <h2 id="problem">❌ Problem Statement</h2>
+        <div class="warning">
+            <strong>Previous Behavior:</strong>
+            <p>When a user downgraded from Pro to Free, the change happened <strong>immediately</strong>:</p>
+            <ul>
+                <li>Pro subscription was deleted and Free subscription was created instantly</li>
+                <li>User lost Pro features immediately (even if they paid for the full month)</li>
+                <li>Prorations were applied but user still lost access mid-billing period</li>
+                <li>Poor user experience - users felt cheated out of their paid time</li>
+            </ul>
+        </div>
+
+        <h3>Business Impact</h3>
+        <ul>
+            <li>❌ Users hesitant to downgrade (felt like they'd lose money)</li>
+            <li>❌ Increased support tickets about "lost Pro time"</li>
+            <li>❌ Not following standard SaaS best practices</li>
+            <li>❌ Potential churn increase due to poor UX</li>
+        </ul>
+
+        <h2 id="solution">✅ Solution Overview</h2>
+        <div class="success">
+            <strong>New Behavior:</strong>
+            <p>When a user downgrades from Pro to Free, they keep Pro access until the end of their billing period:</p>
+            <ul>
+                <li>✅ User clicks "Downgrade to Free" → Downgrade is <strong>scheduled</strong></li>
+                <li>✅ User keeps full Pro access until billing period ends</li>
+                <li>✅ On the end date, Pro automatically cancels and Free subscription is auto-created</li>
+                <li>✅ User can cancel the scheduled downgrade anytime before it happens</li>
+                <li>✅ Clear UI indicators showing when downgrade will occur</li>
+            </ul>
+        </div>
+
+        <h3>Key Benefits</h3>
+        <ul>
+            <li>✅ Users get full value for their money</li>
+            <li>✅ Industry-standard behavior (matches Netflix, Spotify, etc.)</li>
+            <li>✅ Reduced support tickets</li>
+            <li>✅ Better user trust and satisfaction</li>
+            <li>✅ Opportunity to win users back during the grace period</li>
+        </ul>
+
+        <h2 id="implementation">🔧 Implementation Details</h2>
+
+        <h3>Technical Approach</h3>
+        <p>We use Stripe's native <code>cancel_at_period_end</code> feature combined with webhook automation:</p>
+
+        <div class="info">
+            <strong>Why this approach?</strong>
+            <ul>
+                <li>✅ Native Stripe feature (well-tested, reliable)</li>
+                <li>✅ Simple implementation (no custom scheduling needed)</li>
+                <li>✅ Standard SaaS pattern</li>
+                <li>✅ Stripe Dashboard shows the scheduled cancellation</li>
+                <li>✅ Webhook fires exactly when subscription ends</li>
+            </ul>
+        </div>
+
+        <h3>Alternative Considered: Subscription Schedules</h3>
+        <p>We considered using Stripe's Subscription Schedule API but decided against it:</p>
+        <ul>
+            <li>❌ More complex API</li>
+            <li>❌ Requires understanding phase-based transitions</li>
+            <li>❌ Overkill for simple "keep until period end" use case</li>
+            <li>✅ Would be useful if we need more complex scheduling in the future</li>
+        </ul>
+
+        <h2 id="user-flow">👤 User Flow</h2>
+
+        <div class="flow-diagram">
+<strong>Timeline Example: User on Pro Monthly ($99/month)</strong>
+
+<strong>Day 1 (Oct 1):</strong> User subscribes to Pro
+  → Billing period: Oct 1 - Oct 31
+  → Has full Pro access
+
+<strong>Day 15 (Oct 15):</strong> User clicks "Downgrade to Free"
+  → Sees confirmation dialog: "Schedule Downgrade to Free Plan?"
+  → Dialog explains: "You'll keep Pro until Oct 31"
+  → User confirms
+  → ✅ Toast: "Downgrade Scheduled - You'll keep Pro until Oct 31"
+  → 🟠 Orange warning box appears in Settings showing downgrade date
+
+<strong>Days 16-30 (Oct 16-30):</strong> User continues with Pro access
+  → All Pro features available
+  → Orange warning box shows scheduled downgrade date
+  → "Cancel Downgrade" button available
+  → User can click "Cancel Downgrade" to keep Pro and resume auto-renewal
+
+<strong>Day 31 (Oct 31 at 11:59 PM):</strong> Automatic transition
+  → Stripe cancels Pro subscription
+  → Webhook fires: <code>subscription.deleted</code>
+  → System detects scheduled downgrade metadata
+  → Automatically creates Free subscription
+  → User has seamless transition to Free (no service interruption)
+
+<strong>Day 32 (Nov 1):</strong> User now on Free plan
+  → Free tier limits apply (5 sources, 10 keywords)
+  → Can upgrade back to Pro anytime
+        </div>
+
+        <h2 id="technical-flow">⚙️ Technical Flow</h2>
+
+        <h3>1. User Initiates Downgrade</h3>
+        <pre><code>// Frontend: SettingsSubscription.tsx
+handlePlanSelect('free')
+  → Shows confirmation dialog
+  → User confirms
+  → downgradeMutation.mutate()
+
+// Backend: downgrade-subscription.ts
+1. Find Stripe customer by email
+2. Find active Pro subscription
+3. Update subscription:
+   stripe.subscriptions.update(subscriptionId, {
+     cancel_at_period_end: true,  // ⭐ Key change
+     metadata: {
+       scheduled_downgrade_to_free: 'true',
+       userId: userId
+     }
+   })
+4. Update DB subs_user.metadata:
+   {
+     scheduled_downgrade_to_free: true,
+     downgrade_at: <unix_timestamp>
+   }
+5. Return cancel_at and current_period_end to frontend
+6. Frontend shows success toast and refetches user data</code></pre>
+
+        <h3>2. User Sees Scheduled Downgrade in Settings</h3>
+        <pre><code>// Backend: auth-check.ts
+Returns user data with:
+{
+  scheduledDowngrade: {
+    willDowngrade: true,
+    downgradeAt: 1730419200  // Unix timestamp
+  }
+}
+
+// Frontend: SettingsSubscription.tsx
+Displays orange warning box:
+  - Shows downgrade date
+  - "Cancel Downgrade" button
+  - Updates "Auto-renews" to false</code></pre>
+
+        <h3>3. User Cancels Scheduled Downgrade (Optional)</h3>
+        <pre><code>// Frontend: SettingsSubscription.tsx
+cancelScheduledDowngradeMutation.mutate()
+
+// Backend: cancel-scheduled-downgrade.ts
+1. Find subscription
+2. Verify cancel_at_period_end is true
+3. Update subscription:
+   stripe.subscriptions.update(subscriptionId, {
+     cancel_at_period_end: false,  // Remove cancellation
+     metadata: {
+       scheduled_downgrade_to_free: null
+     }
+   })
+4. Clear DB metadata:
+   delete metadata.scheduled_downgrade_to_free
+   delete metadata.downgrade_at
+5. Frontend shows toast and refetches</code></pre>
+
+        <h3>4. Automatic Downgrade at Period End</h3>
+        <pre><code>// Stripe Webhook: subscription.deleted
+// Fires on Oct 31 at 11:59 PM
+
+// Backend: webhook-utils/subscription-deleted.ts
+1. Receive subscription.deleted event
+2. Check metadata.scheduled_downgrade_to_free === 'true'
+
+IF SCHEDULED DOWNGRADE:
+  3a. Mark Pro subscription as cancelled in DB
+  3b. Call createFreeSub({ userId, email })
+      → Creates new Free Stripe subscription
+      → Creates DB subs_user record
+  3c. Clear scheduled_downgrade metadata from DB
+  3d. Send "Subscription Downgraded to Free" email
+  3e. User keeps onBoarded: true (no reset)
+
+IF NORMAL CANCELLATION:
+  3a. Mark subscription as cancelled in DB
+  3b. Set user.onBoarded = false
+  3c. Send "Subscription Deleted" email
+  3d. No new subscription created</code></pre>
+
+        <h2 id="files-changed">📝 Files Changed</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Changes</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>backend/handlers/stripe/downgrade-subscription.ts</code></td>
+                    <td><span class="badge badge-updated">UPDATED</span> <span class="badge badge-backend">Backend</span></td>
+                    <td>
+                        <ul>
+                            <li>Changed from immediate item swap to <code>cancel_at_period_end: true</code></li>
+                            <li>Store <code>scheduled_downgrade_to_free</code> in Stripe metadata</li>
+                            <li>Store <code>scheduled_downgrade_to_free</code> and <code>downgrade_at</code> in DB metadata</li>
+                            <li>Return <code>cancel_at</code> and <code>current_period_end</code> timestamps</li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>backend/handlers/stripe/webhook-utils/subscription-deleted.ts</code></td>
+                    <td><span class="badge badge-updated">UPDATED</span> <span class="badge badge-backend">Backend</span></td>
+                    <td>
+                        <ul>
+                            <li>Import <code>createFreeSub</code> utility</li>
+                            <li>Detect scheduled downgrade via metadata</li>
+                            <li>Branch logic: scheduled downgrade vs. normal cancellation</li>
+                            <li>Auto-create Free subscription for scheduled downgrades</li>
+                            <li>Clear metadata after downgrade completion</li>
+                            <li>Preserve <code>onBoarded</code> status for downgrades</li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>backend/handlers/stripe/cancel-scheduled-downgrade.ts</code></td>
+                    <td><span class="badge badge-new">NEW</span> <span class="badge badge-backend">Backend</span></td>
+                    <td>
+                        <ul>
+                            <li>New handler to undo scheduled downgrade</li>
+                            <li>Remove <code>cancel_at_period_end</code> flag</li>
+                            <li>Clear scheduled downgrade metadata</li>
+                            <li>Log operation for tracking</li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>backend/router/routes/subscriptions/index.ts</code></td>
+                    <td><span class="badge badge-updated">UPDATED</span> <span class="badge badge-backend">Backend</span></td>
+                    <td>
+                        <ul>
+                            <li>Import <code>handleCancelScheduledDowngrade</code></li>
+                            <li>Add route: <code>POST /api/subscriptions/cancel-scheduled-downgrade</code></li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>backend/handlers/auth-check.ts</code></td>
+                    <td><span class="badge badge-updated">UPDATED</span> <span class="badge badge-backend">Backend</span></td>
+                    <td>
+                        <ul>
+                            <li>Extract <code>scheduled_downgrade_to_free</code> and <code>downgrade_at</code> from metadata</li>
+                            <li>Add <code>scheduledDowngrade</code> object to user response</li>
+                            <li>Format: <code>{ willDowngrade: boolean, downgradeAt: number }</code></li>
+                        </ul>
+                    </td>
+                </tr>
+                <tr>
+                    <td><code>frontend/src/pages/dashboard/settings/SettingsSubscription.tsx</code></td>
+                    <td><span class="badge badge-updated">UPDATED</span> <span class="badge badge-frontend">Frontend</span></td>
+                    <td>
+                        <ul>
+                            <li>Add <code>cancelScheduledDowngradeMutation</code></li>
+                            <li>Display orange warning box when downgrade is scheduled</li>
+                            <li>Show downgrade date formatted as "Month Day, Year"</li>
+                            <li>Add "Cancel Downgrade" button</li>
+                            <li>Update "Auto-renews" logic to check for scheduled downgrade</li>
+                            <li>Update downgrade dialog title and description</li>
+                            <li>Add success toasts for better UX</li>
+                        </ul>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2 id="testing">🧪 Testing Checklist</h2>
+
+        <h3>Manual Testing</h3>
+        <div class="info">
+            <strong>⚠️ Important:</strong> Use Stripe test mode for all testing. Consider using <code>stripe.charges.setMock()</code> or test clocks for time-based testing.
+        </div>
+
+        <ol>
+            <li>
+                <strong>Schedule Downgrade</strong>
+                <ul>
+                    <li>✅ User on Pro plan can downgrade to Free</li>
+                    <li>✅ Confirmation dialog shows correct messaging</li>
+                    <li>✅ Success toast appears: "Downgrade Scheduled"</li>
+                    <li>✅ Orange warning box appears in Settings</li>
+                    <li>✅ Warning box shows correct downgrade date</li>
+                    <li>✅ "Auto-renews" shows "false"</li>
+                    <li>✅ Stripe Dashboard shows <code>cancel_at_period_end: true</code></li>
+                </ul>
+            </li>
+            <li>
+                <strong>During Grace Period</strong>
+                <ul>
+                    <li>✅ User still has full Pro access</li>
+                    <li>✅ All Pro features work (15 sources, 50 keywords, themes)</li>
+                    <li>✅ "Cancel Downgrade" button is visible and functional</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Cancel Scheduled Downgrade</strong>
+                <ul>
+                    <li>✅ Click "Cancel Downgrade" button</li>
+                    <li>✅ Success toast: "Downgrade Cancelled"</li>
+                    <li>✅ Orange warning box disappears</li>
+                    <li>✅ "Auto-renews" shows "true"</li>
+                    <li>✅ Stripe Dashboard shows <code>cancel_at_period_end: false</code></li>
+                    <li>✅ User remains on Pro with auto-renewal active</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Automatic Downgrade at Period End</strong>
+                <ul>
+                    <li>✅ Wait for billing period end (use Stripe test clock)</li>
+                    <li>✅ Webhook <code>subscription.deleted</code> fires</li>
+                    <li>✅ Pro subscription marked as cancelled in DB</li>
+                    <li>✅ Free subscription auto-created in Stripe</li>
+                    <li>✅ Free subscription auto-created in DB</li>
+                    <li>✅ Scheduled downgrade metadata cleared</li>
+                    <li>✅ User sees Free plan in Settings</li>
+                    <li>✅ Free tier limits apply (5 sources, 10 keywords)</li>
+                    <li>✅ Email sent: "Subscription Downgraded to Free"</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Edge Cases</strong>
+                <ul>
+                    <li>✅ User tries to upgrade during grace period → Should work</li>
+                    <li>✅ User tries to downgrade twice → Should show error</li>
+                    <li>✅ Webhook fails → Retry mechanism works</li>
+                    <li>✅ User has no payment method → Downgrade still works</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h3>Stripe Testing Tools</h3>
+        <pre><code># Use Stripe CLI to trigger webhooks locally
+stripe listen --forward-to localhost:3000/api/webhook
+
+# Trigger subscription.deleted event
+stripe trigger subscription.deleted
+
+# Or use Test Clocks to advance time
+stripe.testHelpers.testClocks.advance()</code></pre>
+
+        <h2 id="edge-cases">🔍 Edge Cases & Considerations</h2>
+
+        <h3>1. User Upgrades During Grace Period</h3>
+        <div class="highlight">
+            <strong>Scenario:</strong> User schedules downgrade, then changes mind and upgrades before period end.
+            <br><br>
+            <strong>Behavior:</strong>
+            <ul>
+                <li>User can click "Cancel Downgrade" to keep Pro</li>
+                <li>Or user can select Pro plan again → Creates new Pro subscription</li>
+                <li>Existing Pro subscription gets updated (not replaced)</li>
+                <li><code>cancel_at_period_end</code> removed automatically</li>
+            </ul>
+        </div>
+
+        <h3>2. Webhook Delivery Failure</h3>
+        <div class="highlight">
+            <strong>Scenario:</strong> <code>subscription.deleted</code> webhook fails to deliver or process.
+            <br><br>
+            <strong>Mitigation:</strong>
+            <ul>
+                <li>✅ Stripe retries webhooks automatically (3 days)</li>
+                <li>✅ Our operation tracker catches mismatches within 1 hour</li>
+                <li>✅ Daily reconciliation job fixes any lingering issues</li>
+                <li>✅ Webhook idempotency prevents duplicate processing</li>
+            </ul>
+        </div>
+
+        <h3>3. User Cancels Downgrade Multiple Times</h3>
+        <div class="highlight">
+            <strong>Scenario:</strong> User cancels downgrade, reschedules, cancels again, etc.
+            <br><br>
+            <strong>Behavior:</strong>
+            <ul>
+                <li>Each action updates Stripe and DB correctly</li>
+                <li>Metadata always reflects current state</li>
+                <li>No rate limiting needed (legitimate user behavior)</li>
+            </ul>
+        </div>
+
+        <h3>4. User Has Promo Code</h3>
+        <div class="highlight">
+            <strong>Scenario:</strong> User with promo code schedules downgrade.
+            <br><br>
+            <strong>Behavior:</strong>
+            <ul>
+                <li>Promo code cleared from metadata when downgrade scheduled</li>
+                <li>If user cancels downgrade, promo code is NOT restored</li>
+                <li>User would need to re-apply promo code (Stripe limitation)</li>
+            </ul>
+            <strong>Note:</strong> Consider storing promo code separately to restore it if user cancels downgrade.
+        </div>
+
+        <h3>5. Direct Stripe Dashboard Actions</h3>
+        <div class="highlight">
+            <strong>Scenario:</strong> Admin manually cancels subscription in Stripe Dashboard.
+            <br><br>
+            <strong>Behavior:</strong>
+            <ul>
+                <li>If <code>cancel_at_period_end: true</code> → Treated as scheduled downgrade</li>
+                <li>If immediately cancelled → Treated as normal cancellation</li>
+                <li>Webhook automation handles both cases correctly</li>
+            </ul>
+        </div>
+
+        <h3>6. Free Subscription Creation Fails</h3>
+        <div class="highlight">
+            <strong>Scenario:</strong> Webhook fires, but <code>createFreeSub()</code> fails.
+            <br><br>
+            <strong>Behavior:</strong>
+            <ul>
+                <li>Webhook returns error → Stripe retries</li>
+                <li>Pro subscription still cancelled</li>
+                <li>User temporarily has no subscription</li>
+                <li>Reconciliation job will create Free sub within 24 hours</li>
+                <li>Or user can click "Change Plan" → Create Free manually</li>
+            </ul>
+            <strong>Future Enhancement:</strong> Add fallback to create Free sub on next user login.
+        </div>
+
+        <h2>📊 Database Changes</h2>
+
+        <h3>subs_user.metadata Schema</h3>
+        <pre><code>// Previous
+{
+  "promo_code": { ... },
+  "current_period": { "start": ..., "end": ... }
+}
+
+// After Scheduled Downgrade
+{
+  "promo_code": null,  // Cleared
+  "current_period": { "start": ..., "end": ... },
+  "scheduled_downgrade_to_free": true,  // ⭐ New
+  "downgrade_at": 1730419200  // ⭐ New (Unix timestamp)
+}
+
+// After Downgrade Completes or Cancels
+{
+  "current_period": { "start": ..., "end": ... }
+  // scheduled_downgrade fields removed
+}</code></pre>
+
+        <h3>Stripe Subscription Metadata</h3>
+        <pre><code>// In Stripe
+{
+  "userId": "user_abc123",
+  "email": "user@example.com",
+  "customerId": "cus_xyz789",
+  "scheduled_downgrade_to_free": "true"  // ⭐ New
+}</code></pre>
+
+        <h2>🔐 Security Considerations</h2>
+
+        <ul>
+            <li>✅ All endpoints protected by Auth0 middleware</li>
+            <li>✅ User can only cancel their own scheduled downgrade</li>
+            <li>✅ Stripe webhook signature verification prevents spoofing</li>
+            <li>✅ Idempotency prevents duplicate webhook processing</li>
+            <li>✅ Operation tracker logs all subscription changes for audit</li>
+        </ul>
+
+        <h2>🚀 Future Enhancements</h2>
+
+        <ol>
+            <li>
+                <strong>Win-Back Campaigns</strong>
+                <ul>
+                    <li>Send email 7 days before downgrade: "Special offer to stay Pro"</li>
+                    <li>Offer discount or extra features</li>
+                    <li>Track conversion rate of win-back offers</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Downgrade Survey</strong>
+                <ul>
+                    <li>Ask "Why are you downgrading?" when user schedules downgrade</li>
+                    <li>Collect feedback for product improvements</li>
+                    <li>Offer solutions based on reason (e.g., "Too expensive" → Show yearly discount)</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Promo Code Preservation</strong>
+                <ul>
+                    <li>Store original promo code separately</li>
+                    <li>Restore promo code if user cancels downgrade</li>
+                    <li>Better UX for users who change their mind</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Scheduled Upgrade</strong>
+                <ul>
+                    <li>Allow Free users to schedule Pro upgrade for future date</li>
+                    <li>Useful for budgeting or seasonal needs</li>
+                    <li>Would use Subscription Schedules API</li>
+                </ul>
+            </li>
+            <li>
+                <strong>Pause Subscription</strong>
+                <ul>
+                    <li>Allow users to pause for 1-3 months</li>
+                    <li>Keep data, stop billing</li>
+                    <li>Resume subscription flow</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2>📚 Related Documentation</h2>
+
+        <ul>
+            <li><a href="2025-10-27-operation-tracking-reconciliation.html">Operation Tracking & Reconciliation</a></li>
+            <li><a href="2025-10-27-stripe-reconciliation-implementation.html">Stripe Reconciliation Implementation</a></li>
+            <li><a href="2025-10-19-subscription-upgrade-plan-option2.html">Subscription Upgrade Plan</a></li>
+            <li><a href="subscription-system/">Subscription System Documentation</a></li>
+        </ul>
+
+        <h2>🎯 Success Metrics</h2>
+
+        <p>Track these metrics to measure success:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Metric</th>
+                    <th>Target</th>
+                    <th>Measurement</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Cancellation Rate during Grace Period</td>
+                    <td>15-25%</td>
+                    <td>Users who cancel scheduled downgrade / Total scheduled downgrades</td>
+                </tr>
+                <tr>
+                    <td>Support Tickets about "Lost Pro Time"</td>
+                    <td>-90%</td>
+                    <td>Compare tickets before/after implementation</td>
+                </tr>
+                <tr>
+                    <td>User Satisfaction (Survey)</td>
+                    <td>+20%</td>
+                    <td>"How satisfied are you with our downgrade process?"</td>
+                </tr>
+                <tr>
+                    <td>Churn Rate</td>
+                    <td>-10%</td>
+                    <td>Users permanently leaving vs. pausing during grace period</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>✅ Deployment Checklist</h2>
+
+        <div class="info">
+            <strong>Pre-Deployment</strong>
+            <ul>
+                <li>✅ All backend changes tested locally</li>
+                <li>✅ All frontend changes tested locally</li>
+                <li>✅ Webhook tested with Stripe CLI</li>
+                <li>✅ Edge cases tested</li>
+                <li>✅ Code reviewed by team</li>
+                <li>✅ Documentation complete</li>
+            </ul>
+        </div>
+
+        <div class="success">
+            <strong>Deployment Steps</strong>
+            <ol>
+                <li>Deploy backend changes first</li>
+                <li>Verify webhook endpoint still works</li>
+                <li>Deploy frontend changes</li>
+                <li>Test end-to-end in staging environment</li>
+                <li>Use Stripe test clock to verify automatic downgrade</li>
+                <li>Deploy to production</li>
+                <li>Monitor logs for first 24 hours</li>
+                <li>Check Stripe Dashboard for scheduled cancellations</li>
+            </ol>
+        </div>
+
+        <div class="warning">
+            <strong>Rollback Plan</strong>
+            <ul>
+                <li>🔴 If webhooks fail: Revert backend changes immediately</li>
+                <li>🔴 If UI breaks: Revert frontend changes</li>
+                <li>🟡 If edge case discovered: Fix forward (backend is safe, just improves UX)</li>
+                <li>✅ Operation tracker and reconciliation will catch any data issues</li>
+            </ul>
+        </div>
+
+        <h2>📞 Support</h2>
+
+        <p>For questions or issues with this implementation, contact:</p>
+        <ul>
+            <li>Development Team: dev@company.com</li>
+            <li>Stripe Documentation: <a href="https://stripe.com/docs/billing/subscriptions/cancel" target="_blank">https://stripe.com/docs/billing/subscriptions/cancel</a></li>
+        </ul>
+
+        <hr style="margin: 40px 0;">
+
+        <p style="text-align: center; color: #7f8c8d; font-size: 14px;">
+            <em>Last Updated: October 29, 2025</em>
+        </p>
+    </div>
+</body>
+</html>

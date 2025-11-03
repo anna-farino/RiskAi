@@ -83,6 +83,53 @@ export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
   receivedAt: timestamp("received_at").defaultNow().notNull(),
 });
 
+/**
+ * Stripe Operations Log
+ *
+ * Tracks every Stripe API call made by our server and correlates with webhook responses.
+ * This enables targeted reconciliation by detecting missed webhooks within an hour.
+ *
+ * Purpose: Reduce API calls by 95% compared to full daily reconciliation
+ *
+ * Flow:
+ * 1. Our server calls Stripe API → Log operation immediately
+ * 2. Stripe sends webhook → Mark webhook_received = true
+ * 3. Hourly job checks for operations with webhook_received = false (>1 min old)
+ * 4. Make targeted API call to verify → Update DB if needed → Mark verified/fixed
+ *
+ * Data Retention: 7 days (cleaned up daily)
+ */
+export const stripeOperationsLog = pgTable("stripe_operations_log", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  // Operation Details
+  operationType: text("operation_type").notNull(), // 'create_subscription', 'upgrade_subscription', 'downgrade_subscription', 'cancel_subscription'
+  timestamp: timestamp("timestamp").defaultNow().notNull(), // When we made the Stripe API call
+
+  // Identifiers
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  stripeCustomerId: text("stripe_customer_id").notNull(), // Starts with "cus_"
+  stripeSubscriptionId: text("stripe_subscription_id"), // NULL for creates (set later), non-NULL for updates/cancels
+
+  // Request Data
+  requestPayload: jsonb("request_payload"), // What we sent to Stripe (for debugging)
+
+  // Webhook Correlation
+  webhookReceived: boolean("webhook_received").default(false),
+  webhookTimestamp: timestamp("webhook_timestamp"),
+  webhookEventId: text("webhook_event_id"), // References stripeWebhookEvents.stripeEventId
+
+  // Verification Status
+  verificationStatus: text("verification_status").default("pending").notNull(), // 'pending', 'verified', 'fixed', 'failed'
+  verificationTimestamp: timestamp("verification_timestamp"),
+  verificationNotes: text("verification_notes"), // Details about what was fixed or why it failed
+
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Insert schemas for validation
 export const insertStripeCustomerSchema = createInsertSchema(stripeCustomers).omit({
   createdAt: true,
@@ -93,8 +140,15 @@ export const insertStripeWebhookEventSchema = createInsertSchema(stripeWebhookEv
   receivedAt: true,
 });
 
+export const insertStripeOperationsLogSchema = createInsertSchema(stripeOperationsLog).omit({
+  timestamp: true,
+  createdAt: true,
+});
+
 // Type exports
 export type StripeCustomer = typeof stripeCustomers.$inferSelect;
 export type InsertStripeCustomer = typeof stripeCustomers.$inferInsert;
 export type StripeWebhookEvent = typeof stripeWebhookEvents.$inferSelect;
 export type InsertStripeWebhookEvent = typeof stripeWebhookEvents.$inferInsert;
+export type StripeOperationsLog = typeof stripeOperationsLog.$inferSelect;
+export type InsertStripeOperationsLog = typeof stripeOperationsLog.$inferInsert;

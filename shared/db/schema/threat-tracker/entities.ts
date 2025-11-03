@@ -1,5 +1,5 @@
 import { pgTable, uuid, text, boolean, timestamp, jsonb, unique, index } from 'drizzle-orm/pg-core';
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
 
 // =====================================================
@@ -21,7 +21,10 @@ export const companies = pgTable('companies', {
 }, (table) => {
   return {
     normalizedIdx: index('companies_normalized_idx').on(table.normalizedName),
-    nameIdx: index('idx_companies_name').on(table.name)
+    nameIdx: index('idx_companies_name').on(table.name),
+    // Performance indexes for tech-stack queries
+    nameLowerIdx: index('idx_companies_name_lower').on(sql`LOWER(${table.name})`),
+    typeIdx: index('idx_companies_type').on(table.type)
   };
 });
 
@@ -45,7 +48,10 @@ export const software = pgTable('software', {
   return {
     unq: unique().on(table.normalizedName, table.companyId),
     normalizedIdx: index('software_normalized_idx').on(table.normalizedName),
-    nameIdx: index('idx_software_name').on(table.name)
+    nameIdx: index('idx_software_name').on(table.name),
+    // Performance indexes for tech-stack queries
+    nameLowerIdx: index('idx_software_name_lower').on(sql`LOWER(${table.name})`),
+    nameCompanyIdx: index('idx_software_name_company').on(sql`LOWER(${table.name})`, table.companyId)
   };
 });
 
@@ -68,7 +74,9 @@ export const hardware = pgTable('hardware', {
 }, (table) => {
   return {
     unq: unique().on(table.normalizedName, table.model, table.manufacturer),
-    normalizedIdx: index('hardware_normalized_idx').on(table.normalizedName)
+    normalizedIdx: index('hardware_normalized_idx').on(table.normalizedName),
+    // Performance indexes for tech-stack queries
+    nameLowerIdx: index('idx_hardware_name_lower').on(sql`LOWER(${table.name})`)
   };
 });
 

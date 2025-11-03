@@ -4,9 +4,11 @@ import { subsUser } from "@shared/db/schema/subscriptions";
 import { db } from "backend/db/db";
 import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
+import { sendEventEmail } from "./utils/sendEventEmail";
+import { htmlForEmail } from "./html-for-emails";
 
 export async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
-  console.log(`[WEBHOOK] Handling subscription.created: ${subscription.id}`);
+  console.log(`[WEBHOOK] Handling subscription.created: ${subscription.id}: `, subscription);
 
   const { userId, email, customerId } = subscription.metadata
 
@@ -14,17 +16,15 @@ export async function handleSubscriptionCreated(subscription: Stripe.Subscriptio
     throw new Error("Error: no userId or no email found in subscription.metadata")
   }
 
-  const freeTierResult = await db
-    .select()
-    .from(subscriptionTiers)
-    .where(eq(subscriptionTiers.name, "free"))
-    .limit(1);
+  const productsList = subscription.items.data
+  const promo = subscription.discounts.length > 0
 
-  if (freeTierResult.length === 0) {
-    throw new Error("Free tier not found in subscription_tiers table");
+  if (productsList.length === 0) {
+    console.error(`[WEBHOOK] The subscription ${subscription.id} doesn't contain any products`)
+    return
   }
 
-  const freeTier = freeTierResult[0];
+  const subPriceId = productsList[0].plan.id
 
   const existingSubResult = await db
     .select()
@@ -33,15 +33,8 @@ export async function handleSubscriptionCreated(subscription: Stripe.Subscriptio
     .limit(1);
 
   if (existingSubResult.length > 0) {
-
     console.log(`User ${userId} already has a subscription`);
-
-    const existingSub = existingSubResult[0]
-    if (existingSub.tierId===freeTier.id) {
-      console.log(`User ${userId} already has a subscription and a stripe customerID`);
-    }
   } else {
-    
     let stripeCustomer: StripeCustomer;
 
     const stripeCustomerResult = await db
@@ -71,21 +64,45 @@ export async function handleSubscriptionCreated(subscription: Stripe.Subscriptio
     }
     
     const startDate = new Date();
-    await db.insert(subsUser).values({
-      userId,
-      tierId: freeTier.id,
-      status: "active",
-      startDate,
-      endDate: null, 
-      stripeCustomerId: customerId,
-      stripeSubscriptionId: subscription.id, 
-      metadata: {
-        tier: "free",
-        created_via: "createFreeSub",
-      },
-    });
+    const tierRes = await db
+      .select()
+      .from(subscriptionTiers)
+      .where(eq(subscriptionTiers.stripePriceId,subPriceId))
 
-    console.log(`Created free subscription for user ${userId}`);
+    if (tierRes.length === 0) {
+      console.error("[WEBHOOK] no subscription tier found")
+    }
+    const tier = tierRes[0]
+
+    const subsUserRes = await db
+      .insert(subsUser)
+      .values({
+        userId,
+        tierId: tier.id,
+        status: "active",
+        startDate,
+        endDate: null, 
+        stripeCustomerId: customerId,
+        stripeSubscriptionId: subscription.id, 
+        metadata: {
+          promo_code: promo,
+          tier: tier.name,
+          current_period: {
+            start: subscription.items.data[0].current_period_start,
+            end: subscription.items.data[0].current_period_end,
+          },
+          cancel_at_period_end: subscription.cancel_at_period_end,
+        },
+      })
+      .returning()
+
+    sendEventEmail({
+      subsUserRes,
+      subject: "Payment succeeded",
+      html: htmlForEmail.subscriptionCreated
+    })
+
+    console.log(`[WEBHOOK] Created free subscription for user ${userId}:`, tier.name);
 
   }
 

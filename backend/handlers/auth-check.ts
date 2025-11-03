@@ -1,11 +1,12 @@
 import { Request, Response } from 'express';
-import { users } from '@shared/db/schema/user';
-import { eq } from 'drizzle-orm';
+import { subFreeUsers, users } from '@shared/db/schema/user';
+import { eq, or } from 'drizzle-orm';
 import { FullRequest } from '../middleware';
 import { withUserContext } from 'backend/db/with-user-context';
 import { db } from 'backend/db/db';
 import { organizations, subscriptionTiers } from '@shared/db/schema/organizations';
 import { subsUser } from '@shared/db/schema/subscriptions';
+import { getUserTierLevel } from 'backend/services/unified-storage/utils/get-user-tier-level';
 
 
 export async function handleAuthCheck(req: Request, res: Response) {
@@ -49,7 +50,9 @@ export async function handleAuthCheck(req: Request, res: Response) {
 
     const subRes = await db
       .select({
+        subStatus: subsUser.status,
         subName: subscriptionTiers.name,
+        billingPeriond: subscriptionTiers.billingPeriod,
         metadata: subsUser.metadata,
       })
       .from(subsUser)
@@ -67,20 +70,49 @@ export async function handleAuthCheck(req: Request, res: Response) {
       description: metadata.promo_code?.description || 'Promotional discount applied'
     } : undefined
 
+    const userTierLevel = await getUserTierLevel(userId)
+
+    // Check for scheduled downgrade
+    const scheduledDowngrade = metadata.scheduled_downgrade_to_free ? {
+      willDowngrade: true,
+      downgradeAt: metadata.downgrade_at, // Unix timestamp
+    } : undefined
+
     //console.log("Subscription name: ", subscriptionName)
-    
+    const email = user.email
+    const domain = email.split('@')[1]
+
+    const result = await db
+      .select()
+      .from(subFreeUsers)
+      .where(or(
+        eq(subFreeUsers.pattern,email),
+        eq(subFreeUsers.pattern,domain),
+      ));
+
+    const subFreeUser = result.length>0
+
     const jsonResponse = {
       authenticated: true,
       user: [
         {
           ...user,
+          subFree: user.subFree || subFreeUser,
           subscription: subscriptionName,
+          tierLevel: userTierLevel,
+          subscriptionEnd: metadata?.current_period?.end || null,
+          subscriptionStatus: subRes[0]?.subStatus || null,
+          subscriptionCancelEnd: metadata?.cancel_at_period_end || false,
+          subscriptionBillingPeriod: subRes[0]?.billingPeriond || null,
           hasPromoCode,
+          subMetadata: metadata,
           promoInfo,
+          scheduledDowngrade,
           permissions: (req as unknown as FullRequest).user.permissions,
           role: (req as unknown as FullRequest).user.role,
           password: "hidden",
-          organizationName: organizationName || undefined
+          organizationName: organizationName || undefined,
+          onBoarded: user.onBoarded,
         }
       ]
     }

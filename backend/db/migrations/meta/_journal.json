@@ -323,6 +323,76 @@
       "when": 1760909118538,
       "tag": "0045_cultured_vermin",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1761141313385,
+      "tag": "0046_square_scorpion",
+      "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1761142040394,
+      "tag": "0047_fat_mordo",
+      "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1761329224981,
+      "tag": "0048_white_steve_rogers",
+      "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1761501879757,
+      "tag": "0049_brainy_gladiator",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1761599097685,
+      "tag": "0050_powerful_kitty_pryde",
+      "breakpoints": true
+    },
+    {
+      "idx": 51,
+      "version": "7",
+      "when": 1761602679263,
+      "tag": "0051_tiny_roxanne_simpson",
+      "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1761839769080,
+      "tag": "0052_melodic_bloodaxe",
+      "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1761936947339,
+      "tag": "0053_overrated_roxanne_simpson",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1762092756434,
+      "tag": "0054_fat_vulture",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1762107677820,
+      "tag": "0055_normal_bruce_banner",
+      "breakpoints": true
     }
   ]
 }

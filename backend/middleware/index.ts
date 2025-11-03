@@ -12,6 +12,7 @@ export type FullRequest = express.Request & {
   user: User 
     & { permissions?: string[] } 
     & { role? : string | undefined | null }
+    & { isAllowed? : boolean | undefined | null }
 };
 
 async function getUserRole(userId: string, req?: express.Request ) {

@@ -1,7 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import AuthLayout from "@/components/layout/AuthLayout"
 import { useAuth0 } from "@auth0/auth0-react"
 import { cn } from "@/lib/utils"
@@ -11,7 +9,7 @@ import { serverUrl } from "@/utils/server-url"
 import { useToast } from "@/hooks/use-toast"
 import { z } from "zod"
 import { motion } from "framer-motion"
-import { Newspaper, ShieldAlert, Radar, Sparkles, TrendingUp, Shield } from "lucide-react"
+import { Newspaper, ShieldAlert, Radar, Sparkles, Shield } from "lucide-react"
 import { Logo } from "@/components/ui/logo"
 
 
@@ -49,6 +47,14 @@ export default function Login() {
   useEffect(()=>{
     if (searchParams.get("email_verified") === "true") {
       handleLogin()
+    }
+    if (searchParams.get("signup") === "true") {
+      loginWithRedirect({
+        authorizationParams: {
+          screen_hint: 'signup',
+          audience
+        },
+      });
     }
   },[isAuthenticated, user])
 

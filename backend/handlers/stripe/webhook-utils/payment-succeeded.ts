@@ -2,6 +2,8 @@ import { subsUser } from "@shared/db/schema/subscriptions";
 import { db } from "backend/db/db";
 import { eq } from "drizzle-orm";
 import Stripe from "stripe";
+import { sendEventEmail } from "./utils/sendEventEmail";
+import { htmlForEmail } from "./html-for-emails";
 
 export async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
   console.log(`[WEBHOOK] Handling payment.succeeded for invoice: ${invoice.id}`);
@@ -28,7 +30,7 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
     end: new Date((invoice.period_end || 0) * 1000).toISOString(),
   };
 
-  await db
+  const subsUserRes = await db
     .update(subsUser)
     .set({
       status: 'active',
@@ -42,7 +44,14 @@ export async function handlePaymentSucceeded(invoice: Stripe.Invoice) {
       },
       updatedAt: new Date(),
     })
-    .where(eq(subsUser.stripeCustomerId, customerId));
+    .where(eq(subsUser.stripeCustomerId, customerId))
+    .returning()
+
+  sendEventEmail({
+    subsUserRes,
+    subject: "Payment succeeded",
+    html: htmlForEmail.paymentSucceeded
+  })
 
   console.log(`[WEBHOOK] Payment succeeded for customer: ${customerId}`);
 }

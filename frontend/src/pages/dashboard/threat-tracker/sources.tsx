@@ -16,22 +16,15 @@ import { Switch } from "@/components/ui/switch";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { type GlobalSource } from "@shared/db/schema/global-tables"
+import { useAuth } from "@/hooks/use-auth";
 
-interface GlobalSource {
-  id: string;
-  url: string;
-  name: string;
-  isEnabled: boolean;
-  isGlobal: boolean;
-  isDefault?: boolean;
-  includeInAutoScrape?: boolean;
-  lastScraped?: string | null;
-}
 
 export default function ThreatSources() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fetchWithAuth = useFetch();
+  const { data: userData } = useAuth();
   
   // Toolbar state management
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,8 +39,8 @@ export default function ThreatSources() {
           method: "GET",
         });
         if (!response.ok) throw new Error("Failed to fetch available sources");
-        const data = await response.json();
-        return data || [];
+        const data: GlobalSource[] | null = await response.json();
+        return data?.filter(s => s.requiredTierLevel <= (userData?.tierLevel || 0) ) || [];
       } catch (error) {
         console.error(error);
         return [];

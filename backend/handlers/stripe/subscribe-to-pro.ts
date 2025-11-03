@@ -1,8 +1,8 @@
 import { stripe } from 'backend/utils/stripe-config';
+import { logStripeOperation } from 'backend/services/stripe-operation-tracker';
 import { Response } from 'express';
 import { FullRequest } from 'backend/middleware';
-
-const PRO_PRICE_ID = 'price_1SIZwt4uGyk26FKnXAd3TWtW';
+import { planPrice } from './get-plan-prices';
 
 export default async function handleSubscribeToPro(
   req: FullRequest,
@@ -10,7 +10,7 @@ export default async function handleSubscribeToPro(
 ) {
   try {
     const { email } = req.user;
-    const { paymentMethodId, customerId, promotionCodeId } = req.body;
+    const { paymentMethodId, customerId, promotionCodeId, billingPeriod = 'monthly' } = req.body;
 
     if (!paymentMethodId || !customerId) {
       return res.status(400).json({
@@ -27,18 +27,23 @@ export default async function handleSubscribeToPro(
       },
     });
 
+    // Select price ID based on billing period
+    const priceId = billingPeriod === 'yearly' ? planPrice.pro.yearly : planPrice.pro.monthly;
+
     // Create Pro subscription
     const subscriptionParams: any = {
       customer: customerId,
       items: [
         {
-          price: PRO_PRICE_ID,
+          price: priceId,
         },
       ],
       default_payment_method: paymentMethodId,
       metadata: {
         userId: req.user.id,
         email: email,
+        customerId,
+        billingPeriod
       },
     };
 
@@ -52,12 +57,20 @@ export default async function handleSubscribeToPro(
 
     console.log('[SUBSCRIBE-PRO] ✅ Created Pro subscription:', subscription.id);
 
+    // Log the operation for tracking
+    await logStripeOperation({
+      operationType: 'create_subscription',
+      userId: req.user.id,
+      stripeCustomerId: customerId,
+      stripeSubscriptionId: subscription.id,
+      requestPayload: { tierType: 'pro', billingPeriod, hasPromoCode: !!promotionCodeId }
+    });
+
     res.json({
       success: true,
       subscription: {
         id: subscription.id,
         status: subscription.status,
-        current_period_end: subscription.current_period_end,
       },
     });
 

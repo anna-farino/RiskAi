@@ -1,4 +1,3 @@
-import { csfrHeaderObject } from "@/utils/csrf-header";
 import { serverUrl } from "@/utils/server-url";
 import { useAuth0 } from "@auth0/auth0-react"
 import { useLogout } from "@/hooks/use-logout";
@@ -164,7 +163,6 @@ export function useFetch() {
     const isFormData = options.body instanceof FormData;
     
     const defaultHeaders: any = {
-      ...csfrHeaderObject(),
       Authorization: `Bearer ${accessToken}`
     };
 

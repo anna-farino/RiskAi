@@ -2,6 +2,8 @@ import { subsUser } from "@shared/db/schema/subscriptions";
 import { db } from "backend/db/db";
 import { eq } from "drizzle-orm";
 import Stripe from "stripe";
+import { htmlForEmail } from "./html-for-emails";
+import { sendEventEmail } from "./utils/sendEventEmail";
 
 export async function handlePaymentFailed(invoice: Stripe.Invoice) {
   console.log(`[WEBHOOK] Handling payment.failed for invoice: ${invoice.id}`);
@@ -23,7 +25,7 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice) {
   }
 
   // Update subscription status to past_due
-  await db
+  const subsUserRes = await db
     .update(subsUser)
     .set({
       status: 'past_due',
@@ -36,7 +38,14 @@ export async function handlePaymentFailed(invoice: Stripe.Invoice) {
       },
       updatedAt: new Date(),
     })
-    .where(eq(subsUser.stripeCustomerId, customerId));
+    .where(eq(subsUser.stripeCustomerId, customerId))
+    .returning()
+
+  sendEventEmail({
+    subsUserRes,
+    subject: "Payment failed",
+    html: htmlForEmail.paymentFailed
+  })
 
   console.log(`[WEBHOOK] Payment failed for customer: ${customerId}`);
   // TODO: Send email notification to user about failed payment
