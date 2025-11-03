@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025-10-25: Subscription Limits Implementation Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header .date {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #667eea;
+            font-size: 2em;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        h3 {
+            color: #764ba2;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .approach {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .pros {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .cons {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+            border: 2px solid #667eea;
+            padding: 25px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+
+        .recommendation h3 {
+            color: #667eea;
+            margin-top: 0;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .keyword { color: #66d9ef; }
+        .string { color: #a6e22e; }
+        .comment { color: #75715e; font-style: italic; }
+        .function { color: #e6db74; }
+        .number { color: #ae81ff; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table th {
+            background: #667eea;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        table tr:hover {
+            background: #f5f5f5;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-right: 8px;
+        }
+
+        .tag.free { background: #6c757d; }
+        .tag.pro { background: #28a745; }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Subscription Limits Implementation</h1>
+            <p class="date">Analysis Date: October 25, 2025</p>
+        </header>
+
+        <div class="content">
+            <h2>🎯 Requirements</h2>
+            <p>Implement subscription-based limits for News Radar and Threat Tracker:</p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>Free Plan</th>
+                        <th>Pro Plan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Selected Sources</strong></td>
+                        <td><span class="tag free">5 sources</span></td>
+                        <td><span class="tag pro">15 sources</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Custom Keywords</strong></td>
+                        <td><span class="tag free">10 keywords</span></td>
+                        <td><span class="tag pro">50 keywords</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>🏗️ Current Architecture Analysis</h2>
+
+            <h3>News Radar</h3>
+            <ul>
+                <li><strong>Sources:</strong> Users select from <code>global_sources</code> via <code>user_source_preferences</code> table
+                    <ul>
+                        <li>Primary Key: <code>(userId, sourceId, appContext)</code></li>
+                        <li>Toggle field: <code>isEnabled</code></li>
+                    </ul>
+                </li>
+                <li><strong>Keywords:</strong> Stored in <code>keywords</code> table with <code>userId</code> (encrypted)</li>
+                <li><strong>Retrieval:</strong>
+                    <ul>
+                        <li><code>getSources(userId)</code> in <code>backend/apps/news-radar/queries/news-tracker.ts</code></li>
+                        <li><code>getKeywords(userId)</code> fetches all keywords for user</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Threat Tracker</h3>
+            <ul>
+                <li><strong>Sources:</strong> Similar pattern via <code>user_source_preferences</code> (appContext = 'threat_tracker')</li>
+                <li><strong>Keywords:</strong> Stored in <code>threat_keywords</code> table with categories:
+                    <ul>
+                        <li><code>'threat'</code> - Threat indicators</li>
+                        <li><code>'vendor'</code> - Vendor names</li>
+                        <li><code>'client'</code> - Client names</li>
+                        <li><code>'hardware'</code> - Hardware products</li>
+                    </ul>
+                </li>
+                <li><strong>Retrieval:</strong>
+                    <ul>
+                        <li><code>getKeywords(category, userId)</code> in <code>backend/apps/threat-tracker/queries/threat-tracker.ts</code></li>
+                        <li>Returns default keywords + user-specific keywords</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>🔍 Key Observations</h3>
+            <ul>
+                <li>✅ Sources are <strong>selected</strong>, not created (toggle from global list)</li>
+                <li>✅ Keywords are <strong>user-created</strong> with individual <code>userId</code></li>
+                <li>❌ No current limits enforced - queries use <code>SELECT *</code> without <code>LIMIT</code></li>
+                <li>✅ Subscription tiers table exists with <code>features</code> jsonb field</li>
+                <li>✅ Schema locations identified:
+                    <ul>
+                        <li><code>shared/db/schema/global-tables.ts</code> (user_source_preferences)</li>
+                        <li><code>shared/db/schema/news-tracker/index.ts</code> (keywords)</li>
+                        <li><code>shared/db/schema/threat-tracker/index.ts</code> (threat_keywords)</li>
+                        <li><code>shared/db/schema/organizations.ts</code> (subscription_tiers)</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h2>💡 Implementation Approaches</h2>
+
+            <div class="approach">
+                <h3>Approach 1: Schema-Based Limits ⭐ Recommended</h3>
+                <p>Add explicit limit columns to <code>subscription_tiers</code> table and enforce at API level.</p>
+
+                <h4>Implementation:</h4>
+                <pre><code><span class="comment">-- Database Migration</span>
+<span class="keyword">ALTER TABLE</span> subscription_tiers
+  <span class="keyword">ADD COLUMN</span> max_sources_news <span class="keyword">INTEGER DEFAULT NULL</span>,
+  <span class="keyword">ADD COLUMN</span> max_sources_threat <span class="keyword">INTEGER DEFAULT NULL</span>,
+  <span class="keyword">ADD COLUMN</span> max_keywords_news <span class="keyword">INTEGER DEFAULT NULL</span>,
+  <span class="keyword">ADD COLUMN</span> max_keywords_threat <span class="keyword">INTEGER DEFAULT NULL</span>;
+
+<span class="comment">-- Populate existing tiers</span>
+<span class="keyword">UPDATE</span> subscription_tiers
+<span class="keyword">SET</span> max_sources_news = <span class="number">5</span>, max_keywords_news = <span class="number">10</span>
+<span class="keyword">WHERE</span> name = <span class="string">'free'</span>;
+
+<span class="keyword">UPDATE</span> subscription_tiers
+<span class="keyword">SET</span> max_sources_news = <span class="number">15</span>, max_keywords_news = <span class="number">50</span>
+<span class="keyword">WHERE</span> name = <span class="string">'pro'</span>;</code></pre>
+
+                <div class="pros">
+                    <strong>✅ Pros:</strong>
+                    <ul>
+                        <li>Clear, explicit limits visible in database</li>
+                        <li>Easy to modify limits without code changes</li>
+                        <li>Can add granular limits per tier</li>
+                        <li>Audit trail of what limits were in effect</li>
+                        <li>Type-safe with proper columns</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Cons:</strong>
+                    <ul>
+                        <li>Requires database migration</li>
+                        <li>Need to query subscription tier on every create/enable operation</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="approach">
+                <h3>Approach 2: Features JSONB Field</h3>
+                <p>Use existing <code>subscription_tiers.features</code> jsonb field to store limits.</p>
+
+                <h4>Implementation:</h4>
+                <pre><code><span class="comment">-- Update features field</span>
+<span class="keyword">UPDATE</span> subscription_tiers
+<span class="keyword">SET</span> features = <span class="string">'{
+  "maxSourcesNews": 5,
+  "maxKeywordsNews": 10,
+  "maxSourcesThreat": 5,
+  "maxKeywordsThreat": 10
+}'</span>::jsonb
+<span class="keyword">WHERE</span> name = <span class="string">'free'</span>;</code></pre>
+
+                <div class="pros">
+                    <strong>✅ Pros:</strong>
+                    <ul>
+                        <li>No migration needed</li>
+                        <li>Flexible - can add any limit type</li>
+                        <li>Already have the field</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Cons:</strong>
+                    <ul>
+                        <li>Less type-safe (JSON parsing required)</li>
+                        <li>Harder to query/index on limits</li>
+                        <li>More complex validation logic</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="approach">
+                <h3>Approach 3: Hardcoded Constants</h3>
+                <p>Define limits in code constants mapped to subscription names.</p>
+
+                <h4>Implementation:</h4>
+                <pre><code><span class="comment">// backend/utils/subscription-limits.ts</span>
+<span class="keyword">const</span> SUBSCRIPTION_LIMITS = {
+  <span class="string">free</span>: {
+    maxSourcesNews: <span class="number">5</span>,
+    maxKeywordsNews: <span class="number">10</span>,
+    maxSourcesThreat: <span class="number">5</span>,
+    maxKeywordsThreat: <span class="number">10</span>
+  },
+  <span class="string">pro</span>: {
+    maxSourcesNews: <span class="number">15</span>,
+    maxKeywordsNews: <span class="number">50</span>,
+    maxSourcesThreat: <span class="number">15</span>,
+    maxKeywordsThreat: <span class="number">50</span>
+  }
+};</code></pre>
+
+                <div class="pros">
+                    <strong>✅ Pros:</strong>
+                    <ul>
+                        <li>No database changes required</li>
+                        <li>Fast - no extra queries</li>
+                        <li>Simple to implement quickly</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Cons:</strong>
+                    <ul>
+                        <li>Requires code deployment to change limits</li>
+                        <li>No flexibility per customer</li>
+                        <li>Harder to maintain as tiers grow</li>
+                        <li>No historical tracking</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <h3>🏆 Recommended: Hybrid Approach (Schema + Fallback)</h3>
+                <p>Combine <strong>Approach 1</strong> (schema-based) with hardcoded fallbacks for robustness.</p>
+
+                <h4>Why This Is Best:</h4>
+                <ul>
+                    <li><strong>Flexibility:</strong> Limits stored in DB can be adjusted per-tier or even per-customer</li>
+                    <li><strong>Type Safety:</strong> Explicit columns are queryable and indexable</li>
+                    <li><strong>Graceful Degradation:</strong> If DB query fails, fall back to code constants</li>
+                    <li><strong>Future-Proof:</strong> Easy to add per-customer overrides later</li>
+                    <li><strong>Auditable:</strong> Changes to limits are tracked in migrations</li>
+                </ul>
+
+                <h4>Implementation Steps:</h4>
+
+                <h4>1. Database Migration</h4>
+                <pre><code><span class="comment">-- File: backend/db/migrations/XXXX_add_subscription_limits.sql</span>
+<span class="keyword">ALTER TABLE</span> subscription_tiers
+  <span class="keyword">ADD COLUMN</span> max_sources_news <span class="keyword">INTEGER</span>,
+  <span class="keyword">ADD COLUMN</span> max_sources_threat <span class="keyword">INTEGER</span>,
+  <span class="keyword">ADD COLUMN</span> max_keywords_news <span class="keyword">INTEGER</span>,
+  <span class="keyword">ADD COLUMN</span> max_keywords_threat <span class="keyword">INTEGER</span>;
+
+<span class="comment">-- Populate for existing tiers</span>
+<span class="keyword">UPDATE</span> subscription_tiers
+<span class="keyword">SET</span>
+  max_sources_news = <span class="number">5</span>,
+  max_keywords_news = <span class="number">10</span>,
+  max_sources_threat = <span class="number">5</span>,
+  max_keywords_threat = <span class="number">10</span>
+<span class="keyword">WHERE</span> name = <span class="string">'free'</span>;
+
+<span class="keyword">UPDATE</span> subscription_tiers
+<span class="keyword">SET</span>
+  max_sources_news = <span class="number">15</span>,
+  max_keywords_news = <span class="number">50</span>,
+  max_sources_threat = <span class="number">15</span>,
+  max_keywords_threat = <span class="number">50</span>
+<span class="keyword">WHERE</span> name = <span class="string">'pro'</span>;</code></pre>
+
+                <h4>2. Utility Functions</h4>
+                <pre><code><span class="comment">// File: backend/utils/subscription-limits.ts</span>
+<span class="keyword">import</span> { db } <span class="keyword">from</span> <span class="string">'backend/db/db'</span>;
+<span class="keyword">import</span> { eq } <span class="keyword">from</span> <span class="string">'drizzle-orm'</span>;
+
+<span class="keyword">const</span> FALLBACK_LIMITS = {
+  <span class="string">free</span>: {
+    maxSourcesNews: <span class="number">5</span>, maxKeywordsNews: <span class="number">10</span>,
+    maxSourcesThreat: <span class="number">5</span>, maxKeywordsThreat: <span class="number">10</span>
+  },
+  <span class="string">pro</span>: {
+    maxSourcesNews: <span class="number">15</span>, maxKeywordsNews: <span class="number">50</span>,
+    maxSourcesThreat: <span class="number">15</span>, maxKeywordsThreat: <span class="number">50</span>
+  }
+};
+
+<span class="comment">// Get user's subscription tier with limits</span>
+<span class="keyword">export async function</span> <span class="function">getUserLimits</span>(userId: <span class="keyword">string</span>) {
+  <span class="keyword">try</span> {
+    <span class="keyword">const</span> tier = <span class="keyword">await</span> getUserSubscriptionTier(userId);
+    <span class="keyword">return</span> {
+      maxSourcesNews: tier.max_sources_news || FALLBACK_LIMITS[tier.name]?.maxSourcesNews || <span class="number">5</span>,
+      maxKeywordsNews: tier.max_keywords_news || FALLBACK_LIMITS[tier.name]?.maxKeywordsNews || <span class="number">10</span>,
+      maxSourcesThreat: tier.max_sources_threat || FALLBACK_LIMITS[tier.name]?.maxSourcesThreat || <span class="number">5</span>,
+      maxKeywordsThreat: tier.max_keywords_threat || FALLBACK_LIMITS[tier.name]?.maxKeywordsThreat || <span class="number">10</span>
+    };
+  } <span class="keyword">catch</span> (error) {
+    <span class="comment">// Fallback to free tier limits</span>
+    <span class="keyword">return</span> FALLBACK_LIMITS.free;
+  }
+}
+
+<span class="comment">// Count enabled sources for user</span>
+<span class="keyword">async function</span> <span class="function">countEnabledSources</span>(
+  userId: <span class="keyword">string</span>,
+  appContext: <span class="string">'news_radar'</span> | <span class="string">'threat_tracker'</span>
+) {
+  <span class="keyword">const</span> result = <span class="keyword">await</span> db
+    .select({ count: sql&lt;<span class="keyword">number</span>&gt;<span class="string">`count(*)`</span> })
+    .from(userSourcePreferences)
+    .where(and(
+      eq(userSourcePreferences.userId, userId),
+      eq(userSourcePreferences.appContext, appContext),
+      eq(userSourcePreferences.isEnabled, <span class="keyword">true</span>)
+    ));
+  <span class="keyword">return</span> result[<span class="number">0</span>].count;
+}
+
+<span class="comment">// Check if user can add more sources</span>
+<span class="keyword">export async function</span> <span class="function">canAddSource</span>(
+  userId: <span class="keyword">string</span>,
+  appContext: <span class="string">'news_radar'</span> | <span class="string">'threat_tracker'</span>
+) {
+  <span class="keyword">const</span> limits = <span class="keyword">await</span> getUserLimits(userId);
+  <span class="keyword">const</span> current = <span class="keyword">await</span> countEnabledSources(userId, appContext);
+  <span class="keyword">const</span> maxField = appContext === <span class="string">'news_radar'</span>
+    ? <span class="string">'maxSourcesNews'</span>
+    : <span class="string">'maxSourcesThreat'</span>;
+  <span class="keyword">return</span> current &lt; limits[maxField];
+}
+
+<span class="comment">// Check if user can add more keywords</span>
+<span class="keyword">export async function</span> <span class="function">canAddKeyword</span>(
+  userId: <span class="keyword">string</span>,
+  appContext: <span class="string">'news_radar'</span> | <span class="string">'threat_tracker'</span>
+) {
+  <span class="keyword">const</span> limits = <span class="keyword">await</span> getUserLimits(userId);
+  <span class="keyword">const</span> table = appContext === <span class="string">'news_radar'</span> ? keywords : threatKeywords;
+
+  <span class="keyword">const</span> result = <span class="keyword">await</span> db
+    .select({ count: sql&lt;<span class="keyword">number</span>&gt;<span class="string">`count(*)`</span> })
+    .from(table)
+    .where(eq(table.userId, userId));
+
+  <span class="keyword">const</span> current = result[<span class="number">0</span>].count;
+  <span class="keyword">const</span> maxField = appContext === <span class="string">'news_radar'</span>
+    ? <span class="string">'maxKeywordsNews'</span>
+    : <span class="string">'maxKeywordsThreat'</span>;
+  <span class="keyword">return</span> current &lt; limits[maxField];
+}</code></pre>
+
+                <h4>3. Enforce in API Handlers</h4>
+                <pre><code><span class="comment">// Example: POST /api/keywords</span>
+<span class="keyword">import</span> { canAddKeyword } <span class="keyword">from</span> <span class="string">'backend/utils/subscription-limits'</span>;
+
+<span class="keyword">export async function</span> <span class="function">handleCreateKeyword</span>(req: Request, res: Response) {
+  <span class="keyword">const</span> userId = req.user.id;
+  <span class="keyword">const</span> appContext = <span class="string">'news_radar'</span>; <span class="comment">// or 'threat_tracker'</span>
+
+  <span class="comment">// Check limit before creating</span>
+  <span class="keyword">if</span> (!(<span class="keyword">await</span> canAddKeyword(userId, appContext))) {
+    <span class="keyword">return</span> res.status(<span class="number">403</span>).json({
+      error: <span class="string">'Keyword limit reached'</span>,
+      message: <span class="string">'Upgrade to Pro for more keywords'</span>,
+      upgradeUrl: <span class="string">'/pricing'</span>
+    });
+  }
+
+  <span class="comment">// Proceed with creation...</span>
+}</code></pre>
+
+                <h4>4. Frontend Integration</h4>
+                <pre><code><span class="comment">// Display usage in UI</span>
+<span class="keyword">const</span> SourceSelector = () =&gt; {
+  <span class="keyword">const</span> [usage, setUsage] = useState({ current: <span class="number">0</span>, max: <span class="number">5</span> });
+
+  <span class="keyword">return</span> (
+    &lt;div&gt;
+      &lt;p&gt;Sources: {usage.current}/{usage.max}&lt;/p&gt;
+      {usage.current &gt;= usage.max &amp;&amp; (
+        &lt;Alert&gt;
+          Limit reached. &lt;Link to=<span class="string">"/pricing"</span>&gt;Upgrade to Pro&lt;/Link&gt;
+          for up to <span class="number">15</span> sources.
+        &lt;/Alert&gt;
+      )}
+      &lt;Button disabled={usage.current &gt;= usage.max}&gt;
+        Add Source
+      &lt;/Button&gt;
+    &lt;/div&gt;
+  );
+};</code></pre>
+            </div>
+
+            <h2>📍 Enforcement Locations</h2>
+
+            <h3>News Radar</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>File Location</th>
+                        <th>Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Sources</td>
+                        <td>Handler for user_source_preferences</td>
+                        <td>When toggling <code>isEnabled</code></td>
+                    </tr>
+                    <tr>
+                        <td>Keywords</td>
+                        <td><code>backend/apps/news-radar/queries/news-tracker.ts:236</code></td>
+                        <td><code>createKeyword()</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Threat Tracker</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Feature</th>
+                        <th>File Location</th>
+                        <th>Function</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Sources</td>
+                        <td>Handler for user_source_preferences</td>
+                        <td>When toggling <code>isEnabled</code></td>
+                    </tr>
+                    <tr>
+                        <td>Keywords</td>
+                        <td><code>backend/apps/threat-tracker/queries/threat-tracker.ts:567</code></td>
+                        <td><code>createKeyword()</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>✅ Implementation Checklist</h2>
+            <ol>
+                <li>✏️ Create database migration for new columns</li>
+                <li>✏️ Run migration: <code>npx drizzle-kit push</code></li>
+                <li>✏️ Create utility file: <code>backend/utils/subscription-limits.ts</code></li>
+                <li>✏️ Update schema types: <code>shared/db/schema/organizations.ts</code></li>
+                <li>✏️ Add validation to keyword creation handlers (News Radar)</li>
+                <li>✏️ Add validation to keyword creation handlers (Threat Tracker)</li>
+                <li>✏️ Add validation to source selection handlers</li>
+                <li>✏️ Create API endpoint to fetch current usage: <code>GET /api/limits</code></li>
+                <li>✏️ Update frontend components to show usage counters</li>
+                <li>✏️ Add upgrade prompts when limits reached</li>
+                <li>✏️ Test with Free tier user</li>
+                <li>✏️ Test with Pro tier user</li>
+                <li>✏️ Test upgrade flow (Free → Pro)</li>
+            </ol>
+
+            <h2>🧪 Testing Strategy</h2>
+
+            <h3>Unit Tests</h3>
+            <ul>
+                <li>Test <code>getUserLimits()</code> with different subscription tiers</li>
+                <li>Test <code>canAddSource()</code> boundary conditions (at limit, below limit, above limit)</li>
+                <li>Test <code>canAddKeyword()</code> boundary conditions</li>
+                <li>Test fallback behavior when DB query fails</li>
+            </ul>
+
+            <h3>Integration Tests</h3>
+            <ul>
+                <li>Attempt to add 6th source as Free user → should fail</li>
+                <li>Attempt to add 11th keyword as Free user → should fail</li>
+                <li>Upgrade from Free to Pro → limits should update</li>
+                <li>Add 15th source as Pro user → should succeed</li>
+                <li>Add 16th source as Pro user → should fail</li>
+            </ul>
+
+            <h3>E2E Tests</h3>
+            <ul>
+                <li>Complete user journey: signup → hit limit → see upgrade prompt → upgrade → add more items</li>
+                <li>Verify UI disables "Add" buttons when at limit</li>
+                <li>Verify usage counters display correctly</li>
+            </ul>
+
+            <h2>🚀 Rollout Plan</h2>
+
+            <h3>Phase 1: Backend Infrastructure (Week 1)</h3>
+            <ol>
+                <li>Database migration</li>
+                <li>Utility functions</li>
+                <li>API validation</li>
+                <li>Unit tests</li>
+            </ol>
+
+            <h3>Phase 2: Frontend Integration (Week 2)</h3>
+            <ol>
+                <li>Usage counters</li>
+                <li>Upgrade prompts</li>
+                <li>Disable controls at limits</li>
+                <li>E2E tests</li>
+            </ol>
+
+            <h3>Phase 3: Monitoring & Optimization (Week 3)</h3>
+            <ol>
+                <li>Analytics: Track limit-reached events</li>
+                <li>Monitor conversion: Free → Pro upgrades</li>
+                <li>A/B test upgrade messaging</li>
+                <li>Performance monitoring</li>
+            </ol>
+        </div>
+
+        <footer>
+            <p>Generated by Claude Code | October 25, 2025</p>
+            <p>Next Steps: Review with team → Approve approach → Begin implementation</p>
+        </footer>
+    </div>
+</body>
+</html>

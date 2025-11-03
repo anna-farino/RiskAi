@@ -2,12 +2,15 @@ import { stripe } from 'backend/utils/stripe-config';
 import { Response } from 'express';
 import { FullRequest } from 'backend/middleware';
 
-export default async function handleValidatePromoCode(
-  req: FullRequest,
-  res: Response
-) {
+export default async function handleValidatePromoCode(req: FullRequest, res: Response) {
   try {
-    const { promoCode } = req.body;
+    const { promoCode, billingPeriod } = req.body;
+
+    const isPromo3 = promoCode.toLowerCase() === 'threatpromo3' 
+    const isYearly = billingPeriod.toLowerCase() === 'yearly'
+    if (isPromo3 && isYearly) {
+      return res.status(400).json({ error: 'Promo code can only be used with monthly plans' })
+    }
 
     if (!promoCode) {
       return res.status(400).json({ error: 'Promotion code required' });

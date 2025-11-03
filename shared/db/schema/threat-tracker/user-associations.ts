@@ -15,11 +15,16 @@ export const usersSoftware = pgTable('users_software', {
   addedAt: timestamp('added_at').defaultNow(),
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(50), // For relevance scoring (1-100)
-  metadata: jsonb('metadata') // User-specific notes, deployment info, etc.
+  metadata: jsonb('metadata'),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+// User-specific notes, deployment info, etc.
 }, (table) => {
   return {
     pk: primaryKey({ columns: [table.userId, table.softwareId] }),
-    userIdx: index('idx_users_software_user').on(table.userId)
+    userIdx: index('idx_users_software_user').on(table.userId),
+    // Performance indexes for tech-stack queries
+    lookupIdx: index('idx_users_software_lookup').on(table.userId, table.softwareId),
+    activeIdx: index('idx_users_software_active').on(table.userId, table.isActive)
   };
 });
 
@@ -30,11 +35,15 @@ export const usersHardware = pgTable('users_hardware', {
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(50), // For relevance scoring (1-100)
   quantity: integer('quantity').default(1),
-  metadata: jsonb('metadata')
+  metadata: jsonb('metadata'),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => {
   return {
     pk: primaryKey({ columns: [table.userId, table.hardwareId] }),
-    userIdx: index('idx_users_hardware_user').on(table.userId)
+    userIdx: index('idx_users_hardware_user').on(table.userId),
+    // Performance indexes for tech-stack queries
+    lookupIdx: index('idx_users_hardware_lookup').on(table.userId, table.hardwareId),
+    activeIdx: index('idx_users_hardware_active').on(table.userId, table.isActive)
   };
 });
 
@@ -45,11 +54,16 @@ export const usersCompanies = pgTable('users_companies', {
   addedAt: timestamp('added_at').defaultNow(),
   isActive: boolean('is_active').default(true),
   priority: integer('priority').default(50), // For relevance scoring (1-100)
-  metadata: jsonb('metadata') // Stores additional info like { source: 'auto-software' }
+  metadata: jsonb('metadata'),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+// Stores additional info like { source: 'auto-software' }
 }, (table) => {
   return {
     pk: primaryKey({ columns: [table.userId, table.companyId] }),
-    userIdx: index('idx_users_companies_user').on(table.userId)
+    userIdx: index('idx_users_companies_user').on(table.userId),
+    // Performance indexes for tech-stack queries
+    lookupIdx: index('idx_users_companies_lookup').on(table.userId, table.companyId, table.relationshipType),
+    activeIdx: index('idx_users_companies_active').on(table.userId, table.isActive)
   };
 });
 

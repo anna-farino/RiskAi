@@ -1,8 +1,8 @@
 import { stripe } from 'backend/utils/stripe-config';
 import { Response } from 'express';
 import { FullRequest } from 'backend/middleware';
-
-const PRO_PRICE_ID = 'price_1SIZwt4uGyk26FKnXAd3TWtW';
+import Stripe from 'stripe';
+import { planPrice } from './get-plan-prices';
 
 export default async function handleCreateSetupIntent(
   req: FullRequest,
@@ -10,13 +10,14 @@ export default async function handleCreateSetupIntent(
 ) {
   try {
     const { email } = req.user;
+    const { billingPeriod = 'monthly' } = req.body; // Default to monthly if not provided
 
     // Search for existing customer
     const customerResult = await stripe.customers.search({
       query: `email:"${email}"`
     });
 
-    let customer;
+    let customer: Stripe.Customer;
     let isNewCustomer = false;
 
     if (!customerResult.data || customerResult.data.length === 0) {
@@ -46,8 +47,11 @@ export default async function handleCreateSetupIntent(
       },
     });
 
+    // Select price ID based on billing period
+    const priceId = billingPeriod === 'yearly' ? planPrice.pro.yearly : planPrice.pro.monthly;
+
     // Fetch Pro price details
-    const price = await stripe.prices.retrieve(PRO_PRICE_ID);
+    const price = await stripe.prices.retrieve(priceId);
 
     res.json({
       clientSecret: setupIntent.client_secret,
@@ -57,6 +61,7 @@ export default async function handleCreateSetupIntent(
         amount: price.unit_amount,
         currency: price.currency,
       },
+      billingPeriod,
     });
 
   } catch (error) {

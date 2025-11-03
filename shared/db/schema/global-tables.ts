@@ -61,6 +61,7 @@ export const globalSources = pgTable('global_sources', {
   url: text('url').notNull().unique(),
   name: text('name').notNull(),
   category: text('category'), // 'news', 'tech', 'security', etc
+  requiredTierLevel: integer('required_tier_level').notNull().default(9),
   
   // Global status
   isActive: boolean('is_active').default(true),

@@ -25,13 +25,7 @@ import liveLogsRouter from "backend/admin/routes/live-logs";
 import { adminSourceRouter } from "backend/admin/routes/source-management";
 import { adminRouter } from "./routes/admin";
 import { subsRouter } from "./routes/subscriptions";
-import handleCreateCheckoutSession from "backend/handlers/stripe/checkout-session";
-import handleSessionStatus from "backend/handlers/stripe/session-status";
-import handleCreateSetupIntent from "backend/handlers/stripe/create-setup-intent";
-import handleSubscribeToPro from "backend/handlers/stripe/subscribe-to-pro";
-import handleUpgradeSubscription from "backend/handlers/stripe/upgrade-subscription";
-import handleDowngradeSubscription from "backend/handlers/stripe/downgrade-subscription";
-import handleValidatePromoCode from "backend/handlers/stripe/validate-promo-code";
+import userAllowedMiddleware from "backend/middleware/userAllowedMiddleware";
 
 const limiter = rateLimit(rateLimitConfig as Partial<Options>);
 const router = Router();
@@ -57,29 +51,6 @@ router.get("/test-scraping/health", handleTestScrapingHealth);
 // TESTING RLS MIDDLEWARE
 //router.use(withDbContext)
 
-// CSRF TOKEN INITIALIZATION (must be before protected routes)
-router.get("/csrf-token", limiter, (req: Request, res: Response) => {
-  // Import generateToken from CSRF middleware
-  const { generateToken, csrfCookieOptions } = require("../middleware/csrf");
-  
-  // Log cookie options for debugging
-  console.log('[CSRF] Cookie options:', csrfCookieOptions);
-  console.log('[CSRF] Request hostname:', req.hostname);
-  console.log('[CSRF] Request origin:', req.headers.origin);
-  
-  // Generate CSRF token and set cookie
-  const csrfToken = generateToken(req, res);
-  
-  console.log('[CSRF] Generated token:', csrfToken ? 'Token generated' : 'Failed to generate');
-  
-  // Return the token in response as well
-  res.json({ 
-    success: true,
-    token: csrfToken,
-    message: "CSRF token initialized" 
-  });
-});
-
 // AUTH
 router.use("/auth", limiter, authRouter);
 
@@ -97,13 +68,6 @@ router.use("/live-logs-management", liveLogsRouter);
 // Admin source management (requires auth + live logs permission)
 router.use("/admin/global-sources", adminSourceRouter);
 
-router.post("/create-checkout-session", handleCreateCheckoutSession)
-router.get("/session-status", handleSessionStatus)
-router.post("/create-setup-intent", handleCreateSetupIntent)
-router.post("/subscribe-to-pro", handleSubscribeToPro)
-router.post("/upgrade-subscription", handleUpgradeSubscription)
-router.post("/downgrade-subscription", handleDowngradeSubscription)
-router.post("/validate-promo-code", handleValidatePromoCode)
 
 router.use('/admin', adminRouter)
 router.use("/users", usersRouter);

@@ -8,10 +8,6 @@ const buttons = [
     url: "/dashboard/threat/home",
   },
   {
-    label: "Technology Stack",
-    url: "/dashboard/threat/tech-stack",
-  },
-  {
     label: "Keywords",
     url: "/dashboard/threat/keywords",
   },
@@ -37,7 +33,7 @@ export default function ThreatLayout() {
   }, []);
 
   return (
-    <div className="flex flex-col w-full h-full gap-y-2">
+    <div className="flex flex-col w-full h-full gap-y-2 mb-[120px]">
       {/* Page Title Tile */}
       <div className="bg-slate-900/70 dark:bg-slate-900/70 backdrop-blur-sm border border-slate-700/50 rounded-md p-4">
         <div className="flex flex-col gap-3">

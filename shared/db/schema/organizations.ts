@@ -6,33 +6,32 @@ import {
   timestamp,
   boolean,
   integer,
-  jsonb
+  jsonb,
+  pgEnum
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
+
+export const billingPeriodEnum= pgEnum('billingPeriod', ['monthly','yearly'])
 
 // Subscription Tiers Table - Master Configuration
 export const subscriptionTiers = pgTable("subscription_tiers", {
   id: uuid("id").defaultRandom().primaryKey(),
-
   // Tier Definition
   name: text("name").notNull().unique(), // "free", "pro", "enterprise"
+  tierLevel: integer("tier_level").notNull().default(0),
   displayName: text("display_name").notNull(), // "Free Plan", "Pro Plan"
   description: text("description"),
-
+  billingPeriod: billingPeriodEnum(),
   // Pricing
   price: integer("price").notNull(), // In cents, monthly price
   yearlyPrice: integer("yearly_price"), // Annual pricing
-
   // Limits & Features
   maxUsers: integer("max_users").notNull(),
   features: jsonb("metadata"), // Feature flags
-
   //Stripe price idth
   stripePriceId: text("stripe_price_id"),
-
   // Status
   isActive: boolean("is_active").default(true),
-
   // Metadata
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull()
@@ -90,7 +89,7 @@ export const organizationsRelations = relations(organizations, ({ one, many }) =
     references: [subsOrganization.id]
   }),
   subscriptions: many(subsOrganization),
-  users: many(/* users - imported from user.ts if needed */)
+  users: many()
 }));
 
 export const subsOrganizationRelations = relations(subsOrganization, ({ one }) => ({

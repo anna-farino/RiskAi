@@ -1,20 +1,9 @@
-import { pgTable, uuid, text, timestamp, jsonb } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { pgTable, uuid, text, timestamp, jsonb, pgView } from "drizzle-orm/pg-core";
+import { relations, eq } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { users } from "./user";
 import { subscriptionTiers } from "./organizations";
 
-/**
- * Individual User Subscriptions (Free & Pro tiers)
- *
- * This table stores subscriptions for individual users who are NOT part of an organization.
- * When a user has organizationId=NULL, their subscription is stored here.
- *
- * Key Design Principles:
- * - Minimal core fields with flexible JSONB metadata
- * - Metadata stores: trial info, billing cycles, payment methods, usage counters, promo codes
- * - Promote fields from metadata to columns only when you need to query/index them
- */
 export const subsUser = pgTable("subs_user", {
   id: uuid("id").defaultRandom().primaryKey(),
 
@@ -57,6 +46,22 @@ export const subsUserRelations = relations(subsUser, ({ one }) => ({
     references: [subscriptionTiers.id],
   }),
 }));
+
+
+export const userSubscriptionsView = pgView("user_tier_view").as((qb) =>
+  qb
+    .select({
+      email: users.email,
+      name: subscriptionTiers.name,
+      tier_level: subscriptionTiers.tierLevel,
+      sub_id: subsUser.id,
+      metadata: subsUser.metadata,
+    })
+    .from(subsUser)
+    .innerJoin(users, eq(users.id,subsUser.userId))
+    .innerJoin(subscriptionTiers, eq(subscriptionTiers.id,subsUser.tierId))
+);
+
 
 // Insert schema for validation
 export const insertSubsUserSchema = createInsertSchema(subsUser).omit({

@@ -10,7 +10,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { reqLog } from "backend/utils/req-log";
 import { extractTitlesFromUrls, isValidUrl } from "backend/services/scraping/extractors/title-extraction/bulk-title-extractor";
-import techStackRouter from "./tech-stack";
+import techStackRouter from "../../tech-stack/tech-stack";
 
 export const threatRouter = Router();
 

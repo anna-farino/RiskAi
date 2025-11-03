@@ -1,17 +1,13 @@
 import { stripe } from 'backend/utils/stripe-config';
+import { logStripeOperation } from 'backend/services/stripe-operation-tracker';
 import { Response } from 'express';
 import { FullRequest } from 'backend/middleware';
+import { planPrice } from './get-plan-prices';
 
-const FREE_PRICE_ID = 'price_1SIai04uGyk26FKnKrY7JcZ5';
-const PRO_PRICE_ID = 'price_1SIZwt4uGyk26FKnXAd3TWtW';
-
-export default async function handleUpgradeSubscription(
-  req: FullRequest,
-  res: Response
-) {
+export default async function handleUpgradeSubscription(req: FullRequest, res: Response) {
   try {
     const { email } = req.user;
-    const { paymentMethodId, promotionCodeId } = req.body;
+    const { paymentMethodId, promotionCodeId, billingPeriod = 'monthly' } = req.body;
 
     if (!paymentMethodId) {
       return res.status(400).json({ error: 'Payment method required' });
@@ -42,17 +38,17 @@ export default async function handleUpgradeSubscription(
     const subscription = subscriptions.data[0];
 
     // Verify it's a free subscription
-    const freeItem = subscription.items.data.find(
-      item => item.price.id === FREE_PRICE_ID
+    const currentPlan = subscription.items.data.find(
+      item => item 
     );
 
-    if (!freeItem) {
+    if (!currentPlan) {
       return res.status(400).json({
-        error: 'Subscription is not on free plan'
+        error: `Subscription doesn't have a plan`
       });
     }
 
-    console.log('[UPGRADE] Upgrading subscription:', subscription.id);
+    console.log('[UPGRADE] Changing plan:', subscription.id);
 
     // Set the payment method as default for the customer
     await stripe.customers.update(customer.id, {
@@ -61,19 +57,26 @@ export default async function handleUpgradeSubscription(
       },
     });
 
+    // Select price ID based on billing period
+    const priceId = billingPeriod === 'yearly' ? planPrice.pro.yearly : planPrice.pro.monthly;
+
     // Update subscription: remove free item, add pro item
     const updateParams: any = {
       items: [
         {
-          id: freeItem.id,
+          id: currentPlan.id,
           deleted: true,
         },
         {
-          price: PRO_PRICE_ID,
+          price: priceId,
         },
       ],
       proration_behavior: 'create_prorations',
       default_payment_method: paymentMethodId,
+      metadata: {
+        ...subscription.metadata,
+        billingPeriod
+      }
     };
 
     // Add promotion code if provided
@@ -89,12 +92,20 @@ export default async function handleUpgradeSubscription(
 
     console.log('[UPGRADE] ✅ Upgraded to Pro:', subscription.id);
 
+    // Log the operation for tracking
+    await logStripeOperation({
+      operationType: 'upgrade_subscription',
+      userId: req.user.id,
+      stripeCustomerId: customer.id,
+      stripeSubscriptionId: subscription.id,
+      requestPayload: { fromTier: 'free', toTier: 'pro', billingPeriod, hasPromoCode: !!promotionCodeId }
+    });
+
     res.json({
       success: true,
       subscription: {
         id: updatedSubscription.id,
         status: updatedSubscription.status,
-        current_period_end: updatedSubscription.current_period_end,
       },
     });
 

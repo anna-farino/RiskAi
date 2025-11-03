@@ -36,58 +36,6 @@ export async function verifyDevLogPermission(email: string): Promise<boolean> {
   }
 }
 
-/**
- * Add a developer to the live logs permission list
- * This is a utility function for managing permissions
- */
-export async function addDevLogPermission(email: string, createdBy: string, notes?: string): Promise<boolean> {
-  try {
-    if (!email || !createdBy) {
-      return false;
-    }
-
-    await db
-      .insert(devsAllowedLogs)
-      .values({
-        email: email.toLowerCase().trim(),
-        createdBy: createdBy.toLowerCase().trim(),
-        notes: notes || `Added for live logs access`
-      });
-
-    log(`Added live logs permission for ${email} by ${createdBy}`, 'permissions');
-    return true;
-
-  } catch (error: any) {
-    log(`Error adding live logs permission for ${email}: ${error.message}`, 'permissions-error');
-    return false;
-  }
-}
-
-/**
- * Remove a developer from the live logs permission list
- */
-export async function removeDevLogPermission(email: string): Promise<boolean> {
-  try {
-    if (!email) {
-      return false;
-    }
-
-    const result = await db
-      .delete(devsAllowedLogs)
-      .where(eq(devsAllowedLogs.email, email.toLowerCase().trim()));
-
-    log(`Removed live logs permission for ${email}`, 'permissions');
-    return true;
-
-  } catch (error: any) {
-    log(`Error removing live logs permission for ${email}: ${error.message}`, 'permissions-error');
-    return false;
-  }
-}
-
-/**
- * List all developers with live logs permissions
- */
 export async function listDevLogPermissions(): Promise<Array<{email: string, createdAt: Date, createdBy: string, notes?: string}>> {
   try {
     const devs = await db

@@ -1,9 +1,3 @@
-/**
- * Unified Storage Service
- * Phase 5: Reads from global tables with user preference filtering
- * Replaces app-specific storage implementations for articles and sources
- */
-
 import { db } from 'backend/db/db';
 import { withUserContext } from 'backend/db/with-user-context';
 import {
@@ -15,9 +9,10 @@ import {
 } from '@shared/db/schema/global-tables';
 import { keywords, type Keyword } from '@shared/db/schema/news-tracker';
 import { threatKeywords, type ThreatKeyword } from '@shared/db/schema/threat-tracker';
-import { eq, and, or, inArray, sql, desc, ilike, isNull } from 'drizzle-orm';
+import { eq, and, or, inArray, sql, desc, ilike, isNull, lte } from 'drizzle-orm';
 import { log } from 'backend/utils/log';
 import { envelopeDecryptAndRotate } from 'backend/utils/encryption-new';
+import { getUserTierLevel } from './utils/get-user-tier-level';
 
 export type AppType = 'news-radar' | 'threat-tracker';
 
@@ -383,6 +378,9 @@ export class UnifiedStorageService {
 
       const appContext = appType === 'news-radar' ? 'news_radar' : 'threat_tracker';
 
+      const userTierLevel = await getUserTierLevel(userId)
+      console.log("User tier level: ", userTierLevel)
+
       // Get all active global sources with user preference status
       const sourcesWithPrefs = await db
         .select({
@@ -398,7 +396,10 @@ export class UnifiedStorageService {
             eq(userSourcePreferences.appContext, appContext)
           )
         )
-        .where(eq(globalSources.isActive, true));
+        .where(and(
+          eq(globalSources.isActive, true),
+          lte(globalSources.requiredTierLevel,userTierLevel)
+        ));
 
       // Map to include enabled status
       const sourcesWithStatus = sourcesWithPrefs.map(sp => ({

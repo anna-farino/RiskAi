@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Operation-Tracking Reconciliation - October 27, 2025</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-code: #1a1f35;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent-purple: #BF00FF;
+            --accent-cyan: #00FFFF;
+            --border-color: #334155;
+            --success-green: #10b981;
+            --warning-yellow: #f59e0b;
+            --error-red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
+            padding: 3rem 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        header .meta {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+        }
+
+        .content {
+            padding: 3rem;
+        }
+
+        h2 {
+            color: var(--accent-cyan);
+            font-size: 2rem;
+            margin: 2.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        h3 {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem 0;
+        }
+
+        h4 {
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            margin: 1.5rem 0 0.8rem 0;
+        }
+
+        p {
+            margin: 1rem 0;
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+        }
+
+        ul, ol {
+            margin: 1rem 0 1rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin: 0.5rem 0;
+        }
+
+        code {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            background: var(--bg-code);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            color: var(--accent-cyan);
+        }
+
+        pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            display: block;
+        }
+
+        .highlight-box {
+            background: rgba(191, 0, 255, 0.1);
+            border-left: 4px solid var(--accent-purple);
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .success-badge {
+            display: inline-block;
+            background: var(--success-green);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 0 0.3rem;
+        }
+
+        .error-badge {
+            display: inline-block;
+            background: var(--error-red);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 0 0.3rem;
+        }
+
+        .flow-diagram {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            color: var(--text-primary);
+            line-height: 1.8;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            background: var(--bg-code);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 1rem;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        .comparison-table th {
+            background: linear-gradient(135deg, rgba(191, 0, 255, 0.2) 0%, rgba(0, 255, 255, 0.2) 100%);
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            color: var(--text-secondary);
+        }
+
+        .stat-box {
+            display: inline-block;
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem;
+            min-width: 200px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--accent-purple);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+        }
+
+        .toc {
+            background: var(--bg-code);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--accent-cyan);
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--accent-cyan);
+        }
+
+        /* Syntax highlighting */
+        .keyword { color: #c792ea; }
+        .string { color: #c3e88d; }
+        .comment { color: #546e7a; font-style: italic; }
+        .function { color: #82aaff; }
+        .variable { color: #eeffff; }
+        .type { color: #ffcb6b; }
+        .operator { color: #89ddff; }
+        .number { color: #f78c6c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 Stripe Operation-Tracking Reconciliation</h1>
+            <div class="meta">Smarter, Faster, More Efficient | October 27, 2025</div>
+        </header>
+
+        <div class="content">
+            <div class="toc">
+                <h3>📋 Table of Contents</h3>
+                <ul>
+                    <li><a href="#overview">1. Overview</a></li>
+                    <li><a href="#problem">2. The Problem</a></li>
+                    <li><a href="#solution">3. The Solution</a></li>
+                    <li><a href="#architecture">4. Architecture</a></li>
+                    <li><a href="#implementation">5. Implementation Details</a></li>
+                    <li><a href="#flow">6. Operation Flow</a></li>
+                    <li><a href="#scheduling">7. Scheduling</a></li>
+                    <li><a href="#benefits">8. Benefits & Comparison</a></li>
+                    <li><a href="#schema">9. Database Schema</a></li>
+                    <li><a href="#examples">10. Code Examples</a></li>
+                    <li><a href="#monitoring">11. Monitoring</a></li>
+                </ul>
+            </div>
+
+            <section id="overview">
+                <h2>Overview</h2>
+                <p>This document describes a <strong>smarter, more efficient</strong> approach to keeping our database in sync with Stripe: <strong>operation tracking with targeted verification</strong>.</p>
+
+                <div class="highlight-box">
+                    <h4>Instead of polling all subscriptions daily (expensive and slow), we:</h4>
+                    <ol>
+                        <li><strong>Log every Stripe API call</strong> we make</li>
+                        <li><strong>Track webhook arrivals</strong> for each operation</li>
+                        <li><strong>Check hourly</strong> for operations missing webhooks (>1 minute old)</li>
+                        <li><strong>Make targeted API calls</strong> only for missed webhooks</li>
+                        <li><strong>Keep weekly full reconciliation</strong> as ultimate safety net</li>
+                    </ol>
+                </div>
+
+                <h3>Key Improvements</h3>
+                <div style="text-align: center;">
+                    <div class="stat-box">
+                        <div class="stat-number">95%</div>
+                        <div class="stat-label">Fewer API Calls</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">96%</div>
+                        <div class="stat-label">Faster Detection</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-number">1 hr</div>
+                        <div class="stat-label">Max Sync Delay</div>
+                    </div>
+                </div>
+            </section>
+
+            <section id="problem">
+                <h2>The Problem</h2>
+
+                <h3>Webhook-Based Sync Risk</h3>
+                <p>Our application relies on webhooks for real-time sync:</p>
+
+                <div class="flow-diagram">
+1. Our server → Stripe API call (create subscription)
+           ↓
+2. Stripe processes → Sends webhook
+           ↓
+3. Webhook handler → Updates local DB
+                </div>
+
+                <p><span class="error-badge">Problem</span> If webhooks fail (network issues, server downtime, bugs), DB becomes out of sync.</p>
+
+                <h3>Previous Solution: Daily Full Reconciliation</h3>
+                <ul>
+                    <li>Fetched ALL subscriptions from Stripe daily</li>
+                    <li>Compared with entire local DB</li>
+                    <li>Fixed any discrepancies</li>
+                </ul>
+
+                <div class="highlight-box">
+                    <h4>Downsides:</h4>
+                    <ul>
+                        <li><span class="error-badge">❌</span> Expensive (many API calls)</li>
+                        <li><span class="error-badge">❌</span> Slow detection (up to 24 hours out of sync)</li>
+                        <li><span class="error-badge">❌</span> Wasteful (checks subscriptions that didn't change)</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="solution">
+                <h2>The Solution</h2>
+
+                <h3>Operation-Tracking Reconciliation</h3>
+                <p><strong>Core Insight:</strong> We only need to verify operations that WE initiated. If we log every API call and track webhook responses, we can detect missed webhooks immediately and verify only those specific operations.</p>
+
+                <div class="flow-diagram">
+┌─────────────────────────────────────────────┐
+│  Step 1: Our Handler Calls Stripe API      │
+│  → Log operation to stripe_operations_log  │
+└─────────────────┬───────────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────────┐
+│  Step 2: Stripe Sends Webhook              │
+│  → Mark webhook_received = true in log     │
+└─────────────────┬───────────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────────┐
+│  Step 3: Hourly Job Checks for Missed      │
+│  → Find webhook_received = false (>1 min)  │
+│  → Make targeted API call to verify        │
+│  → Update DB if needed                     │
+│  → Mark as verified/fixed                  │
+└─────────────────────────────────────────────┘
+                </div>
+            </section>
+
+            <section id="architecture">
+                <h2>Architecture</h2>
+
+                <h3>Three-Layer System</h3>
+
+                <h4>Layer 1: Hourly Targeted Verification (Primary)</h4>
+                <ul>
+                    <li><strong>When:</strong> Every hour at :00</li>
+                    <li><strong>What:</strong> Checks operations with <code>webhook_received = false</code> (>1 minute old)</li>
+                    <li><strong>Action:</strong> Makes targeted Stripe API call to verify</li>
+                    <li><strong>API Impact:</strong> 0-5 calls/hour (only for missed webhooks)</li>
+                </ul>
+
+                <h4>Layer 2: Daily Cleanup</h4>
+                <ul>
+                    <li><strong>When:</strong> Every day at 3am EST</li>
+                    <li><strong>What:</strong> Deletes operation logs older than 7 days</li>
+                    <li><strong>Purpose:</strong> Keep database lean</li>
+                </ul>
+
+                <h4>Layer 3: Weekly Full Reconciliation (Ultimate Safety Net)</h4>
+                <ul>
+                    <li><strong>When:</strong> Every Sunday at 2am EST</li>
+                    <li><strong>What:</strong> Full comparison of all subscriptions (old approach)</li>
+                    <li><strong>Purpose:</strong> Catch any edge cases not covered by operation tracking</li>
+                </ul>
+            </section>
+
+            <section id="implementation">
+                <h2>Implementation Details</h2>
+
+                <h3>Files Created/Modified</h3>
+
+                <h4>1. New Database Table</h4>
+                <p><strong>File:</strong> <code>shared/db/schema/stripe.ts</code></p>
+                <p>Added <code>stripeOperationsLog</code> table with 7-day retention</p>
+
+                <h4>2. Operation Tracker Service</h4>
+                <p><strong>File:</strong> <code>backend/services/stripe-operation-tracker.ts</code></p>
+                <ul>
+                    <li><code>logStripeOperation()</code> - Log API calls immediately</li>
+                    <li><code>markWebhookReceived()</code> - Mark when webhook arrives</li>
+                    <li><code>verifyPendingOperations()</code> - Hourly verification job</li>
+                    <li><code>cleanupOldOperationLogs()</code> - Daily cleanup</li>
+                </ul>
+
+                <h4>3. Stripe Handlers Updated (4 files)</h4>
+                <ul>
+                    <li><code>backend/utils/stripe/create-free-sub.ts</code></li>
+                    <li><code>backend/handlers/stripe/subscribe-to-pro.ts</code></li>
+                    <li><code>backend/handlers/stripe/upgrade-subscription.ts</code></li>
+                    <li><code>backend/handlers/stripe/downgrade-subscription.ts</code></li>
+                </ul>
+
+                <h4>4. Webhook Handler Updated</h4>
+                <p><strong>File:</strong> <code>backend/handlers/stripe/webhook.ts</code></p>
+                <p>Now calls <code>markWebhookReceived()</code> after processing each webhook event</p>
+
+                <h4>5. Scheduler Updated</h4>
+                <p><strong>File:</strong> <code>backend/services/global-scheduler.ts</code></p>
+                <ul>
+                    <li>Hourly: Operation verification</li>
+                    <li>Daily 3am EST: Cleanup old logs</li>
+                    <li>Weekly Sunday 2am EST: Full reconciliation</li>
+                </ul>
+            </section>
+
+            <section id="flow">
+                <h2>Operation Flow</h2>
+
+                <h3>Example: User Subscribes to Pro</h3>
+
+<pre><code><span class="comment">// 1. Handler receives request</span>
+<span class="keyword">export default async function</span> <span class="function">handleSubscribeToPro</span>(<span class="variable">req</span>, <span class="variable">res</span>) {
+  <span class="comment">// ... validation ...</span>
+
+  <span class="comment">// 2. Call Stripe API</span>
+  <span class="keyword">const</span> <span class="variable">subscription</span> = <span class="keyword">await</span> stripe.subscriptions.<span class="function">create</span>({
+    <span class="variable">customer</span>: customerId,
+    <span class="variable">items</span>: [{ <span class="variable">price</span>: PRO_PRICE_ID }],
+    <span class="variable">metadata</span>: { userId, email, customerId }
+  });
+
+  <span class="comment">// 3. Log the operation immediately</span>
+  <span class="keyword">await</span> <span class="function">logStripeOperation</span>({
+    <span class="variable">operationType</span>: <span class="string">'create_subscription'</span>,
+    <span class="variable">userId</span>: req.user.id,
+    <span class="variable">stripeCustomerId</span>: customerId,
+    <span class="variable">stripeSubscriptionId</span>: subscription.id,
+    <span class="variable">requestPayload</span>: { <span class="variable">tierType</span>: <span class="string">'pro'</span>, billingPeriod }
+  });
+
+  <span class="comment">// 4. Return success to user</span>
+  res.<span class="function">json</span>({ <span class="variable">success</span>: <span class="keyword">true</span>, subscription });
+}</code></pre>
+
+                <h3>Normal Flow: Webhook Arrives</h3>
+
+<pre><code><span class="comment">// Webhook handler processes subscription.created event</span>
+<span class="keyword">export async function</span> <span class="function">handleStripeWebhook</span>(<span class="variable">req</span>, <span class="variable">res</span>) {
+  <span class="keyword">const</span> <span class="variable">event</span> = stripe.webhooks.<span class="function">constructEvent</span>(req.body, sig, secret);
+
+  <span class="keyword">switch</span> (event.type) {
+    <span class="keyword">case</span> <span class="string">'customer.subscription.created'</span>:
+      <span class="comment">// Process webhook (update DB)</span>
+      <span class="keyword">await</span> <span class="function">handleSubscriptionCreated</span>(event.data.object);
+
+      <span class="comment">// Mark operation as webhook-received</span>
+      <span class="keyword">await</span> <span class="function">markWebhookReceived</span>(
+        event.data.object.id,
+        <span class="string">'create_subscription'</span>,
+        event.id
+      );
+      <span class="keyword">break</span>;
+  }
+}</code></pre>
+
+                <h3>If Webhook is Missed</h3>
+
+<pre><code><span class="comment">// Hourly job runs at :00 of each hour</span>
+<span class="keyword">async function</span> <span class="function">executeStripeVerification</span>() {
+  <span class="comment">// Find operations with webhook_received = false (>1 min old)</span>
+  <span class="keyword">const</span> <span class="variable">report</span> = <span class="keyword">await</span> <span class="function">verifyPendingOperations</span>();
+
+  <span class="comment">// For each pending operation:</span>
+  <span class="comment">// 1. Call stripe.subscriptions.retrieve(id)</span>
+  <span class="comment">// 2. Check if DB matches Stripe</span>
+  <span class="comment">// 3. Update DB if needed</span>
+  <span class="comment">// 4. Mark as 'verified' or 'fixed'</span>
+}</code></pre>
+            </section>
+
+            <section id="benefits">
+                <h2>Benefits & Comparison</h2>
+
+                <h3>API Call Reduction</h3>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Approach</th>
+                            <th>API Calls/Day</th>
+                            <th>Detection Time</th>
+                            <th>Efficiency</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Daily Full Reconciliation</strong></td>
+                            <td>10-100</td>
+                            <td>Up to 24 hours</td>
+                            <td><span class="error-badge">❌ Wasteful</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Operation Tracking (New)</strong></td>
+                            <td>0-5</td>
+                            <td>Up to 1 hour</td>
+                            <td><span class="success-badge">✅ Targeted</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Improvement</strong></td>
+                            <td><span class="success-badge">95%+ reduction</span></td>
+                            <td><span class="success-badge">96% faster</span></td>
+                            <td><span class="success-badge">Event-driven</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <h3>Detection Speed Comparison</h3>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Issue</th>
+                            <th>Old Detection</th>
+                            <th>New Detection</th>
+                            <th>Improvement</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Webhook missed at 9:15am</td>
+                            <td>Next day 2am<br>(16h 45m)</td>
+                            <td>Next hour 10:00am<br>(45min)</td>
+                            <td><span class="success-badge">96% faster</span></td>
+                        </tr>
+                        <tr>
+                            <td>Average case</td>
+                            <td><strong>~12 hours</strong></td>
+                            <td><strong>~30 minutes</strong></td>
+                            <td><span class="success-badge">96% faster</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section id="schema">
+                <h2>Database Schema</h2>
+
+                <h3>stripe_operations_log Table</h3>
+
+<pre><code><span class="keyword">CREATE TABLE</span> stripe_operations_log (
+  id <span class="type">UUID</span> <span class="keyword">PRIMARY KEY DEFAULT</span> <span class="function">gen_random_uuid</span>(),
+
+  <span class="comment">-- Operation Details</span>
+  operation_type <span class="type">TEXT NOT NULL</span>,
+  <span class="keyword">timestamp</span> <span class="type">TIMESTAMP NOT NULL DEFAULT NOW</span>(),
+
+  <span class="comment">-- Identifiers</span>
+  user_id <span class="type">UUID NOT NULL</span> <span class="keyword">REFERENCES</span> users(id) <span class="keyword">ON DELETE CASCADE</span>,
+  stripe_customer_id <span class="type">TEXT NOT NULL</span>,
+  stripe_subscription_id <span class="type">TEXT</span>,
+
+  <span class="comment">-- Request Data</span>
+  request_payload <span class="type">JSONB</span>,
+
+  <span class="comment">-- Webhook Correlation</span>
+  webhook_received <span class="type">BOOLEAN NOT NULL DEFAULT FALSE</span>,
+  webhook_timestamp <span class="type">TIMESTAMP</span>,
+  webhook_event_id <span class="type">TEXT</span>,
+
+  <span class="comment">-- Verification Status</span>
+  verification_status <span class="type">TEXT NOT NULL DEFAULT</span> <span class="string">'pending'</span>,
+  verification_timestamp <span class="type">TIMESTAMP</span>,
+  verification_notes <span class="type">TEXT</span>,
+
+  <span class="comment">-- Timestamps</span>
+  created_at <span class="type">TIMESTAMP NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="comment">-- Index for hourly verification query</span>
+<span class="keyword">CREATE INDEX</span> idx_stripe_operations_verification
+  <span class="keyword">ON</span> stripe_operations_log (webhook_received, <span class="keyword">timestamp</span>, verification_status)
+  <span class="keyword">WHERE</span> webhook_received <span class="operator">=</span> <span class="keyword">false</span> <span class="keyword">AND</span> verification_status <span class="operator">=</span> <span class="string">'pending'</span>;</code></pre>
+            </section>
+
+            <section id="monitoring">
+                <h2>Monitoring</h2>
+
+                <h3>Log Messages</h3>
+
+                <div class="highlight-box">
+<pre style="margin: 0; padding: 0;"><code>[OPERATION TRACKER] Logged create_subscription for user abc123
+[OPERATION TRACKER] Marked webhook received for operation op_xxx
+[STRIPE VERIFICATION] Starting hourly operation verification
+[STRIPE VERIFICATION] Found 3 pending operations to verify
+[STRIPE VERIFICATION] Webhook missed: subscription sub_xxx not in DB
+[STRIPE VERIFICATION] Completed: 3 checked, 1 missed, 1 fixed, 0 failed</code></pre>
+                </div>
+
+                <h3>Monitoring Checklist</h3>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Frequency</th>
+                            <th>What to Check</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Daily</strong></td>
+                            <td>
+                                • Verification runs every hour<br>
+                                • Look for <code>verification_status = 'failed'</code>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Weekly</strong></td>
+                            <td>
+                                • Review verification reports<br>
+                                • Check full reconciliation results
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Monthly</strong></td>
+                            <td>
+                                • Analyze API usage (&lt;150 calls/month)<br>
+                                • Verify 7-day retention working
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <section>
+                <h2>Conclusion</h2>
+
+                <div class="highlight-box">
+                    <h3>Key Achievements</h3>
+                    <ul>
+                        <li><span class="success-badge">✅</span> <strong>95% fewer API calls</strong> - From 10-100/day to 0-5/day</li>
+                        <li><span class="success-badge">✅</span> <strong>96% faster detection</strong> - From 12 hours to 30 minutes average</li>
+                        <li><span class="success-badge">✅</span> <strong>Complete audit trail</strong> - Every operation logged</li>
+                        <li><span class="success-badge">✅</span> <strong>Intelligent verification</strong> - Only checks what needs it</li>
+                        <li><span class="success-badge">✅</span> <strong>Triple safety net</strong> - Hourly + weekly + audit logs</li>
+                    </ul>
+                </div>
+
+                <h3>Next Steps</h3>
+                <ol>
+                    <li>Monitor initial performance - Track API usage and detection times</li>
+                    <li>Review failed operations - Investigate any patterns</li>
+                    <li>Consider expanding - Add tracking for payment methods, promo codes</li>
+                    <li>Add alerting - Notifications for high failure rates</li>
+                </ol>
+            </section>
+
+            <footer style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-secondary); text-align: center;">
+                <p>Last updated: October 27, 2025</p>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

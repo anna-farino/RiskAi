@@ -3,6 +3,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Input } from "@/components/ui/input";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Spinner } from "./spinner";
 
 interface AutocompleteOption {
   id: string;
@@ -147,7 +148,7 @@ export function Autocomplete({
               }}
             />
             {loading && (
-              <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+              <Spinner className="absolute right-2 top-[10px] text-muted-foreground" />
             )}
           </div>
         </PopoverTrigger>

@@ -1,4 +1,5 @@
 import { stripe } from "backend/utils/stripe-config";
+import { logStripeOperation } from "backend/services/stripe-operation-tracker";
 import Stripe from "stripe";
 
 type Args = {
@@ -51,6 +52,15 @@ export default async function createFreeSub({ userId, email }: Args): Promise<vo
         }
       ]
     })
+
+    // Log the operation for tracking
+    await logStripeOperation({
+      operationType: 'create_subscription',
+      userId,
+      stripeCustomerId: customer.id,
+      stripeSubscriptionId: subscription.id,
+      requestPayload: { tierType: 'free', email }
+    });
   } else {
     subscription = subResult.data[0]
   }

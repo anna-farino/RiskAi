@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { AlertDialogPortal } from "@radix-ui/react-alert-dialog";
 
 type twNumber = 0 | 4 | 8 | 12 | 16 | 20 | 24 | 28 | 32 | 36 | 40 | 44 | 48 | 52 | 56 | 60 | 64 | 68 | 72 | 76 | 80 | 84 | 88 | 92 | 96 | 100 | 104 | 108 | 112 | 116 | 120 | 124 | 128 | 132 | 136 | 140 | 144 | 148 | 152 | 156 | 160 | 164 | 168 | 172 | 176 | 180 | 184 | 188 | 192 | 196 | 200;
 
@@ -25,6 +26,7 @@ type Props = {
   confirmTitle?: string,
   twMaxWidthClass?: `max-w-${twNumber}` | `max-w-${twSize}`,
   twGapClass?: `gap-${twNumber}`,
+  forceMount?: true | undefined
 }
 export function CustomAlertDialog({
   children,
@@ -36,7 +38,8 @@ export function CustomAlertDialog({
   cancelTitle="Cancel",
   confirmTitle="Confirm",
   twMaxWidthClass="max-w-96",
-  twGapClass="gap-4"
+  twGapClass="gap-4",
+  forceMount
 }: Props) {
 
   function handleAction(e: React.MouseEvent) {
@@ -52,27 +55,29 @@ export function CustomAlertDialog({
       <AlertDialogTrigger asChild>
         { children }
       </AlertDialogTrigger>
-      <AlertDialogContent className={`flex flex-col w-full ${twMaxWidthClass} ${twGapClass}`}>
-        <AlertDialogHeader>
-          <AlertDialogTitle>
-            {title}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {description}
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>
-            {cancelTitle}
-          </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={handleAction}
-            className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
-          >
-            {confirmTitle}
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
+      <AlertDialogPortal forceMount={forceMount}>
+        <AlertDialogContent className={`flex flex-col w-full ${twMaxWidthClass} ${twGapClass}`}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {cancelTitle}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleAction}
+              className="bg-[#BF00FF] hover:bg-[#BF00FF]/80 text-white hover:text-[#00FFFF] border-0"
+            >
+              {confirmTitle}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialogPortal>
     </AlertDialog>
   )
 }

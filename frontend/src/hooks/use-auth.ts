@@ -7,10 +7,29 @@ import { useLogout } from "@/hooks/use-logout";
 export type Role = 'admin' | 'user'
 export type UserWithPerm = User
   & { permissions: string[] }
+  & { accountStatus: 'pending_deletion' | 'active' | 'deleted' }
+  & { createdAt: Date }
+  & { subMetadata?: {
+    cancel_at_period_end?: boolean,
+    promo_code?: boolean,
+    tier?: string,
+    current_period?: {
+      end: number,
+      start: number
+    }
+  }}
   & { role: Role }
   & { subscription: string }
+  & { tierLevel: number }
+  & { subscriptionStatus: string }
+  & { subscriptionBillingPeriod: 'monthly' | 'yearly' }
+  & { subscriptionEnd: number }
+  & { subscriptionCancelEnd: boolean }
   & { hasPromoCode?: boolean }
   & { promoInfo?: { description?: string } }
+  & { scheduledDowngrade?: { willDowngrade: boolean; downgradeAt: number } }
+  & { onBoarded?: boolean }
+  & { subFree?: boolean }
 
 export function useAuth() {
   const { isAuthenticated, user: auth0User } = useAuth0();
@@ -41,6 +60,12 @@ export function useAuth() {
 
         const data = await response.json();
         const user = data.user.length > 0 ? data.user[0] : null;
+
+        if (user) {
+          const userData: User = user
+          localStorage.setItem('mfa',userData.twoFactorEnabled ? 'true' : 'false')
+        }
+
         return user;
       } catch (error) {
         console.error("User data fetch error:", error);

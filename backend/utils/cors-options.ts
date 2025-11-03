@@ -21,9 +21,8 @@ export const corsOptions = {
     'PATCH'
   ],
   allowedHeaders: [
-    'Content-Type', 
-    'Authorization', 
-    'X-Requested-With',
-    'x-csrf-token'
+    'Content-Type',
+    'Authorization',
+    'X-Requested-With'
   ],
 };

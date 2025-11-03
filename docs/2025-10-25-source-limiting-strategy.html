@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2025-10-25: Source Limiting Strategy & Entity Tables Analysis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        header .date {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        h2 {
+            color: #11998e;
+            font-size: 2em;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #11998e;
+        }
+
+        h3 {
+            color: #38ef7d;
+            font-size: 1.5em;
+            margin: 25px 0 15px 0;
+        }
+
+        h4 {
+            color: #555;
+            font-size: 1.2em;
+            margin: 20px 0 10px 0;
+        }
+
+        p {
+            margin-bottom: 15px;
+            text-align: justify;
+        }
+
+        ul, ol {
+            margin: 15px 0 15px 30px;
+        }
+
+        li {
+            margin-bottom: 8px;
+        }
+
+        .option-card {
+            background: #f8f9fa;
+            border-left: 4px solid #11998e;
+            padding: 25px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .option-card.recommended {
+            border-left: 4px solid #ffd700;
+            background: linear-gradient(135deg, #fff9e6 0%, #fffef5 100%);
+        }
+
+        .option-card h3 {
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .star-badge {
+            background: #ffd700;
+            color: #333;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+
+        .pros {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .cons {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .recommendation {
+            background: linear-gradient(135deg, #11998e22 0%, #38ef7d22 100%);
+            border: 2px solid #11998e;
+            padding: 25px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+
+        .recommendation h3 {
+            color: #11998e;
+            margin-top: 0;
+        }
+
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 15px 0;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        .keyword { color: #66d9ef; }
+        .string { color: #a6e22e; }
+        .comment { color: #75715e; font-style: italic; }
+        .function { color: #e6db74; }
+        .number { color: #ae81ff; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        table th {
+            background: #11998e;
+            color: white;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        table td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            vertical-align: top;
+        }
+
+        table tr:hover {
+            background: #f5f5f5;
+        }
+
+        table tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .tag {
+            display: inline-block;
+            background: #11998e;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.85em;
+            margin-right: 8px;
+        }
+
+        .tag.free { background: #6c757d; }
+        .tag.pro { background: #28a745; }
+        .tag.enterprise { background: #ffc107; color: #333; }
+        .tag.info { background: #17a2b8; }
+
+        .comparison-table {
+            margin: 30px 0;
+        }
+
+        .comparison-table th {
+            background: #38ef7d;
+        }
+
+        .entity-table {
+            font-size: 0.9em;
+        }
+
+        .entity-table th {
+            background: #17a2b8;
+        }
+
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .note strong {
+            color: #856404;
+        }
+
+        .implementation-step {
+            background: white;
+            border: 2px solid #e9ecef;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 6px;
+        }
+
+        .implementation-step h4 {
+            color: #11998e;
+            margin-top: 0;
+        }
+
+        footer {
+            background: #f8f9fa;
+            padding: 20px;
+            text-align: center;
+            color: #666;
+            border-top: 1px solid #ddd;
+        }
+
+        .emoji {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+
+        .example-box {
+            background: #f1f8ff;
+            border: 1px solid #c8e1ff;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .example-box strong {
+            color: #0366d6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎯 Source Limiting Strategy & Entity Tables</h1>
+            <p class="date">Analysis Date: October 25, 2025</p>
+        </header>
+
+        <div class="content">
+            <h2>📋 Entity Tables Overview</h2>
+            <p>Based on the provided Excel data, here's the complete structure of entity tables used in Threat Tracker:</p>
+
+            <h3>Core Entity Tables</h3>
+
+            <table class="entity-table">
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="5"><strong>software</strong></td>
+                        <td><code>name</code></td>
+                        <td>string</td>
+                        <td>Original name</td>
+                    </tr>
+                    <tr>
+                        <td><code>normalized_name</code></td>
+                        <td>string</td>
+                        <td>All lowercase for matching</td>
+                    </tr>
+                    <tr>
+                        <td><code>version</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>description</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>metadata</code></td>
+                        <td>jsonb</td>
+                        <td><code>{"isMalware": true/false}</code> - Separates malware from legitimate software</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="6"><strong>hardware</strong></td>
+                        <td><code>name</code></td>
+                        <td>string</td>
+                        <td>Original name</td>
+                    </tr>
+                    <tr>
+                        <td><code>normalized_name</code></td>
+                        <td>string</td>
+                        <td>All lowercase for matching</td>
+                    </tr>
+                    <tr>
+                        <td><code>model</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Has data but purpose unclear</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>manufacturer</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Has data but purpose unclear</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>category</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Has data but purpose unclear</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>description</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="6"><strong>companies</strong></td>
+                        <td><code>name</code></td>
+                        <td>string</td>
+                        <td>Original name</td>
+                    </tr>
+                    <tr>
+                        <td><code>normalized_name</code></td>
+                        <td>string</td>
+                        <td>All lowercase for matching</td>
+                    </tr>
+                    <tr>
+                        <td><code>type</code></td>
+                        <td>string</td>
+                        <td>(vendor, client, mentioned) <span class="tag info">Not used - relationship set in users_companies</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>industry</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>description</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>website</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="8"><strong>threat_actors</strong></td>
+                        <td><code>name</code></td>
+                        <td>string</td>
+                        <td>Primary name</td>
+                    </tr>
+                    <tr>
+                        <td><code>normalized_name</code></td>
+                        <td>string</td>
+                        <td>All lowercase</td>
+                    </tr>
+                    <tr>
+                        <td><code>aliases</code></td>
+                        <td>array</td>
+                        <td>Ex: ["Transparent Tribe", "APT36", "Mythic Leopard"]</td>
+                    </tr>
+                    <tr>
+                        <td><code>type</code></td>
+                        <td>string</td>
+                        <td>Ex: APT, ransomware, nation state, criminal</td>
+                    </tr>
+                    <tr>
+                        <td><code>origin</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>first_seen</code></td>
+                        <td>timestamp</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>description</code></td>
+                        <td>string</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>tactics</code></td>
+                        <td>array</td>
+                        <td><span class="tag info">Empty, not used yet</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><strong>threat_keywords</strong></td>
+                        <td><code>term</code></td>
+                        <td>string</td>
+                        <td>The keyword text</td>
+                    </tr>
+                    <tr>
+                        <td><code>category</code></td>
+                        <td>string</td>
+                        <td>Always set to "threat"</td>
+                    </tr>
+                    <tr>
+                        <td><code>is_default</code></td>
+                        <td>boolean</td>
+                        <td>TRUE for system defaults, FALSE for user custom</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_id</code></td>
+                        <td>uuid</td>
+                        <td>NULL for defaults, user ID for custom keywords</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Junction/Association Tables (User Tech Stack)</h3>
+
+            <table class="entity-table">
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="4"><strong>users_companies</strong></td>
+                        <td><code>user_id</code></td>
+                        <td>uuid</td>
+                        <td>User who added it</td>
+                    </tr>
+                    <tr>
+                        <td><code>company_id</code></td>
+                        <td>uuid</td>
+                        <td>Reference to companies table</td>
+                    </tr>
+                    <tr>
+                        <td><code>relationship_type</code></td>
+                        <td>string</td>
+                        <td>"vendor" or "client" - defines user's relationship</td>
+                    </tr>
+                    <tr>
+                        <td><code>is_active</code></td>
+                        <td>boolean</td>
+                        <td>TRUE if enabled, FALSE if disabled</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="3"><strong>users_hardware</strong></td>
+                        <td><code>user_id</code></td>
+                        <td>uuid</td>
+                        <td>User who added it</td>
+                    </tr>
+                    <tr>
+                        <td><code>hardware_id</code></td>
+                        <td>uuid</td>
+                        <td>Reference to hardware table</td>
+                    </tr>
+                    <tr>
+                        <td><code>is_active</code></td>
+                        <td>boolean</td>
+                        <td>TRUE if enabled, FALSE if disabled</td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><strong>users_software</strong></td>
+                        <td><code>user_id</code></td>
+                        <td>uuid</td>
+                        <td>User who added it</td>
+                    </tr>
+                    <tr>
+                        <td><code>software_id</code></td>
+                        <td>uuid</td>
+                        <td>Reference to software table</td>
+                    </tr>
+                    <tr>
+                        <td><code>is_active</code></td>
+                        <td>boolean</td>
+                        <td>TRUE if enabled, FALSE if disabled</td>
+                    </tr>
+                    <tr>
+                        <td><code>metadata</code></td>
+                        <td>jsonb</td>
+                        <td>Ex: <code>{"firmware_version": "IOS-XE 17.12"}</code></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>Relevance Scoring Table</h3>
+
+            <table class="entity-table">
+                <thead>
+                    <tr>
+                        <th>Table</th>
+                        <th>Field</th>
+                        <th>Type</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="7"><strong>article_relevance_scores</strong></td>
+                        <td><code>article_id</code></td>
+                        <td>uuid</td>
+                        <td>Reference to article</td>
+                    </tr>
+                    <tr>
+                        <td><code>user_id</code></td>
+                        <td>uuid</td>
+                        <td>Score is personalized per user</td>
+                    </tr>
+                    <tr>
+                        <td><code>relevance_score</code></td>
+                        <td>numeric</td>
+                        <td>Overall relevance score (regenerated when tech stack changes)</td>
+                    </tr>
+                    <tr>
+                        <td><code>software_score</code></td>
+                        <td>numeric</td>
+                        <td><span class="tag info">Currently mostly 0 - needs investigation</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>hardware_score</code></td>
+                        <td>numeric</td>
+                        <td><span class="tag info">Currently mostly 0 - needs investigation</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>client_score</code></td>
+                        <td>numeric</td>
+                        <td><span class="tag info">Currently mostly 0 - needs investigation</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>vendor_score</code></td>
+                        <td>numeric</td>
+                        <td><span class="tag info">Currently mostly 0 - needs investigation</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="note">
+                <strong>📌 Note:</strong> Relevance scores are regenerated every time a user adds something to their tech stack. The component scores (software_score, hardware_score, etc.) are likely used in the calculation but currently show as 0 for most entries - this needs further investigation.
+            </div>
+
+            <h2>🎯 Source Limiting Strategy</h2>
+
+            <p>Now let's address the question: <strong>Should you limit which sources users can access based on their subscription tier?</strong></p>
+
+            <h3>Current Architecture</h3>
+            <ul>
+                <li><strong>News Radar & Threat Tracker:</strong> Both use <code>global_sources</code> table</li>
+                <li><strong>Source Selection:</strong> Users enable/disable sources via <code>user_source_preferences</code> table</li>
+                <li><strong>Fields:</strong> <code>(userId, sourceId, appContext, isEnabled)</code></li>
+                <li><strong>All sources are global:</strong> No current tier restrictions</li>
+            </ul>
+
+            <h3>Strategic Options</h3>
+
+            <div class="option-card recommended">
+                <h3><span class="emoji">⭐</span> Option 1: Quantity Limits Only <span class="star-badge">RECOMMENDED</span></h3>
+
+                <p><strong>How it works:</strong></p>
+                <ul>
+                    <li>All users can see <strong>ALL sources</strong> in the source list</li>
+                    <li>Free tier: Can enable <strong>5 sources maximum</strong></li>
+                    <li>Pro tier: Can enable <strong>15 sources maximum</strong></li>
+                    <li>Sources are not categorized by tier</li>
+                </ul>
+
+                <div class="example-box">
+                    <strong>Example:</strong> Free user sees 50 sources, can enable any 5 of them. Pro user sees same 50 sources, can enable any 15.
+                </div>
+
+                <div class="pros">
+                    <strong>✅ Pros:</strong>
+                    <ul>
+                        <li>Simple to implement (follows the design from previous plan)</li>
+                        <li>Users see what they're missing → creates FOMO → drives upgrades</li>
+                        <li>No complex source categorization needed</li>
+                        <li>Fair - everyone has access to same sources, just quantity differs</li>
+                        <li>Works immediately with current schema</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Cons:</strong>
+                    <ul>
+                        <li>Free users could cherry-pick the "best" 5 sources</li>
+                        <li>Doesn't create artificial scarcity or exclusivity</li>
+                        <li>No premium/exclusive sources for Pro tier</li>
+                    </ul>
+                </div>
+
+                <h4>Implementation</h4>
+                <pre><code><span class="comment">// Simple count-based enforcement</span>
+<span class="keyword">const</span> enabledCount = <span class="keyword">await</span> <span class="function">countEnabledSources</span>(userId, <span class="string">'news_radar'</span>);
+<span class="keyword">const</span> limit = userTier === <span class="string">'free'</span> ? <span class="number">5</span> : <span class="number">15</span>;
+
+<span class="keyword">if</span> (enabledCount >= limit) {
+  <span class="keyword">throw new</span> <span class="function">Error</span>(<span class="string">'Source limit reached. Upgrade to enable more sources.'</span>);
+}</code></pre>
+            </div>
+
+            <div class="option-card">
+                <h3><span class="emoji">🔒</span> Option 2: Tier-Based Source Access</h3>
+
+                <p><strong>How it works:</strong></p>
+                <ul>
+                    <li>Sources have a <code>tierRequired</code> field ('free', 'pro', 'enterprise')</li>
+                    <li>Free users can only see/enable <strong>Free-tier sources</strong></li>
+                    <li>Pro users see <strong>Free + Pro sources</strong></li>
+                    <li>Still enforce quantity limits on top of tier restrictions</li>
+                </ul>
+
+                <div class="example-box">
+                    <strong>Example:</strong>
+                    <ul>
+                        <li>Free tier: 5 sources from 10 available free-tier sources</li>
+                        <li>Pro tier: 15 sources from 50 available (free + pro) sources</li>
+                    </ul>
+                </div>
+
+                <div class="pros">
+                    <strong>✅ Pros:</strong>
+                    <ul>
+                        <li>Premium sources feel exclusive</li>
+                        <li>Clear value proposition: "Unlock premium sources"</li>
+                        <li>Can gate high-quality or specialized sources</li>
+                        <li>Creates perception of premium content</li>
+                        <li>Future-proof for enterprise tier</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Cons:</strong>
+                    <ul>
+                        <li>Requires categorizing every source (who decides quality?)</li>
+                        <li>More complex to maintain</li>
+                        <li>May frustrate users who want specific sources</li>
+                        <li>Need to add <code>tierRequired</code> column and populate it</li>
+                    </ul>
+                </div>
+
+                <h4>Implementation</h4>
+                <pre><code><span class="comment">-- Add tier requirement to sources</span>
+<span class="keyword">ALTER TABLE</span> global_sources
+  <span class="keyword">ADD COLUMN</span> tier_required <span class="keyword">TEXT DEFAULT</span> <span class="string">'free'</span>;
+
+<span class="comment">-- Mark premium sources</span>
+<span class="keyword">UPDATE</span> global_sources
+<span class="keyword">SET</span> tier_required = <span class="string">'pro'</span>
+<span class="keyword">WHERE</span> name <span class="keyword">IN</span> (<span class="string">'TechCrunch'</span>, <span class="string">'Wired'</span>, <span class="string">'Dark Reading'</span>);</code></pre>
+
+                <pre><code><span class="comment">// Filter sources by user's tier</span>
+<span class="keyword">const</span> availableSources = <span class="keyword">await</span> db
+  .<span class="function">select</span>()
+  .<span class="function">from</span>(globalSources)
+  .<span class="function">where</span>(
+    userTier === <span class="string">'free'</span>
+      ? <span class="function">eq</span>(globalSources.tierRequired, <span class="string">'free'</span>)
+      : <span class="function">or</span>(
+          <span class="function">eq</span>(globalSources.tierRequired, <span class="string">'free'</span>),
+          <span class="function">eq</span>(globalSources.tierRequired, <span class="string">'pro'</span>)
+        )
+  );</code></pre>
+            </div>
+
+            <div class="option-card">
+                <h3><span class="emoji">🎨</span> Option 3: Hybrid - Quality Tiers + Quantity Limits</h3>
+
+                <p><strong>How it works:</strong></p>
+                <ul>
+                    <li>Categorize sources by quality/importance (Standard vs Premium)</li>
+                    <li>Free: 5 sources from "Standard" tier sources only</li>
+                    <li>Pro: 15 sources from ALL sources (Standard + Premium)</li>
+                    <li>Combine tier access with quantity limits</li>
+                </ul>
+
+                <div class="example-box">
+                    <strong>Example:</strong>
+                    <ul>
+                        <li>25 sources marked as "Standard" (free access)</li>
+                        <li>25 sources marked as "Premium" (pro access)</li>
+                        <li>Free users: pick 5 from 25 standard sources</li>
+                        <li>Pro users: pick 15 from all 50 sources</li>
+                    </ul>
+                </div>
+
+                <div class="pros">
+                    <strong>✅ Pros:</strong>
+                    <ul>
+                        <li>Best balance of access and exclusivity</li>
+                        <li>Allows for future "Enterprise-only" sources</li>
+                        <li>Clear differentiation between tiers</li>
+                        <li>Flexible for marketing messaging</li>
+                    </ul>
+                </div>
+
+                <div class="cons">
+                    <strong>❌ Cons:</strong>
+                    <ul>
+                        <li>Most complex to implement</li>
+                        <li>Subjective quality ratings</li>
+                        <li>Requires ongoing curation</li>
+                        <li>May need A/B testing to optimize</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="recommendation">
+                <h3>🏆 Final Recommendation: Hybrid Approach</h3>
+
+                <p><strong>Start with Option 1, but architect for Option 2</strong></p>
+
+                <h4>Why This Is Best:</h4>
+                <ol>
+                    <li><strong>Quick MVP:</strong> Launch with quantity limits only (Option 1)</li>
+                    <li><strong>Data Collection:</strong> Track which sources users want most</li>
+                    <li><strong>Future Flexibility:</strong> Add <code>tier_required</code> column now (default 'free' for all)</li>
+                    <li><strong>Easy Upgrade Path:</strong> Can flip to Option 2 without code changes</li>
+                    <li><strong>A/B Testing:</strong> Can test tier restrictions on subset of users</li>
+                </ol>
+
+                <h4>Implementation Strategy</h4>
+
+                <div class="implementation-step">
+                    <h4>Step 1: Add Column Now (Prepare for Future)</h4>
+                    <pre><code><span class="comment">-- Add tier column with default value</span>
+<span class="keyword">ALTER TABLE</span> global_sources
+  <span class="keyword">ADD COLUMN</span> tier_required <span class="keyword">TEXT DEFAULT</span> <span class="string">'free'</span>;
+
+<span class="comment">-- Add index for performance</span>
+<span class="keyword">CREATE INDEX</span> idx_sources_tier
+  <span class="keyword">ON</span> global_sources(tier_required);</code></pre>
+                </div>
+
+                <div class="implementation-step">
+                    <h4>Step 2: Implement Quantity Limits (Launch)</h4>
+                    <pre><code><span class="comment">// backend/utils/subscription-limits.ts</span>
+
+<span class="keyword">export async function</span> <span class="function">getAvailableSources</span>(
+  userId: <span class="keyword">string</span>,
+  appContext: <span class="string">'news_radar'</span> | <span class="string">'threat_tracker'</span>
+) {
+  <span class="keyword">const</span> userTier = <span class="keyword">await</span> <span class="function">getUserTier</span>(userId);
+
+  <span class="comment">// For now, return ALL sources (Option 1)</span>
+  <span class="comment">// Later, filter by tierRequired (Option 2)</span>
+  <span class="keyword">const</span> sources = <span class="keyword">await</span> db
+    .<span class="function">select</span>()
+    .<span class="function">from</span>(globalSources)
+    .<span class="function">where</span>(
+      <span class="function">and</span>(
+        <span class="function">eq</span>(globalSources.isActive, <span class="keyword">true</span>),
+        <span class="comment">// FUTURE: Uncomment to enable tier filtering</span>
+        <span class="comment">// userTier === 'free'</span>
+        <span class="comment">//   ? eq(globalSources.tierRequired, 'free')</span>
+        <span class="comment">//   : undefined</span>
+      )
+    );
+
+  <span class="keyword">return</span> sources;
+}</code></pre>
+                </div>
+
+                <div class="implementation-step">
+                    <h4>Step 3: Enforce Both Limits (When Ready)</h4>
+                    <pre><code><span class="keyword">export async function</span> <span class="function">canEnableSource</span>(
+  userId: <span class="keyword">string</span>,
+  sourceId: <span class="keyword">string</span>,
+  appContext: <span class="string">'news_radar'</span> | <span class="string">'threat_tracker'</span>
+) {
+  <span class="comment">// 1. Check quantity limit (always enforced)</span>
+  <span class="keyword">const</span> enabledCount = <span class="keyword">await</span> <span class="function">countEnabledSources</span>(userId, appContext);
+  <span class="keyword">const</span> limits = <span class="keyword">await</span> <span class="function">getUserLimits</span>(userId);
+  <span class="keyword">const</span> maxField = appContext === <span class="string">'news_radar'</span>
+    ? <span class="string">'maxSourcesNews'</span>
+    : <span class="string">'maxSourcesThreat'</span>;
+
+  <span class="keyword">if</span> (enabledCount >= limits[maxField]) {
+    <span class="keyword">return</span> {
+      allowed: <span class="keyword">false</span>,
+      reason: <span class="string">'quantity_limit'</span>,
+      message: <span class="string">`You've reached your limit of ${limits[maxField]} sources.`</span>,
+      upgradeMessage: <span class="string">'Upgrade to Pro for more sources.'</span>
+    };
+  }
+
+  <span class="comment">// 2. Check tier access (optional, for future)</span>
+  <span class="keyword">const</span> userTier = <span class="keyword">await</span> <span class="function">getUserTier</span>(userId);
+  <span class="keyword">const</span> [source] = <span class="keyword">await</span> db
+    .<span class="function">select</span>()
+    .<span class="function">from</span>(globalSources)
+    .<span class="function">where</span>(<span class="function">eq</span>(globalSources.id, sourceId));
+
+  <span class="keyword">if</span> (source.tierRequired === <span class="string">'pro'</span> && userTier === <span class="string">'free'</span>) {
+    <span class="keyword">return</span> {
+      allowed: <span class="keyword">false</span>,
+      reason: <span class="string">'tier_required'</span>,
+      message: <span class="string">'This is a Premium source.'</span>,
+      upgradeMessage: <span class="string">'Upgrade to Pro to access premium sources.'</span>
+    };
+  }
+
+  <span class="keyword">return</span> { allowed: <span class="keyword">true</span> };
+}</code></pre>
+                </div>
+            </div>
+
+            <h2>🎨 Frontend UX Examples</h2>
+
+            <h3>Option 1: Quantity Limits Only</h3>
+            <pre><code><span class="comment">// All sources visible, disabled when at limit</span>
+<span class="keyword">&lt;SourcesList&gt;</span>
+  {sources.<span class="function">map</span>(source =&gt; (
+    <span class="keyword">&lt;SourceCard</span>
+      source={source}
+      enabled={userPrefs[source.id]?.isEnabled}
+      <span class="function">onToggle</span>={() =&gt; <span class="function">toggleSource</span>(source.id)}
+      disabled={!enabled && atLimit} <span class="comment">// Can't enable more</span>
+    /&gt;
+  ))}
+  {atLimit && <span class="keyword">&lt;UpgradePrompt</span> message=<span class="string">"Upgrade to enable more sources"</span> /&gt;}
+<span class="keyword">&lt;/SourcesList&gt;</span></code></pre>
+
+            <h3>Option 2/3: Tier-Based Access</h3>
+            <pre><code><span class="comment">// Premium sources show lock icon</span>
+<span class="keyword">&lt;SourcesList&gt;</span>
+  {sources.<span class="function">map</span>(source =&gt; (
+    <span class="keyword">&lt;SourceCard</span>
+      source={source}
+      enabled={userPrefs[source.id]?.isEnabled}
+      locked={source.tierRequired === <span class="string">'pro'</span> && userTier === <span class="string">'free'</span>}
+      <span class="function">onToggle</span>={() =&gt; <span class="function">toggleSource</span>(source.id)}
+      disabled={!enabled && atLimit}
+    /&gt;
+  ))}
+  <span class="keyword">&lt;ProSourceBanner</span> count={lockedSources.length} /&gt;
+<span class="keyword">&lt;/SourcesList&gt;</span></code></pre>
+
+            <h2>📊 Comparison Table</h2>
+
+            <table class="comparison-table">
+                <thead>
+                    <tr>
+                        <th>Aspect</th>
+                        <th>Option 1: Quantity Only</th>
+                        <th>Option 2: Tier Access</th>
+                        <th>Option 3: Hybrid</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Complexity</strong></td>
+                        <td><span class="tag">Simple</span></td>
+                        <td><span class="tag">Medium</span></td>
+                        <td><span class="tag">Complex</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>Implementation Time</strong></td>
+                        <td>1 week</td>
+                        <td>2 weeks</td>
+                        <td>3 weeks</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Maintenance</strong></td>
+                        <td>Low</td>
+                        <td>Medium (source curation)</td>
+                        <td>High (ongoing curation)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Conversion Potential</strong></td>
+                        <td>Medium (quantity scarcity)</td>
+                        <td>High (exclusive content)</td>
+                        <td>Highest (combined effects)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>User Fairness</strong></td>
+                        <td>High (same sources)</td>
+                        <td>Medium (gated access)</td>
+                        <td>Medium</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Future Flexibility</strong></td>
+                        <td>Can add tiers later</td>
+                        <td>Established</td>
+                        <td>Most flexible</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>📈 Analytics & Monitoring</h2>
+
+            <h3>Track These Metrics</h3>
+            <ul>
+                <li><strong>Limit Hit Rate:</strong> % of free users who hit 5-source limit</li>
+                <li><strong>Source Popularity:</strong> Which sources do users enable most?</li>
+                <li><strong>Upgrade Triggers:</strong> Did hitting limit lead to upgrade?</li>
+                <li><strong>Source Distribution:</strong> Are users clustering on certain sources?</li>
+                <li><strong>Churn Risk:</strong> Do limits cause frustration → churn?</li>
+            </ul>
+
+            <h3>Implementation</h3>
+            <pre><code><span class="comment">// Track limit-reached events</span>
+<span class="function">analytics</span>.<span class="function">track</span>(<span class="string">'source_limit_reached'</span>, {
+  userId,
+  tier: <span class="string">'free'</span>,
+  appContext: <span class="string">'news_radar'</span>,
+  attemptedSource: source.name,
+  currentCount: <span class="number">5</span>
+});
+
+<span class="comment">// Track upgrade after limit hit</span>
+<span class="function">analytics</span>.<span class="function">track</span>(<span class="string">'upgraded_from_limit'</span>, {
+  userId,
+  fromTier: <span class="string">'free'</span>,
+  toTier: <span class="string">'pro'</span>,
+  triggerEvent: <span class="string">'source_limit'</span>,
+  timeSinceLimitHit: <span class="string">'2 hours'</span>
+});</code></pre>
+
+            <h2>✅ Updated Implementation Checklist</h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Phase</th>
+                        <th>Task</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td rowspan="4"><strong>Phase 1: Schema</strong></td>
+                        <td>Add <code>tier_required</code> column to <code>global_sources</code></td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Add <code>max_sources_news/threat</code> to <code>subscription_tiers</code></td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Run migrations</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Update TypeScript types</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="5"><strong>Phase 2: Backend</strong></td>
+                        <td>Create <code>subscription-limits.ts</code> utility</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Implement <code>canEnableSource()</code> with quantity check</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Implement <code>canAddKeyword()</code></td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Add validation to source toggle handlers</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Create <code>GET /api/limits</code> endpoint</td>
+                        <td><span class="tag">Medium</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="4"><strong>Phase 3: Frontend</strong></td>
+                        <td>Display usage counters (5/5 sources)</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Show upgrade prompts at limits</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Disable controls when at limit</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Add lock icons for Pro sources (optional)</td>
+                        <td><span class="tag">Low</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="3"><strong>Phase 4: Analytics</strong></td>
+                        <td>Track limit-reached events</td>
+                        <td><span class="tag">Medium</span></td>
+                    </tr>
+                    <tr>
+                        <td>Track upgrade conversions</td>
+                        <td><span class="tag">Medium</span></td>
+                    </tr>
+                    <tr>
+                        <td>Dashboard for source popularity</td>
+                        <td><span class="tag">Low</span></td>
+                    </tr>
+
+                    <tr>
+                        <td rowspan="3"><strong>Phase 5: Testing</strong></td>
+                        <td>Unit tests for limit functions</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>Integration tests for API validation</td>
+                        <td><span class="tag pro">High</span></td>
+                    </tr>
+                    <tr>
+                        <td>E2E tests for user flows</td>
+                        <td><span class="tag">Medium</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h2>🚀 6-Month Roadmap</h2>
+
+            <div class="implementation-step">
+                <h4>Month 1-2: Launch with Option 1</h4>
+                <ul>
+                    <li>Implement quantity limits only</li>
+                    <li>Add <code>tier_required</code> column (all set to 'free')</li>
+                    <li>Deploy and monitor user behavior</li>
+                </ul>
+            </div>
+
+            <div class="implementation-step">
+                <h4>Month 3-4: Analyze & Optimize</h4>
+                <ul>
+                    <li>Review analytics: Are users hitting limits?</li>
+                    <li>Identify most popular sources</li>
+                    <li>A/B test limit messaging</li>
+                    <li>Track conversion rates</li>
+                </ul>
+            </div>
+
+            <div class="implementation-step">
+                <h4>Month 5-6: Evaluate Option 2</h4>
+                <ul>
+                    <li>Decide: Should we gate premium sources?</li>
+                    <li>If yes: Categorize top 25% sources as "Pro"</li>
+                    <li>Flip feature flag to enable tier filtering</li>
+                    <li>Monitor impact on conversions vs. churn</li>
+                </ul>
+            </div>
+
+            <h2>🎯 Key Takeaways</h2>
+
+            <div class="note">
+                <strong>Entity Tables:</strong> Well-structured with normalized names for matching. Many fields unused yet (description, industry, website) - good for future expansion.
+            </div>
+
+            <div class="note">
+                <strong>Source Strategy:</strong> Start simple with quantity limits, architect for future tier-based access. This balances quick launch with future flexibility.
+            </div>
+
+            <div class="note">
+                <strong>Success Metrics:</strong> Track limit-hit rates, source popularity, and conversion rates to inform future decisions about tier-based access.
+            </div>
+        </div>
+
+        <footer>
+            <p>Generated by Claude Code | October 25, 2025</p>
+            <p><strong>Recommended Next Step:</strong> Implement Option 1 (Quantity Limits) with schema prepared for Option 2</p>
+        </footer>
+    </div>
+</body>
+</html>
