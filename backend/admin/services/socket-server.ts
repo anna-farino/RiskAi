@@ -25,7 +25,12 @@ export function initializeSocketIO(httpServer: HttpServer): SocketIOServer {
       credentials: true
     },
     path: '/socket.io/',
-    transports: ['websocket', 'polling']
+    transports: ['websocket', 'polling'],
+    // Keepalive configuration to prevent Azure idle timeout (230 sec)
+    pingInterval: 25000,  // Send ping every 25 seconds (well under Azure's timeout)
+    pingTimeout: 60000,   // Wait 60 seconds for pong before considering connection dead
+    // Disable compression for better Azure stability
+    perMessageDeflate: false
   });
 
   // Middleware for authentication and permission checking
@@ -60,7 +65,16 @@ export function initializeSocketIO(httpServer: HttpServer): SocketIOServer {
   // Handle connections
   io.on('connection', (socket: Socket) => {
     const email = socket.data.email;
-    log(`Live logs client connected: ${email}`, 'socket-server');
+    log(`Live logs client connected: ${email} (ID: ${socket.id})`, 'socket-server');
+
+    // Monitor connection health
+    socket.on('ping', () => {
+      log(`Ping received from ${email}`, 'socket-health');
+    });
+
+    socket.on('pong', (latency) => {
+      log(`Pong latency for ${email}: ${latency}ms`, 'socket-health');
+    });
 
     // Handle client requesting to start/stop log streaming
     socket.on('start_streaming', () => {
@@ -96,10 +110,24 @@ export function initializeSocketIO(httpServer: HttpServer): SocketIOServer {
     }
 
     // Handle disconnection
-    socket.on('disconnect', () => {
-      log(`Live logs client disconnected: ${email}`, 'socket-server');
+    socket.on('disconnect', (reason) => {
+      log(`Live logs client disconnected: ${email} (Reason: ${reason})`, 'socket-server');
+
+      // Log different disconnect reasons for debugging
+      if (reason === 'ping timeout') {
+        log(`⚠️ Client ${email} disconnected due to ping timeout - possible network issue`, 'socket-health');
+      } else if (reason === 'transport close') {
+        log(`⚠️ Client ${email} transport closed - Azure may have killed the connection`, 'socket-health');
+      }
     });
   });
+
+  // Periodic connection health monitoring (every 60 seconds)
+  setInterval(() => {
+    const connectedClients = io.sockets.sockets.size;
+    const liveLogsClients = io.sockets.adapter.rooms.get('live-logs')?.size || 0;
+    log(`Connection health: ${connectedClients} total clients, ${liveLogsClients} actively streaming`, 'socket-health');
+  }, 60000);
 
   log('Socket.IO server initialized for live logs', 'socket-server');
   return io;
