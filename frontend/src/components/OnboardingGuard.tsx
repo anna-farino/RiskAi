@@ -27,9 +27,12 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [showPlanChangeSpinner, setShowPlanChangeSpinner] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [freePlanSpinner, setFreePlanSpinner] = useState(false)
+  const [dontShowPrices,setDontShowPrices] = useState<boolean>(
+    JSON.parse(localStorage.getItem('dontShowInitPrices') || 'false')
+  )
 
   // Check if user needs onboarding
-  const needsOnboarding = userData && !userData.onBoarded && !userData.subFree;
+  const needsOnboarding = userData && !userData.onBoarded;
 
   // Mutation to complete onboarding
   const completeOnboardingMutation = useMutation({
@@ -151,8 +154,13 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   }
 
   // If user doesn't need onboarding, render children
-  if (!needsOnboarding) {
+  if (!needsOnboarding || dontShowPrices) {
     return <>{children}</>;
+  }
+
+  function skipInitialPrices() {
+    localStorage.setItem('dontShowInitPrices','true')
+    setDontShowPrices(true)
   }
 
   // Show onboarding pricing view (no go back button, with logout)
@@ -162,8 +170,8 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         freePlanSpinner={freePlanSpinner}
         currentPlan="none"
         onPlanSelect={handlePlanSelect}
-        onGoBack={() => {}} // No-op function since showGoBack will be false
-        showGoBack={false}
+        onGoBack={skipInitialPrices}
+        showGoBack={userData.subFree}
         hasPromoCode={false}
         onLogout={logout}
       />

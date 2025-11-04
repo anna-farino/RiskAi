@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { PricingCard } from "./PricingCard";
 import { PRICING_DATA } from "./pricing-data";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 interface PricingViewProps {
   currentPlan: 'none' | 'free' | 'pro' | 'pro_yearly' | string;
@@ -32,6 +33,7 @@ export default function PricingView({
 : PricingViewProps
 ) {
   const [isVisible, setIsVisible] = useState(false);
+  const { data: userData } = useAuth()
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
 
   function isCurrentPlan(plan: string) {
@@ -64,8 +66,13 @@ export default function PricingView({
                   onClick={onGoBack}
                   className="text-slate-400 hover:text-white"
                 >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Go Back
+                  {(userData?.subFree && !userData.onBoarded)
+                    ? <>Skip</>
+                    : <>
+                        <ArrowLeft className="h-4 w-4 mr-2" />
+                        Go Back
+                      </>
+                  }
                 </Button>
               )}
             </div>
