@@ -12,7 +12,6 @@ import ProSubscriptionForm from '@/components/ProSubscriptionForm';
 interface OnboardingGuardProps {
   children: ReactNode;
 }
-
 export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const { data: userData, refetch: refetchUser } = useAuth();
   const fetchWithAuth = useFetch();
@@ -28,7 +27,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [freePlanSpinner, setFreePlanSpinner] = useState(false)
   const [dontShowPrices,setDontShowPrices] = useState<boolean>(
-    JSON.parse(localStorage.getItem('dontShowInitPrices') || 'false')
+    JSON.parse(localStorage.getItem('dontShowInitPrices') || 'false')[userData?.id || ""]
   )
 
   // Check if user needs onboarding
@@ -159,8 +158,22 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   }
 
   function skipInitialPrices() {
-    localStorage.setItem('dontShowInitPrices','true')
-    setDontShowPrices(true)
+    if (userData) {
+      const dontShowPricesString = localStorage.getItem('dontShowInitPrices')
+      if (dontShowPricesString) {
+        const dontShowInitPrices = JSON.parse(dontShowPricesString)
+        dontShowInitPrices[userData.id] = true
+        localStorage.setItem(
+          'dontShowInitPrices', 
+          JSON.stringify(dontShowInitPrices)
+        )
+      } else {
+        localStorage.setItem(
+          'dontShowInitPrices', 
+          JSON.stringify({ [userData.id]: true }))
+      }
+      setDontShowPrices(true)
+    }
   }
 
   // Show onboarding pricing view (no go back button, with logout)
