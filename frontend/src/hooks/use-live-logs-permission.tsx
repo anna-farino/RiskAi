@@ -66,7 +66,8 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
         const response = await fetchWithAuth(`/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
-          body: JSON.stringify({ email: user.email })
+          body: JSON.stringify({ email: user.email }),
+          headers: { 'Content-Type': 'application/json'}
         });
 
         if (response.ok) {

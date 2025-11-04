@@ -13,9 +13,7 @@ import ProSubscriptionForm from "@/components/ProSubscriptionForm";
 import { Elements } from "@stripe/react-stripe-js";
 import { stripe } from "@/utils/stripe";
 import PricingView from "@/pages/dashboard/pricing-view";
-import Auth0ProviderWithNavigate from "@/auth0-provider-with-navigate";
 import { toast } from "@/hooks/use-toast";
-import { desc } from "drizzle-orm";
 
 export function SettingsSubscription() {
   const userData = useAuth();
