@@ -26,9 +26,17 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [showPlanChangeSpinner, setShowPlanChangeSpinner] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [freePlanSpinner, setFreePlanSpinner] = useState(false)
-  const [dontShowPrices,setDontShowPrices] = useState<boolean>(
-    JSON.parse(localStorage.getItem('dontShowInitPrices') || 'false')[userData?.id || ""]
-  )
+  const [dontShowPrices, setDontShowPrices] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('dontShowInitPrices');
+      if (!stored || !userData?.id) return false;
+      const parsed = JSON.parse(stored);
+      // Handle legacy 'false' value or ensure we have an object
+      return typeof parsed === 'object' && parsed !== null ? (parsed[userData.id] || false) : false;
+    } catch {
+      return false;
+    }
+  })
 
   // Check if user needs onboarding
   const needsOnboarding = userData && !userData.onBoarded;
@@ -161,15 +169,19 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
     if (userData) {
       const dontShowPricesString = localStorage.getItem('dontShowInitPrices')
       if (dontShowPricesString) {
-        const dontShowInitPrices = JSON.parse(dontShowPricesString)
-        dontShowInitPrices[userData.id] = true
+        const existingData = JSON.parse(dontShowPricesString)
+        // Create new object instead of mutating (Safari compatibility)
+        const updatedData = {
+          ...existingData,
+          [userData.id]: true
+        }
         localStorage.setItem(
-          'dontShowInitPrices', 
-          JSON.stringify(dontShowInitPrices)
+          'dontShowInitPrices',
+          JSON.stringify(updatedData)
         )
       } else {
         localStorage.setItem(
-          'dontShowInitPrices', 
+          'dontShowInitPrices',
           JSON.stringify({ [userData.id]: true }))
       }
       setDontShowPrices(true)
