@@ -69,50 +69,6 @@ type Props = {
 }
 export default function Auth0ProviderWithNavigate({ children }: Props) {
   const navigate = useNavigate();
-  
-  // Initialize CSRF token on app load
-  useEffect(() => {
-    const initializeCsrfToken = async () => {
-      try {
-        // Check if we already have a CSRF token
-        const existingToken = document.cookie
-          .split("; ")
-          .find((entry) => entry.startsWith("csrf-token="));
-        
-        if (!existingToken) {
-          // Import serverUrl utility
-          const { serverUrl } = await import('./utils/server-url');
-          
-          // Fetch CSRF token from server using proper URL
-          const response = await fetch(`${serverUrl}/api/csrf-token`, {
-            method: 'GET',
-            credentials: 'include'
-          });
-          
-          if (response.ok) {
-            const data = await response.json();
-            console.log('[CSRF] Token initialized:', data.message);
-          } else {
-            console.error('[CSRF] Failed to get token, status:', response.status);
-          }
-        } else {
-          console.log('[CSRF] Token already exists');
-        }
-      } catch (error) {
-        console.error('[CSRF] Failed to initialize token:', error);
-      }
-    };
-    
-    initializeCsrfToken();
-  }, []);
-  
-  // Check if we should bypass auth for development
-  const isDev = (import.meta as any).env.VITE_DEV_BYPASS_AUTH === 'true';
-  
-  if (isDev) {
-    console.log('🔧 Development mode: Auth bypass enabled');
-    return <DevAuthProvider>{children}</DevAuthProvider>;
-  }
 
   let domain = (import.meta as any).env.VITE_AUTH0_DOMAIN;
   const clientId = (import.meta as any).env.VITE_AUTH0_CLIENT_ID;

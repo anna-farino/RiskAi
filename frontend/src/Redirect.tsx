@@ -1,11 +1,11 @@
 import { useNavigate } from "react-router-dom"
 import { useEffect } from "react"
 import { useAuth0 } from "@auth0/auth0-react";
+import LoadingScreen from "./components/LoadingScreen";
 
 export default function Redirect() {
   const { isAuthenticated, isLoading, user, error } = useAuth0();
   const navigate = useNavigate();
-
 
   useEffect(() => {
     if (isLoading) return;
@@ -29,12 +29,7 @@ export default function Redirect() {
   // Show loading screen while auth is being determined
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#BF00FF] mx-auto mb-4"></div>
-          <p className="text-slate-400">Loading...</p>
-        </div>
-      </div>
+      <LoadingScreen/>
     );
   }
 

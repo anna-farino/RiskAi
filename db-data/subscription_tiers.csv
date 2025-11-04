@@ -1,0 +1,4 @@
+id,name,display_name,description,price,yearly_price,max_users,metadata,is_active,created_at,updated_at,stripe_price_id,billingPeriod,tier_level
+7e754e72-1bc2-4a84-aa38-9b536dce526c,free,Free Plan,,0,,9999,,t,2025-10-16 14:56:39.363936,2025-10-16 14:56:39.363936,price_1SIai04uGyk26FKnKrY7JcZ5,monthly,0
+395ed2dd-0675-43a6-a177-d721556ed6b2,pro,Pro Plan,,99,,9999,,t,2025-10-17 21:57:35.089611,2025-10-17 21:57:35.089611,price_1SIZwt4uGyk26FKnXAd3TWtW,monthly,1
+ec28b617-5cb9-4cf2-ae2c-df1cdfc2f23e,pro_yearly,Pro Plan,,0,999,9999,,t,2025-10-24 18:12:49.849518,2025-10-24 18:12:49.849518,price_1SLoP74uGyk26FKnAHgYCPzd,yearly,1

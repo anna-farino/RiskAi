@@ -11,6 +11,8 @@ import { db } from "backend/db/db";
 import { schedulerMetadata } from "@shared/db/schema/scheduler-metadata";
 import { eq } from "drizzle-orm";
 import { mitreSyncService } from "./mitre-sync";
+import { reconcileSubscriptions } from "./stripe-reconciliation";
+import { verifyPendingOperations, cleanupOldOperationLogs } from "./stripe-operation-tracker";
 
 // GLOBAL SCRAPING INTERVAL - Every 3 hours as per re-architecture plan
 const THREE_HOURS = 3 * 60 * 60 * 1000;
@@ -18,12 +20,29 @@ const THREE_HOURS = 3 * 60 * 60 * 1000;
 // Global scheduler timer
 let globalSchedulerTimer: NodeJS.Timeout | null = null;
 
+// Stripe reconciliation timer (runs weekly at Sunday 2am EST)
+let stripeReconciliationTimer: NodeJS.Timeout | null = null;
+
+// Stripe operation verification timer (runs hourly)
+let stripeVerificationTimer: NodeJS.Timeout | null = null;
+
+// Cleanup timer (runs daily at 3am EST)
+let cleanupTimer: NodeJS.Timeout | null = null;
+
 // Track global scheduler state
 let schedulerInitialized = false;
 let lastGlobalRun: Date | null = null;
 let consecutiveFailures = 0;
 let nextRunAt: Date | null = null;
 let isRunning = false;
+
+// Track Stripe reconciliation state
+let lastReconciliationRun: Date | null = null;
+let nextReconciliationAt: Date | null = null;
+
+// Track Stripe verification state
+let lastVerificationRun: Date | null = null;
+let nextVerificationAt: Date | null = null;
 
 /**
  * Calculate the next scheduled run time based on 3-hour intervals from midnight EST
@@ -153,6 +172,267 @@ async function shouldRunOnStartup(): Promise<boolean> {
 }
 
 /**
+ * Calculate the next Sunday 2am EST time for Stripe full reconciliation
+ */
+function getNextSunday2amESTTime(): Date {
+  const now = new Date();
+
+  // Convert to EST
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+  const estOffset = -5 * 60 * 60000;
+  const estTime = new Date(utcTime + estOffset);
+
+  // Set to 2am EST
+  const next2am = new Date(estTime);
+  next2am.setHours(2, 0, 0, 0);
+
+  // Calculate days until next Sunday (0 = Sunday)
+  const currentDay = next2am.getDay();
+  let daysUntilSunday = 7 - currentDay;
+  if (currentDay === 0 && next2am <= estTime) {
+    daysUntilSunday = 7; // Already past 2am on Sunday, go to next Sunday
+  } else if (currentDay === 0) {
+    daysUntilSunday = 0; // It's Sunday and before 2am
+  }
+
+  next2am.setDate(next2am.getDate() + daysUntilSunday);
+
+  // Convert back to system timezone
+  const systemTime = new Date(next2am.getTime() - estOffset);
+
+  return systemTime;
+}
+
+/**
+ * Calculate the next hour (:00) for verification
+ */
+function getNextHourTime(): Date {
+  const now = new Date();
+  const nextHour = new Date(now);
+  nextHour.setHours(nextHour.getHours() + 1, 0, 0, 0);
+  return nextHour;
+}
+
+/**
+ * Calculate the next 3am EST for cleanup
+ */
+function getNext3amESTTime(): Date {
+  const now = new Date();
+
+  // Convert to EST
+  const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+  const estOffset = -5 * 60 * 60000;
+  const estTime = new Date(utcTime + estOffset);
+
+  // Set to 3am EST
+  const next3am = new Date(estTime);
+  next3am.setHours(3, 0, 0, 0);
+
+  // If 3am has already passed today, schedule for tomorrow
+  if (next3am <= estTime) {
+    next3am.setDate(next3am.getDate() + 1);
+  }
+
+  // Convert back to system timezone
+  const systemTime = new Date(next3am.getTime() - estOffset);
+
+  return systemTime;
+}
+
+/**
+ * Initialize Stripe reconciliation scheduler to run weekly at Sunday 2am EST
+ */
+async function initializeStripeReconciliation(): Promise<void> {
+  try {
+    log(`[STRIPE RECONCILIATION] Initializing weekly reconciliation scheduler (Sunday 2am EST)`, "stripe-reconciliation");
+
+    // Clear any existing timer
+    if (stripeReconciliationTimer) {
+      clearTimeout(stripeReconciliationTimer);
+      stripeReconciliationTimer = null;
+    }
+
+    // Calculate next Sunday 2am EST
+    nextReconciliationAt = getNextSunday2amESTTime();
+    const msToNextSunday = nextReconciliationAt.getTime() - Date.now();
+
+    log(`[STRIPE RECONCILIATION] Next full reconciliation at: ${nextReconciliationAt.toISOString()} (EST: ${nextReconciliationAt.toLocaleString("en-US", { timeZone: "America/New_York" })})`, "stripe-reconciliation");
+    log(`[STRIPE RECONCILIATION] Time until next run: ${Math.round(msToNextSunday / 1000 / 60 / 60)} hours`, "stripe-reconciliation");
+
+    // Schedule the reconciliation
+    const scheduleNextReconciliation = () => {
+      nextReconciliationAt = getNextSunday2amESTTime();
+      const delay = nextReconciliationAt.getTime() - Date.now();
+
+      stripeReconciliationTimer = setTimeout(async () => {
+        await executeStripeReconciliation();
+        scheduleNextReconciliation(); // Schedule next run
+      }, delay);
+    };
+
+    scheduleNextReconciliation();
+
+    log(`[STRIPE RECONCILIATION] Weekly reconciliation scheduler initialized`, "stripe-reconciliation");
+  } catch (error: any) {
+    log(`[STRIPE RECONCILIATION] Error initializing reconciliation scheduler: ${error.message}`, "stripe-reconciliation-error");
+    console.error("Error initializing Stripe reconciliation scheduler:", error);
+  }
+}
+
+/**
+ * Initialize hourly Stripe operation verification
+ */
+async function initializeStripeVerification(): Promise<void> {
+  try {
+    log(`[STRIPE VERIFICATION] Initializing hourly verification scheduler`, "stripe-verification");
+
+    // Clear any existing timer
+    if (stripeVerificationTimer) {
+      clearInterval(stripeVerificationTimer);
+      stripeVerificationTimer = null;
+    }
+
+    // Calculate next hour
+    nextVerificationAt = getNextHourTime();
+    const msToNextHour = nextVerificationAt.getTime() - Date.now();
+
+    log(`[STRIPE VERIFICATION] Next verification at: ${nextVerificationAt.toISOString()}`, "stripe-verification");
+
+    // Set up initial timeout, then switch to hourly interval
+    stripeVerificationTimer = setTimeout(async () => {
+      await executeStripeVerification();
+
+      // Now set up hourly interval
+      stripeVerificationTimer = setInterval(async () => {
+        await executeStripeVerification();
+      }, 60 * 60 * 1000); // 1 hour
+
+      log(`[STRIPE VERIFICATION] Switched to hourly interval`, "stripe-verification");
+    }, msToNextHour);
+
+    log(`[STRIPE VERIFICATION] Hourly verification scheduler initialized`, "stripe-verification");
+  } catch (error: any) {
+    log(`[STRIPE VERIFICATION] Error initializing verification scheduler: ${error.message}`, "stripe-verification-error");
+    console.error("Error initializing Stripe verification scheduler:", error);
+  }
+}
+
+/**
+ * Initialize daily cleanup job (3am EST)
+ */
+async function initializeCleanupJob(): Promise<void> {
+  try {
+    log(`[CLEANUP] Initializing daily cleanup job (3am EST)`, "cleanup");
+
+    // Clear any existing timer
+    if (cleanupTimer) {
+      clearTimeout(cleanupTimer);
+      cleanupTimer = null;
+    }
+
+    // Calculate next 3am EST
+    const next3am = getNext3amESTTime();
+    const msToNext3am = next3am.getTime() - Date.now();
+
+    log(`[CLEANUP] Next cleanup at: ${next3am.toISOString()} (EST: ${next3am.toLocaleString("en-US", { timeZone: "America/New_York" })})`, "cleanup");
+
+    // Schedule the cleanup
+    const scheduleNextCleanup = () => {
+      const next = getNext3amESTTime();
+      const delay = next.getTime() - Date.now();
+
+      cleanupTimer = setTimeout(async () => {
+        await executeCleanup();
+        scheduleNextCleanup(); // Schedule next run
+      }, delay);
+    };
+
+    scheduleNextCleanup();
+
+    log(`[CLEANUP] Daily cleanup job initialized`, "cleanup");
+  } catch (error: any) {
+    log(`[CLEANUP] Error initializing cleanup job: ${error.message}`, "cleanup-error");
+    console.error("Error initializing cleanup job:", error);
+  }
+}
+
+/**
+ * Execute Stripe reconciliation job (weekly full reconciliation)
+ */
+async function executeStripeReconciliation(): Promise<void> {
+  const startTime = Date.now();
+  const currentTime = new Date();
+  log(`[STRIPE RECONCILIATION] Starting weekly full reconciliation at ${currentTime.toLocaleString("en-US", { timeZone: "America/New_York" })} EST`, "stripe-reconciliation");
+
+  try {
+    const report = await reconcileSubscriptions();
+
+    lastReconciliationRun = new Date();
+
+    const duration = Date.now() - startTime;
+    log(
+      `[STRIPE RECONCILIATION] Weekly reconciliation completed: ${report.discrepanciesFound} discrepancies found, ` +
+      `${report.discrepanciesFixed} fixed, ${report.discrepanciesFailed} failed in ${duration}ms`,
+      "stripe-reconciliation"
+    );
+
+    // Log detailed report if discrepancies found
+    if (report.discrepanciesFound > 0) {
+      log(`[STRIPE RECONCILIATION] Detailed report: ${JSON.stringify(report.discrepancies)}`, "stripe-reconciliation");
+    }
+
+  } catch (error: any) {
+    log(`[STRIPE RECONCILIATION] Error during reconciliation: ${error.message}`, "stripe-reconciliation-error");
+    console.error("Error during Stripe reconciliation:", error);
+  }
+}
+
+/**
+ * Execute hourly Stripe operation verification
+ */
+async function executeStripeVerification(): Promise<void> {
+  const startTime = Date.now();
+  log(`[STRIPE VERIFICATION] Starting hourly operation verification`, "stripe-verification");
+
+  try {
+    const report = await verifyPendingOperations();
+
+    lastVerificationRun = new Date();
+    nextVerificationAt = getNextHourTime();
+
+    const duration = Date.now() - startTime;
+    log(
+      `[STRIPE VERIFICATION] Completed: ${report.operationsChecked} operations checked, ` +
+      `${report.webhooksMissed} webhooks missed, ${report.verificationsSucceeded} fixed, ${report.verificationsFailed} failed in ${duration}ms`,
+      "stripe-verification"
+    );
+
+  } catch (error: any) {
+    log(`[STRIPE VERIFICATION] Error during verification: ${error.message}`, "stripe-verification-error");
+    console.error("Error during Stripe verification:", error);
+  }
+}
+
+/**
+ * Execute daily cleanup job
+ */
+async function executeCleanup(): Promise<void> {
+  const startTime = Date.now();
+  log(`[CLEANUP] Starting daily cleanup of old operation logs`, "cleanup");
+
+  try {
+    const deletedCount = await cleanupOldOperationLogs();
+
+    const duration = Date.now() - startTime;
+    log(`[CLEANUP] Deleted ${deletedCount} old operation logs in ${duration}ms`, "cleanup");
+
+  } catch (error: any) {
+    log(`[CLEANUP] Error during cleanup: ${error.message}`, "cleanup-error");
+    console.error("Error during cleanup:", error);
+  }
+}
+
+/**
  * Initialize UNIFIED global scheduler to run every 3 hours aligned with EST midnight
  * This replaces separate News Radar and Threat Tracker schedulers
  */
@@ -166,17 +446,17 @@ export async function initializeGlobalScheduler(): Promise<boolean> {
       globalSchedulerTimer = null;
       log(`[GLOBAL SCHEDULER] Cleared existing global timer`, "scheduler");
     }
-    
+
     // Reset initialization flag
     schedulerInitialized = false;
-    
+
     // Calculate next scheduled run time
     nextRunAt = getNextScheduledTime();
     const msToNextRun = nextRunAt.getTime() - Date.now();
-    
+
     log(`[GLOBAL SCHEDULER] Next scheduled run at: ${nextRunAt.toISOString()} (EST: ${nextRunAt.toLocaleString("en-US", { timeZone: "America/New_York" })})`, "scheduler");
     log(`[GLOBAL SCHEDULER] Time until next run: ${Math.round(msToNextRun / 1000 / 60)} minutes`, "scheduler");
-    
+
     // Check if we should run on startup
     const shouldRun = await shouldRunOnStartup();
     if (shouldRun) {
@@ -185,20 +465,25 @@ export async function initializeGlobalScheduler(): Promise<boolean> {
     } else {
       log(`[GLOBAL SCHEDULER] No catch-up scrape needed - last run was within 3 hours`, "scheduler");
     }
-    
+
     // Set up initial timeout to align with schedule, then use interval
     globalSchedulerTimer = setTimeout(async () => {
       // Run the first scheduled scrape
       await executeUnifiedGlobalScrape();
-      
+
       // Now set up regular 3-hour interval
       globalSchedulerTimer = setInterval(async () => {
         await executeUnifiedGlobalScrape();
       }, THREE_HOURS);
-      
+
       log(`[GLOBAL SCHEDULER] Switched to regular 3-hour interval timer`, "scheduler");
     }, msToNextRun);
-    
+
+    // Initialize Stripe operation tracking schedulers
+    await initializeStripeVerification();    // Hourly verification
+    await initializeStripeReconciliation();  // Weekly full reconciliation
+    await initializeCleanupJob();           // Daily cleanup
+
     schedulerInitialized = true;
     log(`[GLOBAL SCHEDULER] Unified global scheduler initialized - aligned with EST midnight schedule`, "scheduler");
     return true;
@@ -310,6 +595,24 @@ export function stopGlobalScheduler(): void {
     schedulerInitialized = false;
     log(`[GLOBAL SCHEDULER] Unified global scheduler stopped`, "scheduler");
   }
+
+  if (stripeReconciliationTimer) {
+    clearTimeout(stripeReconciliationTimer);
+    stripeReconciliationTimer = null;
+    log(`[STRIPE RECONCILIATION] Reconciliation scheduler stopped`, "stripe-reconciliation");
+  }
+
+  if (stripeVerificationTimer) {
+    clearInterval(stripeVerificationTimer);
+    stripeVerificationTimer = null;
+    log(`[STRIPE VERIFICATION] Verification scheduler stopped`, "stripe-verification");
+  }
+
+  if (cleanupTimer) {
+    clearTimeout(cleanupTimer);
+    cleanupTimer = null;
+    log(`[CLEANUP] Cleanup scheduler stopped`, "cleanup");
+  }
 }
 
 /**
@@ -317,18 +620,38 @@ export function stopGlobalScheduler(): void {
  */
 export function getGlobalSchedulerStatus() {
   const nextScheduled = nextRunAt || getNextScheduledTime();
-  
+  const nextReconciliation = nextReconciliationAt || getNextSunday2amESTTime();
+  const nextVerification = nextVerificationAt || getNextHourTime();
+
   return {
-    initialized: schedulerInitialized,
-    isRunning,
-    lastRun: lastGlobalRun?.toISOString() || null,
-    lastRunEST: lastGlobalRun ? lastGlobalRun.toLocaleString("en-US", { timeZone: "America/New_York" }) : null,
-    nextRun: nextScheduled.toISOString(),
-    nextRunEST: nextScheduled.toLocaleString("en-US", { timeZone: "America/New_York" }),
-    consecutiveFailures,
-    intervalHours: 3,
-    schedule: 'Fixed: 12am, 3am, 6am, 9am, 12pm, 3pm, 6pm, 9pm EST',
-    description: 'Unified global scraper - aligned with EST midnight schedule'
+    scraper: {
+      initialized: schedulerInitialized,
+      isRunning,
+      lastRun: lastGlobalRun?.toISOString() || null,
+      lastRunEST: lastGlobalRun ? lastGlobalRun.toLocaleString("en-US", { timeZone: "America/New_York" }) : null,
+      nextRun: nextScheduled.toISOString(),
+      nextRunEST: nextScheduled.toLocaleString("en-US", { timeZone: "America/New_York" }),
+      consecutiveFailures,
+      intervalHours: 3,
+      schedule: 'Fixed: 12am, 3am, 6am, 9am, 12pm, 3pm, 6pm, 9pm EST',
+      description: 'Unified global scraper - aligned with EST midnight schedule'
+    },
+    stripeVerification: {
+      initialized: stripeVerificationTimer !== null,
+      lastRun: lastVerificationRun?.toISOString() || null,
+      nextRun: nextVerification.toISOString(),
+      schedule: 'Every hour at :00',
+      description: 'Targeted verification for operations with missed webhooks'
+    },
+    stripeReconciliation: {
+      initialized: stripeReconciliationTimer !== null,
+      lastRun: lastReconciliationRun?.toISOString() || null,
+      lastRunEST: lastReconciliationRun ? lastReconciliationRun.toLocaleString("en-US", { timeZone: "America/New_York" }) : null,
+      nextRun: nextReconciliation.toISOString(),
+      nextRunEST: nextReconciliation.toLocaleString("en-US", { timeZone: "America/New_York" }),
+      schedule: 'Weekly at Sunday 2am EST',
+      description: 'Full reconciliation - ultimate safety net for edge cases'
+    }
   };
 }
 
@@ -339,5 +662,9 @@ export async function reinitializeGlobalScheduler() {
   log(`[GLOBAL SCHEDULER] Force re-initializing unified scheduler`, "scheduler");
   stopGlobalScheduler();
   schedulerInitialized = false;
+  lastReconciliationRun = null;
+  nextReconciliationAt = null;
+  lastVerificationRun = null;
+  nextVerificationAt = null;
   return await initializeGlobalScheduler();
 }

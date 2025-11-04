@@ -1,4 +1,3 @@
-import { csfrHeaderObject } from "@/utils/csrf-header";
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
@@ -18,12 +17,9 @@ export async function apiRequest<T = any>(
     
     const res = await fetch(url, {
       method,
-      headers: data ? { 
-        "Content-Type": "application/json",
-        ...csfrHeaderObject()
-      } : {
-          ...csfrHeaderObject()
-        },
+      headers: data ? {
+        "Content-Type": "application/json"
+      } : {},
       body: data ? JSON.stringify(data) : undefined,
       credentials: "include",
     });

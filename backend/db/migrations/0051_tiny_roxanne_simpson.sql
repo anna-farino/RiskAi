@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "no_sub_mode_enabled" boolean DEFAULT false;

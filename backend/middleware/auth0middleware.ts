@@ -1,13 +1,21 @@
 import { Request, Response, NextFunction } from 'express'
 import { db } from '../db/db';
 import { eq, or, and } from 'drizzle-orm';
-import { allowedEmails, auth0Ids, User, users } from '@shared/db/schema/user';
+import { allowedEmails, auth0Ids, subFreeUsers, User, users } from '@shared/db/schema/user';
 import { attachPermissionsAndRoleToRequest, FullRequest } from '.';
 import attachOrganizationToRequest from './utils/attach-org';
+import attachOnBoardingInfoToRequest from './utils/attach-onboard';
+import attachUserAllowed from './utils/attach-allowed-email';
+import dotenv from 'dotenv'
+import dotenvConfig from 'backend/utils/dotenv-config';
 
 type CustomRequest = Request &  { log: (...args: any[]) => void }
 
+dotenvConfig(dotenv)
+
 export async function auth0middleware(req: CustomRequest, res: Response, next: NextFunction) {
+
+  const restrictAccess = process.env.RESTRICT_ACCESS
 
   //const userAuth0 = req.auth?.payload['user/user'] as string || req.auth?.payload['user'] as string
   const email = req.auth?.payload['user/email'] as string || req.auth?.payload['email'] as string
@@ -20,7 +28,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
   //req.log("email: ", email)
   //req.log("sub: ", sub)
   //req.log("Organization id from payload: ", organizationId)
-  //console.log("auth0middleware...")
+  console.log("auth0middleware...")
 
   if (!sub) {
     req.log("❌ [AUTH0-MIDDLEWARE] User id not provided")
@@ -51,7 +59,9 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
         .limit(1)
 
       if (!user) {
-        throw new Error("User not found")
+        const message = "User not found"
+        console.error(message)
+        res.status(500).json({ message })
       }
 
       if (user.email != email) {
@@ -81,27 +91,41 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
       .limit(1);
 
     if (!userFromEmail) {
-
+      
       const domain = email.split('@')[1];
-      const [ allowedUser ] = await db
-        .select()
-        .from(allowedEmails)
-        .where(
-          domain
-            ? or(
-                eq(allowedEmails.name, email),
-                eq(allowedEmails.name, domain)
-              )
-            : eq(allowedEmails.name, email)
-        )
 
-      if (!allowedUser) {
-        res.status(401).json({ message: "User not whitelisted" })
-        return
+      if (restrictAccess) {
+        const allowedUserRes = await db
+          .select()
+          .from(allowedEmails)
+          .where(
+            domain
+              ? or(
+                  eq(allowedEmails.name, email),
+                  eq(allowedEmails.name, domain)
+                )
+              : eq(allowedEmails.name, email)
+          )
+          .limit(1)
+
+        if (allowedUserRes.length === 0) {
+          res.status(401).json({ message: "User not whitelisted" })
+          return
+        }
       }
 
       let user: User | undefined;
       try {
+        const subInfoRes = await db
+          .select()
+          .from(subFreeUsers)
+          .where(or(
+            eq(subFreeUsers.pattern,email),
+            eq(subFreeUsers.pattern,domain),
+          ));
+        
+        const subFree = subInfoRes.length > 0
+
         await db.transaction(async (tx) => {
           [ user ] = await tx
             .insert(users)
@@ -109,7 +133,11 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
               email: email,
               name: email,
               password: '',
-              organizationId: organizationId && organizationId !== "Missing organization" ? organizationId as string : null
+              organizationId: 
+                organizationId && organizationId !== "Missing organization" 
+                ? organizationId as string 
+                : null,
+              subFree
             })
             .onConflictDoUpdate({
               target: users.id,
@@ -153,19 +181,23 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
     req.log("👤[AUTH0-MIDDLEWARE] New user created", userToReturn)
   }
 
+  //req.log("👤[AUTH0-MIDDLEWARE] User: ", userToReturn);
   (req as unknown as FullRequest).user = userToReturn;
 
   try {
 
     const userId = userToReturn.id.toString();
+
     await attachPermissionsAndRoleToRequest(userId, req)
     await attachOrganizationToRequest(userToReturn, req)
+    await attachOnBoardingInfoToRequest(userToReturn, req)
+    await attachUserAllowed(userToReturn,req)
+
 
   } catch(error) {
-
     console.error("auth0middleware ERROR: ", error)
     throw error
-
   }
+
   next()
 }

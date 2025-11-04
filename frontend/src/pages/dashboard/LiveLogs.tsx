@@ -12,6 +12,7 @@ import { Play, Square, Trash2, Activity, AlertCircle, Globe, Loader2, Download, 
 import { serverUrl } from '@/utils/server-url';
 import { useToast } from '@/hooks/use-toast';
 import { useLiveLogsStore, LogEntry } from '@/stores/live-logs-store';
+import { useFetch } from '@/hooks/use-fetch';
 import SourceManagement from '@/components/admin/SourceManagement';
 
 export default function LiveLogs() {
@@ -55,6 +56,8 @@ export default function LiveLogs() {
     logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const fetchWithAuth = useFetch()
+
   useEffect(() => {
     scrollToBottom();
   }, [logs]);
@@ -74,22 +77,9 @@ export default function LiveLogs() {
 
     const checkPermissions = async () => {
       try {
-        console.log('[LiveLogs] Starting permission check for:', user.email);
-        
-        // Get token
-        const token = await getAccessTokenSilently({
-          authorizationParams: {
-            audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
-          }
-        });
-
-        const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
+        const response = await fetchWithAuth(`/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
           body: JSON.stringify({ email: user.email })
         });
 

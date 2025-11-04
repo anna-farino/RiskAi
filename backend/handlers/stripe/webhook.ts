@@ -6,6 +6,8 @@ import { stripeWebhookEvents } from '@shared/db/schema/stripe';
 import { eq } from 'drizzle-orm';
 import { handleSubscriptionCreated } from './webhook-utils/subscription-created';
 import { handleSubscriptionUpdated } from './webhook-utils/subscription-updated';
+import { handleSubscriptionDeleted } from './webhook-utils/subscription-deleted';
+import { markWebhookReceived } from 'backend/services/stripe-operation-tracker';
 
 
 export async function handleStripeWebhook(req: Request, res: Response) {
@@ -59,15 +61,36 @@ export async function handleStripeWebhook(req: Request, res: Response) {
     switch (event.type) {
       case 'customer.subscription.created':
         await handleSubscriptionCreated(event.data.object as Stripe.Subscription);
+        await markWebhookReceived(
+          (event.data.object as Stripe.Subscription).id,
+          'create_subscription',
+          event.id
+        );
         break;
 
       case 'customer.subscription.updated':
         await handleSubscriptionUpdated(event.data.object as Stripe.Subscription);
+        // Updated event could be from upgrade or downgrade - mark both types
+        await markWebhookReceived(
+          (event.data.object as Stripe.Subscription).id,
+          'upgrade_subscription',
+          event.id
+        );
+        await markWebhookReceived(
+          (event.data.object as Stripe.Subscription).id,
+          'downgrade_subscription',
+          event.id
+        );
         break;
 
-      //case 'customer.subscription.deleted':
-      //  await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
-      //  break;
+      case 'customer.subscription.deleted':
+        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription);
+        await markWebhookReceived(
+          (event.data.object as Stripe.Subscription).id,
+          'cancel_subscription',
+          event.id
+        );
+        break;
 
       //case 'invoice.payment_succeeded':
       //  await handlePaymentSucceeded(event.data.object as Stripe.Invoice);

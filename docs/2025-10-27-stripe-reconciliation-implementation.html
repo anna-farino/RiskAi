@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Subscription Reconciliation Implementation - October 27, 2025</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-code: #1a1f35;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent-purple: #BF00FF;
+            --accent-cyan: #00FFFF;
+            --border-color: #334155;
+            --success-green: #10b981;
+            --warning-yellow: #f59e0b;
+            --error-red: #ef4444;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-cyan) 100%);
+            padding: 2rem;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            color: #fff;
+        }
+
+        header .meta {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1rem;
+        }
+
+        .content {
+            padding: 3rem;
+        }
+
+        h2 {
+            color: var(--accent-cyan);
+            font-size: 2rem;
+            margin: 2.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        h3 {
+            color: var(--accent-purple);
+            font-size: 1.5rem;
+            margin: 2rem 0 1rem 0;
+        }
+
+        h4 {
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            margin: 1.5rem 0 0.8rem 0;
+        }
+
+        p {
+            margin: 1rem 0;
+            color: var(--text-secondary);
+            font-size: 1.05rem;
+        }
+
+        ul, ol {
+            margin: 1rem 0 1rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        li {
+            margin: 0.5rem 0;
+        }
+
+        code {
+            font-family: 'Fira Code', 'Consolas', 'Monaco', monospace;
+            font-size: 0.9em;
+            background: var(--bg-code);
+            padding: 0.2em 0.4em;
+            border-radius: 4px;
+            color: var(--accent-cyan);
+        }
+
+        pre {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            display: block;
+        }
+
+        .highlight {
+            background: var(--bg-code);
+            border-left: 4px solid var(--accent-purple);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+        }
+
+        .success-badge {
+            display: inline-block;
+            background: var(--success-green);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 0 0.3rem;
+        }
+
+        .warning-badge {
+            display: inline-block;
+            background: var(--warning-yellow);
+            color: var(--bg-primary);
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin: 0 0.3rem;
+        }
+
+        .info-box {
+            background: rgba(191, 0, 255, 0.1);
+            border: 1px solid var(--accent-purple);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1.5rem 0;
+        }
+
+        .flow-diagram {
+            background: var(--bg-code);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 2rem;
+            margin: 1.5rem 0;
+            font-family: monospace;
+            text-align: center;
+            color: var(--text-primary);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-code);
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        td {
+            color: var(--text-secondary);
+        }
+
+        .toc {
+            background: var(--bg-code);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .toc h3 {
+            margin-top: 0;
+            color: var(--accent-cyan);
+        }
+
+        .toc ul {
+            list-style: none;
+            margin-left: 0;
+        }
+
+        .toc a {
+            color: var(--text-primary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .toc a:hover {
+            color: var(--accent-cyan);
+        }
+
+        /* Syntax highlighting */
+        .keyword { color: #c792ea; }
+        .string { color: #c3e88d; }
+        .comment { color: #546e7a; font-style: italic; }
+        .function { color: #82aaff; }
+        .variable { color: #eeffff; }
+        .type { color: #ffcb6b; }
+        .operator { color: #89ddff; }
+        .number { color: #f78c6c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Stripe Subscription Reconciliation</h1>
+            <div class="meta">Implementation Guide | October 27, 2025</div>
+        </header>
+
+        <div class="content">
+            <div class="toc">
+                <h3>📋 Table of Contents</h3>
+                <ul>
+                    <li><a href="#overview">1. Overview</a></li>
+                    <li><a href="#problem">2. Problem Statement</a></li>
+                    <li><a href="#architecture">3. Solution Architecture</a></li>
+                    <li><a href="#implementation">4. Implementation Details</a></li>
+                    <li><a href="#logic">5. Reconciliation Logic</a></li>
+                    <li><a href="#scheduling">6. Scheduling & Frequency</a></li>
+                    <li><a href="#errors">7. Error Handling</a></li>
+                    <li><a href="#monitoring">8. Monitoring & Observability</a></li>
+                    <li><a href="#limits">9. API Rate Limits</a></li>
+                    <li><a href="#best-practices">10. Best Practices</a></li>
+                </ul>
+            </div>
+
+            <section id="overview">
+                <h2>Overview</h2>
+                <p>This document describes the implementation of a periodic reconciliation system that keeps the local database in sync with Stripe subscription data. The reconciliation job runs daily at 2am EST and ensures that any missed or failed webhooks don't result in data inconsistencies.</p>
+
+                <h3>Key Features</h3>
+                <ul>
+                    <li><span class="success-badge">✅</span> Daily automated reconciliation at 2am EST (off-peak hours)</li>
+                    <li><span class="success-badge">✅</span> Stripe as source of truth - always updates DB to match Stripe</li>
+                    <li><span class="success-badge">✅</span> Comprehensive discrepancy detection - status, tier, metadata mismatches</li>
+                    <li><span class="success-badge">✅</span> Detailed logging and reporting for monitoring and debugging</li>
+                    <li><span class="success-badge">✅</span> Graceful error handling to prevent scheduler disruption</li>
+                    <li><span class="success-badge">✅</span> Rate limit conscious - well within Stripe's API limits</li>
+                </ul>
+            </section>
+
+            <section id="problem">
+                <h2>Problem Statement</h2>
+
+                <h3>The Challenge</h3>
+                <p>The application uses webhooks to keep subscription data synchronized between Stripe and the local database:</p>
+
+                <div class="flow-diagram">
+                    <div>1. User action → Stripe API call (create/update subscription)</div>
+                    <div>↓</div>
+                    <div>2. Stripe processes → Sends webhook to our server</div>
+                    <div>↓</div>
+                    <div>3. Webhook handler → Updates local database</div>
+                </div>
+
+                <h3>The Risk</h3>
+                <p>If webhook communication breaks down for any reason, the database falls out of sync with Stripe:</p>
+
+                <div class="info-box">
+                    <h4>Common failure scenarios:</h4>
+                    <ul>
+                        <li>Network failures during webhook delivery</li>
+                        <li>Server downtime when webhook arrives</li>
+                        <li>Webhook processing errors (bugs, database issues)</li>
+                        <li>Missed webhook events due to configuration issues</li>
+                        <li>Out-of-order webhook delivery</li>
+                    </ul>
+
+                    <h4>Consequences:</h4>
+                    <ul>
+                        <li>Users shown incorrect subscription status</li>
+                        <li>Access control based on outdated data</li>
+                        <li>Billing discrepancies</li>
+                        <li>Poor user experience</li>
+                    </ul>
+                </div>
+            </section>
+
+            <section id="architecture">
+                <h2>Solution Architecture</h2>
+
+                <h3>Multi-Layer Approach</h3>
+                <p>We implement a <strong>periodic reconciliation job</strong> as the primary safety net, with future considerations for additional layers:</p>
+
+                <div class="flow-diagram">
+<pre>┌─────────────────────────────────────────┐
+│   Primary: Webhook System (Real-time)  │
+└─────────────────┬───────────────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────────────┐
+│  Safety Net: Daily Reconciliation       │
+│  Runs at 2am EST                        │
+│  - Fetch all subscriptions from Stripe │
+│  - Compare with local DB                │
+│  - Fix discrepancies                    │
+│  - Log everything                       │
+└─────────────────────────────────────────┘</pre>
+                </div>
+
+                <h3>Future Enhancements <span class="warning-badge">Not Yet Implemented</span></h3>
+                <ul>
+                    <li>On-demand verification when users view subscription settings</li>
+                    <li>Webhook monitoring & alerting for delivery failures</li>
+                    <li>Failed webhook retry queue with DLQ pattern</li>
+                </ul>
+            </section>
+
+            <section id="implementation">
+                <h2>Implementation Details</h2>
+
+                <h3>File Structure</h3>
+<pre><code>backend/
+├── services/
+│   ├── stripe-reconciliation.ts    <span class="comment"># Core reconciliation logic (NEW)</span>
+│   └── global-scheduler.ts         <span class="comment"># Updated with reconciliation scheduler</span>
+└── handlers/
+    └── stripe/
+        ├── webhook.ts               <span class="comment"># Existing webhook handler</span>
+        └── webhook-utils/           <span class="comment"># Webhook event processors</span>
+            ├── subscription-created.ts
+            ├── subscription-updated.ts
+            └── subscription-deleted.ts</code></pre>
+
+                <h3>Dependencies</h3>
+<pre><code><span class="keyword">import</span> { stripe } <span class="keyword">from</span> <span class="string">'backend/utils/stripe-config'</span>;        <span class="comment">// Stripe client</span>
+<span class="keyword">import</span> { db } <span class="keyword">from</span> <span class="string">'backend/db/db'</span>;                          <span class="comment">// Database client</span>
+<span class="keyword">import</span> { subsUser } <span class="keyword">from</span> <span class="string">'@shared/db/schema/subscriptions'</span>;   <span class="comment">// Subscription schema</span>
+<span class="keyword">import</span> { subscriptionTiers } <span class="keyword">from</span> <span class="string">'@shared/db/schema/organizations'</span>; <span class="comment">// Tiers</span>
+<span class="keyword">import</span> { stripeCustomers } <span class="keyword">from</span> <span class="string">'@shared/db/schema/stripe'</span>;   <span class="comment">// Customers</span></code></pre>
+            </section>
+
+            <section id="logic">
+                <h2>Reconciliation Logic</h2>
+
+                <h3>Main Flow</h3>
+<pre><code><span class="keyword">async function</span> <span class="function">reconcileSubscriptions</span>(): <span class="type">Promise</span>&lt;<span class="type">ReconciliationReport</span>&gt; {
+  <span class="comment">// 1. Fetch all subscriptions from Stripe (with pagination)</span>
+  <span class="keyword">const</span> <span class="variable">stripeSubscriptions</span> = <span class="keyword">await</span> <span class="function">fetchAllStripeSubscriptions</span>();
+
+  <span class="comment">// 2. Fetch all subscriptions from local DB</span>
+  <span class="keyword">const</span> <span class="variable">dbSubscriptions</span> = <span class="keyword">await</span> db.<span class="function">select</span>().<span class="function">from</span>(subsUser);
+
+  <span class="comment">// 3. Create lookup map for efficient comparison</span>
+  <span class="keyword">const</span> <span class="variable">dbSubscriptionMap</span> = <span class="keyword">new</span> <span class="type">Map</span>(
+    dbSubscriptions.<span class="function">map</span>(<span class="variable">sub</span> <span class="operator">=></span> [sub.stripeSubscriptionId, sub])
+  );
+
+  <span class="comment">// 4. Compare each Stripe subscription with DB</span>
+  <span class="keyword">for</span> (<span class="keyword">const</span> <span class="variable">stripeSub</span> <span class="keyword">of</span> stripeSubscriptions) {
+    <span class="keyword">const</span> <span class="variable">dbSub</span> = dbSubscriptionMap.<span class="function">get</span>(stripeSub.id);
+
+    <span class="keyword">if</span> (!dbSub) {
+      <span class="comment">// Discrepancy Type 1: Missing in DB</span>
+      <span class="keyword">await</span> <span class="function">handleMissingSubscription</span>(stripeSub, report);
+    } <span class="keyword">else</span> {
+      <span class="comment">// Discrepancy Types 2-4: Status, tier, metadata mismatches</span>
+      <span class="keyword">await</span> <span class="function">checkSubscriptionDiscrepancies</span>(stripeSub, dbSub, report);
+    }
+  }
+
+  <span class="comment">// 5. Return comprehensive report</span>
+  <span class="keyword">return</span> report;
+}</code></pre>
+
+                <h3>Discrepancy Types Detected</h3>
+
+                <h4>1. Missing in Database</h4>
+                <p><strong>Condition:</strong> Subscription exists in Stripe but not in local DB</p>
+                <p><strong>Action:</strong></p>
+                <ul>
+                    <li>Extract userId, customerId, email from Stripe metadata</li>
+                    <li>Look up tier by Stripe price ID</li>
+                    <li>Create stripe_customers record if needed</li>
+                    <li>Insert new subscription record in DB</li>
+                </ul>
+
+<pre><code><span class="keyword">await</span> db.<span class="function">insert</span>(subsUser).<span class="function">values</span>({
+  <span class="variable">userId</span>,
+  <span class="variable">tierId</span>: tier.id,
+  <span class="variable">status</span>: stripeSub.status,
+  <span class="variable">startDate</span>: <span class="keyword">new</span> <span class="type">Date</span>(stripeSub.start_date <span class="operator">*</span> <span class="number">1000</span>),
+  <span class="variable">stripeCustomerId</span>: customerId,
+  <span class="variable">stripeSubscriptionId</span>: stripeSub.id,
+  <span class="variable">metadata</span>: {
+    <span class="variable">tier</span>: tier.name,
+    <span class="variable">current_period</span>: { start, end },
+    <span class="variable">cancel_at_period_end</span>: stripeSub.cancel_at_period_end,
+    <span class="variable">promo_code</span>: stripeSub.discounts.length <span class="operator">></span> <span class="number">0</span>
+  }
+});</code></pre>
+
+                <h4>2. Status Mismatch</h4>
+                <p><strong>Condition:</strong> Subscription status differs between Stripe and DB</p>
+                <p><strong>Examples:</strong></p>
+                <ul>
+                    <li>Stripe: <code>active</code>, DB: <code>canceled</code></li>
+                    <li>Stripe: <code>past_due</code>, DB: <code>active</code></li>
+                </ul>
+
+<pre><code><span class="keyword">if</span> (stripeSub.status <span class="operator">!==</span> dbSub.status) {
+  updates.status = stripeSub.status;
+  <span class="comment">// Log discrepancy for monitoring</span>
+}</code></pre>
+
+                <h4>3. Tier Mismatch</h4>
+                <p><strong>Condition:</strong> Price ID in Stripe maps to different tier than stored in DB</p>
+
+<pre><code><span class="keyword">const</span> <span class="variable">priceId</span> = stripeSub.items.data[<span class="number">0</span>]<span class="operator">?.</span>price.id;
+<span class="keyword">const</span> <span class="variable">tierResult</span> = <span class="keyword">await</span> db
+  .<span class="function">select</span>()
+  .<span class="function">from</span>(subscriptionTiers)
+  .<span class="function">where</span>(<span class="function">eq</span>(subscriptionTiers.stripePriceId, priceId));
+
+<span class="keyword">if</span> (tierResult[<span class="number">0</span>].id <span class="operator">!==</span> dbSub.tierId) {
+  updates.tierId = tierResult[<span class="number">0</span>].id;
+}</code></pre>
+
+                <h4>4. Metadata Mismatch</h4>
+                <p><strong>Condition:</strong> Subscription metadata differs (promo codes, billing period, etc.)</p>
+
+<pre><code><span class="keyword">const</span> <span class="variable">stripePromoCode</span> = stripeSub.discounts.length <span class="operator">></span> <span class="number">0</span>;
+<span class="keyword">const</span> <span class="variable">dbPromoCode</span> = dbSub.metadata<span class="operator">?.</span>promo_code;
+
+<span class="keyword">if</span> (stripePromoCode <span class="operator">!==</span> dbPromoCode) {
+  updates.metadata = {
+    <span class="operator">...</span>dbSub.metadata,
+    <span class="variable">promo_code</span>: stripePromoCode,
+    <span class="variable">current_period</span>: { start, end },
+    <span class="variable">cancel_at_period_end</span>: stripeSub.cancel_at_period_end
+  };
+}</code></pre>
+
+                <h3>Pagination Handling</h3>
+                <p>Stripe's List API returns up to 100 results per request. The reconciliation handles pagination automatically:</p>
+
+<pre><code><span class="keyword">async function</span> <span class="function">fetchAllStripeSubscriptions</span>(): <span class="type">Promise</span>&lt;<span class="type">Stripe.Subscription</span>[]&gt; {
+  <span class="keyword">const</span> <span class="variable">subscriptions</span>: <span class="type">Stripe.Subscription</span>[] = [];
+  <span class="keyword">let</span> <span class="variable">hasMore</span> = <span class="keyword">true</span>;
+  <span class="keyword">let</span> <span class="variable">startingAfter</span>: <span class="type">string</span> | <span class="keyword">undefined</span> = <span class="keyword">undefined</span>;
+
+  <span class="keyword">while</span> (hasMore) {
+    <span class="keyword">const</span> <span class="variable">response</span> = <span class="keyword">await</span> stripe.subscriptions.<span class="function">list</span>({
+      <span class="variable">limit</span>: <span class="number">100</span>,
+      <span class="variable">starting_after</span>: startingAfter,
+      <span class="variable">expand</span>: [<span class="string">'data.customer'</span>, <span class="string">'data.items.data.price'</span>]
+    });
+
+    subscriptions.<span class="function">push</span>(<span class="operator">...</span>response.data);
+    hasMore = response.has_more;
+
+    <span class="keyword">if</span> (hasMore <span class="operator">&&</span> response.data.length <span class="operator">></span> <span class="number">0</span>) {
+      startingAfter = response.data[response.data.length <span class="operator">-</span> <span class="number">1</span>].id;
+    }
+  }
+
+  <span class="keyword">return</span> subscriptions;
+}</code></pre>
+            </section>
+
+            <section id="scheduling">
+                <h2>Scheduling & Frequency</h2>
+
+                <h3>Daily Schedule</h3>
+                <div class="highlight">
+                    <p><strong>Time:</strong> 2am EST (Eastern Standard Time)</p>
+                    <p><strong>Reason:</strong> Off-peak hours, between scraping runs (12am and 3am)</p>
+                </div>
+
+                <h3>Implementation</h3>
+                <p>The reconciliation is integrated into the existing global scheduler:</p>
+
+<pre><code><span class="comment">// In global-scheduler.ts</span>
+
+<span class="comment">// Calculate next 2am EST</span>
+<span class="keyword">function</span> <span class="function">getNext2amESTTime</span>(): <span class="type">Date</span> {
+  <span class="keyword">const</span> <span class="variable">now</span> = <span class="keyword">new</span> <span class="type">Date</span>();
+  <span class="keyword">const</span> <span class="variable">utcTime</span> = now.<span class="function">getTime</span>() <span class="operator">+</span> now.<span class="function">getTimezoneOffset</span>() <span class="operator">*</span> <span class="number">60000</span>;
+  <span class="keyword">const</span> <span class="variable">estOffset</span> = <span class="operator">-</span><span class="number">5</span> <span class="operator">*</span> <span class="number">60</span> <span class="operator">*</span> <span class="number">60000</span>;
+  <span class="keyword">const</span> <span class="variable">estTime</span> = <span class="keyword">new</span> <span class="type">Date</span>(utcTime <span class="operator">+</span> estOffset);
+
+  <span class="keyword">const</span> <span class="variable">next2am</span> = <span class="keyword">new</span> <span class="type">Date</span>(estTime);
+  next2am.<span class="function">setHours</span>(<span class="number">2</span>, <span class="number">0</span>, <span class="number">0</span>, <span class="number">0</span>);
+
+  <span class="keyword">if</span> (next2am <span class="operator"><=</span> estTime) {
+    next2am.<span class="function">setDate</span>(next2am.<span class="function">getDate</span>() <span class="operator">+</span> <span class="number">1</span>);
+  }
+
+  <span class="keyword">const</span> <span class="variable">systemTime</span> = <span class="keyword">new</span> <span class="type">Date</span>(next2am.<span class="function">getTime</span>() <span class="operator">-</span> estOffset);
+  <span class="keyword">return</span> systemTime;
+}</code></pre>
+            </section>
+
+            <section id="errors">
+                <h2>Error Handling</h2>
+
+                <h3>Graceful Failure Recovery</h3>
+                <p>The reconciliation system is designed to never disrupt the main scheduler:</p>
+
+<pre><code><span class="keyword">try</span> {
+  <span class="keyword">const</span> <span class="variable">report</span> = <span class="keyword">await</span> <span class="function">reconcileSubscriptions</span>();
+  <span class="function">log</span>(<span class="string">'[STRIPE RECONCILIATION] Completed successfully'</span>);
+} <span class="keyword">catch</span> (error) {
+  <span class="comment">// Log error but don't throw - keeps scheduler running</span>
+  <span class="function">log</span>(<span class="string">`[STRIPE RECONCILIATION] Error: <span class="variable">${error.message}</span>`</span>, <span class="string">'error'</span>);
+}</code></pre>
+
+                <h3>Individual Subscription Error Handling</h3>
+                <p>If one subscription fails to reconcile, continue processing others:</p>
+
+<pre><code><span class="keyword">for</span> (<span class="keyword">const</span> <span class="variable">stripeSub</span> <span class="keyword">of</span> stripeSubscriptions) {
+  <span class="keyword">try</span> {
+    <span class="comment">// Process this subscription</span>
+  } <span class="keyword">catch</span> (error) {
+    <span class="comment">// Log error for this subscription</span>
+    report.errors.<span class="function">push</span>(<span class="string">`Error processing <span class="variable">${stripeSub.id}</span>: <span class="variable">${error.message}</span>`</span>);
+    <span class="comment">// Continue to next subscription</span>
+  }
+}</code></pre>
+            </section>
+
+            <section id="monitoring">
+                <h2>Monitoring & Observability</h2>
+
+                <h3>Reconciliation Report Structure</h3>
+<pre><code><span class="keyword">interface</span> <span class="type">ReconciliationReport</span> {
+  <span class="variable">success</span>: <span class="type">boolean</span>;
+  <span class="variable">startTime</span>: <span class="type">Date</span>;
+  <span class="variable">endTime</span>: <span class="type">Date</span>;
+  <span class="variable">duration</span>: <span class="type">number</span>;                    <span class="comment">// milliseconds</span>
+  <span class="variable">subscriptionsChecked</span>: <span class="type">number</span>;
+  <span class="variable">discrepanciesFound</span>: <span class="type">number</span>;
+  <span class="variable">discrepanciesFixed</span>: <span class="type">number</span>;
+  <span class="variable">discrepanciesFailed</span>: <span class="type">number</span>;
+  <span class="variable">discrepancies</span>: <span class="type">ReconciliationDiscrepancy</span>[];
+  <span class="variable">errors</span>: <span class="type">string</span>[];
+}</code></pre>
+
+                <h3>Logging Strategy</h3>
+                <p>All reconciliation activities are logged with context:</p>
+
+<pre><code><span class="comment">// Start of reconciliation</span>
+<span class="function">log</span>(<span class="string">'[STRIPE RECONCILIATION] Starting subscription reconciliation'</span>, <span class="string">'stripe-reconciliation'</span>);
+
+<span class="comment">// Discovery of discrepancies</span>
+<span class="function">log</span>(<span class="string">'[STRIPE RECONCILIATION] DISCREPANCY: Status mismatch...'</span>, <span class="string">'stripe-reconciliation'</span>);
+
+<span class="comment">// Successful fixes</span>
+<span class="function">log</span>(<span class="string">'[STRIPE RECONCILIATION] ✓ Updated subscription abc123'</span>, <span class="string">'stripe-reconciliation'</span>);
+
+<span class="comment">// Failures</span>
+<span class="function">log</span>(<span class="string">'[STRIPE RECONCILIATION] ✗ Failed to update: error message'</span>, <span class="string">'stripe-reconciliation-error'</span>);
+
+<span class="comment">// Summary</span>
+<span class="function">log</span>(<span class="string">'[STRIPE RECONCILIATION] Completed: 3 found, 2 fixed, 1 failed in 1234ms'</span>, <span class="string">'stripe-reconciliation'</span>);</code></pre>
+            </section>
+
+            <section id="limits">
+                <h2>API Rate Limits</h2>
+
+                <h3>Stripe Rate Limits</h3>
+                <ul>
+                    <li><strong>Live mode:</strong> 100 read requests per second</li>
+                    <li><strong>Test mode:</strong> 25 read requests per second</li>
+                </ul>
+
+                <h3>Reconciliation API Usage</h3>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Subscriptions</th>
+                            <th>API Calls/Day</th>
+                            <th>Calls/Second</th>
+                            <th>% of Limit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>100</td>
+                            <td>1-2</td>
+                            <td>~0.00002</td>
+                            <td>0.00002%</td>
+                        </tr>
+                        <tr>
+                            <td>1,000</td>
+                            <td>10</td>
+                            <td>~0.0001</td>
+                            <td>0.0001%</td>
+                        </tr>
+                        <tr>
+                            <td>10,000</td>
+                            <td>100</td>
+                            <td>~0.001</td>
+                            <td>0.001%</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="info-box">
+                    <h4>Conclusion</h4>
+                    <p>Even at scale, reconciliation is <strong>well within Stripe's rate limits</strong>. Daily reconciliation uses minimal API quota.</p>
+                </div>
+            </section>
+
+            <section id="best-practices">
+                <h2>Best Practices</h2>
+
+                <h3>1. Stripe as Source of Truth</h3>
+                <p>Always update the local database to match Stripe, never the reverse:</p>
+
+                <div class="highlight">
+<pre><code><span class="comment">// ✅ CORRECT</span>
+<span class="keyword">if</span> (stripeSub.status <span class="operator">!==</span> dbSub.status) {
+  <span class="keyword">await</span> db.<span class="function">update</span>(subsUser).<span class="function">set</span>({ <span class="variable">status</span>: stripeSub.status });
+}
+
+<span class="comment">// ❌ WRONG</span>
+<span class="keyword">if</span> (stripeSub.status <span class="operator">!==</span> dbSub.status) {
+  <span class="keyword">await</span> stripe.subscriptions.<span class="function">update</span>(stripeSub.id, {
+    <span class="variable">status</span>: dbSub.status
+  });
+}</code></pre>
+                </div>
+                <p><strong>Rationale:</strong> Stripe owns the billing relationship. The local DB is a cache for performance.</p>
+
+                <h3>2. Preserve Audit Trail</h3>
+                <p>Log all changes with before/after values:</p>
+
+<pre><code><span class="keyword">const</span> <span class="variable">discrepancy</span>: <span class="type">ReconciliationDiscrepancy</span> = {
+  <span class="variable">type</span>: <span class="string">'status_mismatch'</span>,
+  <span class="variable">details</span>: <span class="string">`Status mismatch: Stripe='<span class="variable">${stripeSub.status}</span>', DB='<span class="variable">${dbSub.status}</span>'`</span>,
+  <span class="variable">before</span>: { <span class="variable">status</span>: dbSub.status },
+  <span class="variable">after</span>: { <span class="variable">status</span>: stripeSub.status },
+  <span class="variable">fixed</span>: <span class="keyword">true</span>
+};</code></pre>
+
+                <h3>3. Idempotency</h3>
+                <p>Reconciliation should be safe to run multiple times:</p>
+
+<pre><code><span class="comment">// Always check current state before updating</span>
+<span class="keyword">if</span> (stripeSub.status <span class="operator">!==</span> dbSub.status) {
+  <span class="keyword">await</span> <span class="function">updateStatus</span>();
+}
+
+<span class="comment">// Not: Always update unconditionally</span></code></pre>
+
+                <h3>4. Error Isolation</h3>
+                <p>Don't let one failure stop the entire reconciliation:</p>
+
+<pre><code><span class="keyword">for</span> (<span class="keyword">const</span> <span class="variable">subscription</span> <span class="keyword">of</span> subscriptions) {
+  <span class="keyword">try</span> {
+    <span class="keyword">await</span> <span class="function">reconcileOne</span>(subscription);
+  } <span class="keyword">catch</span> (error) {
+    <span class="comment">// Log but continue</span>
+    <span class="function">logError</span>(error);
+  }
+}</code></pre>
+
+                <h3>5. Webhook Priority</h3>
+                <div class="info-box">
+                    <p><strong>Webhooks:</strong> Real-time, efficient, primary mechanism</p>
+                    <p><strong>Reconciliation:</strong> Daily, comprehensive, safety net for missed events</p>
+                </div>
+
+                <h3>6. Metadata Enrichment</h3>
+                <p>Use Stripe metadata to store essential identifiers:</p>
+
+<pre><code><span class="keyword">await</span> stripe.subscriptions.<span class="function">create</span>({
+  <span class="variable">customer</span>: customerId,
+  <span class="variable">items</span>: [{ <span class="variable">price</span>: priceId }],
+  <span class="variable">metadata</span>: {
+    <span class="variable">userId</span>: req.user.id,          <span class="comment">// Essential for reconciliation</span>
+    <span class="variable">email</span>: req.user.email,        <span class="comment">// Helpful for debugging</span>
+    <span class="variable">customerId</span>: customerId,       <span class="comment">// Redundant but useful</span>
+    <span class="variable">billingPeriod</span>: <span class="string">'monthly'</span>      <span class="comment">// Additional context</span>
+  }
+});</code></pre>
+            </section>
+
+            <section>
+                <h2>Conclusion</h2>
+                <p>The Stripe reconciliation system provides a robust safety net for subscription data synchronization. By running daily at 2am EST, it ensures that even if webhooks fail, the database stays in sync with Stripe within 24 hours.</p>
+
+                <h3>Key Takeaways</h3>
+                <ul>
+                    <li><span class="success-badge">✅</span> <strong>Automated:</strong> Runs daily without manual intervention</li>
+                    <li><span class="success-badge">✅</span> <strong>Reliable:</strong> Handles errors gracefully, logs everything</li>
+                    <li><span class="success-badge">✅</span> <strong>Efficient:</strong> Minimal API usage, well within rate limits</li>
+                    <li><span class="success-badge">✅</span> <strong>Observable:</strong> Comprehensive reporting and logging</li>
+                    <li><span class="success-badge">✅</span> <strong>Maintainable:</strong> Clean separation from webhook logic</li>
+                </ul>
+
+                <h3>Next Steps</h3>
+                <p>Consider implementing additional layers:</p>
+                <ul>
+                    <li>On-demand verification when users view settings</li>
+                    <li>Webhook monitoring dashboard</li>
+                    <li>Failed webhook retry queue with DLQ pattern</li>
+                </ul>
+            </section>
+
+            <footer style="margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-secondary); text-align: center;">
+                <p>Last updated: October 27, 2025</p>
+            </footer>
+        </div>
+    </div>
+</body>
+</html>

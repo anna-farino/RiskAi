@@ -1,8 +1,9 @@
 import { stripe } from 'backend/utils/stripe-config';
+import { findOrCreateCustomer } from 'backend/utils/stripe/find-or-create-customer';
 import { Response } from 'express';
 import { FullRequest } from 'backend/middleware';
-
-const PRO_PRICE_ID = 'price_1SIZwt4uGyk26FKnXAd3TWtW';
+import Stripe from 'stripe';
+import { planPrice } from './get-plan-prices';
 
 export default async function handleCreateSetupIntent(
   req: FullRequest,
@@ -10,30 +11,15 @@ export default async function handleCreateSetupIntent(
 ) {
   try {
     const { email } = req.user;
+    const { billingPeriod = 'monthly' } = req.body; // Default to monthly if not provided
 
-    // Search for existing customer
-    const customerResult = await stripe.customers.search({
-      query: `email:"${email}"`
+    // Get or create customer using centralized function
+    const { customer, isNew: isNewCustomer } = await findOrCreateCustomer({
+      userId: req.user.id,
+      email,
     });
 
-    let customer;
-    let isNewCustomer = false;
-
-    if (!customerResult.data || customerResult.data.length === 0) {
-      // NEW FLOW: Customer doesn't exist, create one
-      console.log('[SETUP-INTENT] Creating new customer for:', email);
-      customer = await stripe.customers.create({
-        email: email,
-        metadata: {
-          userId: req.user.id,
-        },
-      });
-      isNewCustomer = true;
-    } else {
-      // UPGRADE FLOW: Use existing customer
-      customer = customerResult.data[0];
-      console.log('[SETUP-INTENT] Found existing customer:', customer.id);
-    }
+    console.log(`[SETUP-INTENT] Using customer ${customer.id} (new: ${isNewCustomer})`);
 
     // Create SetupIntent to collect payment method
     const setupIntent = await stripe.setupIntents.create({
@@ -46,8 +32,11 @@ export default async function handleCreateSetupIntent(
       },
     });
 
+    // Select price ID based on billing period
+    const priceId = billingPeriod === 'yearly' ? planPrice.pro.yearly : planPrice.pro.monthly;
+
     // Fetch Pro price details
-    const price = await stripe.prices.retrieve(PRO_PRICE_ID);
+    const price = await stripe.prices.retrieve(priceId);
 
     res.json({
       clientSecret: setupIntent.client_secret,
@@ -57,6 +46,7 @@ export default async function handleCreateSetupIntent(
         amount: price.unit_amount,
         currency: price.currency,
       },
+      billingPeriod,
     });
 
   } catch (error) {

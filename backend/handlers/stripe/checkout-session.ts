@@ -1,4 +1,5 @@
 import { stripe } from 'backend/utils/stripe-config';
+import { planPrice } from './get-plan-prices';
 import { Response } from 'express'
 import { FullRequest } from 'backend/middleware';
 import dotenv from 'dotenv'
@@ -7,13 +8,11 @@ import dotenvConfig from 'backend/utils/dotenv-config';
 dotenvConfig(dotenv)
 const appDomain = process.env.BASE_URL
 
-const FREE_PRICE_ID = 'price_1SIai04uGyk26FKnKrY7JcZ5';
-const PRO_PRICE_ID = 'price_1SIZwt4uGyk26FKnXAd3TWtW';
-
 export default async function handleCreateCheckoutSession(req: FullRequest, res: Response) {
   console.log("Create checkout session")
   try {
     const { email } = req.user;
+    const { billingPeriod = 'monthly' } = req.body;
     console.log("User's email: ", email)
 
     // Query Stripe for existing customer and subscription (Stripe as source of truth)
@@ -37,7 +36,7 @@ export default async function handleCreateCheckoutSession(req: FullRequest, res:
 
         // Check if they're on the free plan
         const freeItem = existingSubscription.items.data.find(
-          item => item.price.id === FREE_PRICE_ID
+          item => item.price.id === planPrice.free.monthly
         );
 
         if (freeItem) {
@@ -64,13 +63,16 @@ export default async function handleCreateCheckoutSession(req: FullRequest, res:
       customerId = customerResult.data[0].id;
     }
 
+    // Select price ID based on billing period
+    const priceId = billingPeriod === 'yearly' ? planPrice.pro.yearly : planPrice.pro.monthly;
+
     const session = await stripe.checkout.sessions.create({
       ui_mode: "custom",
       customer: customerId, // Use existing customer if found
       customer_email: customerId ? undefined : email, // Only set email if no customer
       line_items: [
         {
-          price: PRO_PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],

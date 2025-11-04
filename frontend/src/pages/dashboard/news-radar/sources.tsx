@@ -21,21 +21,15 @@ import { Button } from "@/components/ui/button";
 import { useFetch } from "@/hooks/use-fetch";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/use-auth";
+import { GlobalSource } from "@shared/db/schema/global-tables";
 
-interface GlobalSource {
-  id: string;
-  url: string;
-  name: string;
-  isEnabled: boolean;
-  isGlobal: boolean;
-  includeInAutoScrape?: boolean;
-  lastScraped?: string | null;
-}
 
 export default function Sources() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fetchWithAuth = useFetch();
+  const { data: userData } = useAuth();
   
   // Toolbar state management
   const [searchTerm, setSearchTerm] = useState("");
@@ -51,8 +45,8 @@ export default function Sources() {
           method: "GET",
         });
         if (!response.ok) throw new Error("Failed to fetch available sources");
-        const data = await response.json();
-        return data || [];
+        const data: GlobalSource[] = await response.json();
+        return data?.filter(s => s.requiredTierLevel <= ( userData?.tierLevel || 0 )) || [];
       } catch (error) {
         console.error(error);
         return [];

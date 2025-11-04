@@ -1,4 +1,4 @@
-import Settings from '../../pages/dashboard/Settings.tsx'
+import Settings from '../../pages/dashboard/settings'
 import LiveLogs from '../../pages/dashboard/LiveLogs.tsx'
 import WidgetDashboard from '@/pages/Dashboard.tsx'
 import Admin from '@/pages/dashboard/Admin.tsx'

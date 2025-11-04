@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { serverUrl } from '@/utils/server-url';
+import { useFetch } from './use-fetch';
 
 interface LiveLogsPermissionState {
   available: boolean;
@@ -10,7 +11,8 @@ interface LiveLogsPermissionState {
 }
 
 export function useLiveLogsPermission(): LiveLogsPermissionState {
-  const { user, isAuthenticated, isLoading: authLoading, getAccessTokenSilently } = useAuth0();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth0();
+  const fetchWithAuth = useFetch()
   const [state, setState] = useState<LiveLogsPermissionState>({
     available: false,
     hasPermission: false,
@@ -61,20 +63,9 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
         hasCheckedRef.current = true; // Mark as checked before making request
         setState(prev => ({ ...prev, loading: true, error: null }));
 
-        // Get JWT token
-        const token = await getAccessTokenSilently({
-          authorizationParams: {
-            audience: (import.meta as any).env.VITE_AUTH0_AUDIENCE
-          }
-        });
-
-        const response = await fetch(`${serverUrl}/api/live-logs-management/check-permission`, {
+        const response = await fetchWithAuth(`/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
           body: JSON.stringify({ email: user.email })
         });
 
@@ -109,7 +100,7 @@ export function useLiveLogsPermission(): LiveLogsPermissionState {
     };
 
     checkPermission();
-  }, [isAuthenticated, authLoading, user?.email, getAccessTokenSilently]);
+  }, [isAuthenticated, authLoading, user?.email]);
 
   return state;
 }

@@ -1,0 +1,1 @@
+CREATE VIEW "public"."user_tier_view" AS (select "users"."email", "subscription_tiers"."name", "subscription_tiers"."tier_level", "subs_user"."id", "subs_user"."metadata" from "subs_user" inner join "users" on "users"."id" = "subs_user"."user_id" inner join "subscription_tiers" on "subscription_tiers"."id" = "subs_user"."tier_id");
