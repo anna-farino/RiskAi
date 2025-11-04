@@ -50,6 +50,21 @@ export default async function handleUpgradeSubscription(req: FullRequest, res: R
 
     console.log('[UPGRADE] Changing plan:', subscription.id);
 
+    // First, attach the payment method to the customer
+    try {
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: customer.id,
+      });
+      console.log('[UPGRADE] Attached payment method:', paymentMethodId);
+    } catch (error: any) {
+      // If already attached, that's fine - continue
+      if (error.code !== 'resource_missing') {
+        console.log('[UPGRADE] Payment method already attached or other error:', error.code);
+      } else {
+        throw error;
+      }
+    }
+
     // Set the payment method as default for the customer
     await stripe.customers.update(customer.id, {
       invoice_settings: {

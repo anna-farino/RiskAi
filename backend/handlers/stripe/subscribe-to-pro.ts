@@ -20,6 +20,21 @@ export default async function handleSubscribeToPro(
 
     console.log('[SUBSCRIBE-PRO] Creating Pro subscription for:', email);
 
+    // First, attach the payment method to the customer
+    try {
+      await stripe.paymentMethods.attach(paymentMethodId, {
+        customer: customerId,
+      });
+      console.log('[SUBSCRIBE-PRO] Attached payment method:', paymentMethodId);
+    } catch (error: any) {
+      // If already attached, that's fine - continue
+      if (error.code !== 'resource_missing') {
+        console.log('[SUBSCRIBE-PRO] Payment method already attached or other error:', error.code);
+      } else {
+        throw error;
+      }
+    }
+
     // Set payment method as default for customer
     await stripe.customers.update(customerId, {
       invoice_settings: {
