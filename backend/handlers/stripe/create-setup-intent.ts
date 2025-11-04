@@ -1,4 +1,5 @@
 import { stripe } from 'backend/utils/stripe-config';
+import { findOrCreateCustomer } from 'backend/utils/stripe/find-or-create-customer';
 import { Response } from 'express';
 import { FullRequest } from 'backend/middleware';
 import Stripe from 'stripe';
@@ -12,29 +13,13 @@ export default async function handleCreateSetupIntent(
     const { email } = req.user;
     const { billingPeriod = 'monthly' } = req.body; // Default to monthly if not provided
 
-    // Search for existing customer
-    const customerResult = await stripe.customers.search({
-      query: `email:"${email}"`
+    // Get or create customer using centralized function
+    const { customer, isNew: isNewCustomer } = await findOrCreateCustomer({
+      userId: req.user.id,
+      email,
     });
 
-    let customer: Stripe.Customer;
-    let isNewCustomer = false;
-
-    if (!customerResult.data || customerResult.data.length === 0) {
-      // NEW FLOW: Customer doesn't exist, create one
-      console.log('[SETUP-INTENT] Creating new customer for:', email);
-      customer = await stripe.customers.create({
-        email: email,
-        metadata: {
-          userId: req.user.id,
-        },
-      });
-      isNewCustomer = true;
-    } else {
-      // UPGRADE FLOW: Use existing customer
-      customer = customerResult.data[0];
-      console.log('[SETUP-INTENT] Found existing customer:', customer.id);
-    }
+    console.log(`[SETUP-INTENT] Using customer ${customer.id} (new: ${isNewCustomer})`);
 
     // Create SetupIntent to collect payment method
     const setupIntent = await stripe.setupIntents.create({

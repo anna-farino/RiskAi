@@ -1,5 +1,6 @@
 import { stripe } from "backend/utils/stripe-config";
 import { logStripeOperation } from "backend/services/stripe-operation-tracker";
+import { findOrCreateCustomer } from "./find-or-create-customer";
 import Stripe from "stripe";
 
 type Args = {
@@ -10,23 +11,8 @@ type Args = {
 export default async function createFreeSub({ userId, email }: Args): Promise<void> {
   console.log("Creating free subscription...")
 
-  const customerResult = await stripe.customers.search({
-    query: `email:"${email}"`
-  })
-
-  if (!customerResult.data || !Array.isArray(customerResult.data)) {
-    throw new Error("No customer data found")
-  }
-
-  let customer: Stripe.Customer; 
-
-  if (customerResult.data.length===0) {
-      customer = await stripe.customers.create({
-        email
-      })
-  } else {
-    customer = customerResult.data[0]
-  }
+  // Get or create customer using centralized function
+  const { customer } = await findOrCreateCustomer({ userId, email });
 
   const subResult = await stripe.subscriptions.list({
     customer: customer.id
