@@ -14,7 +14,7 @@ interface PricingViewProps {
   promoDescription?: string;
   showGoBack?: boolean;
   onLogout?: () => void;
-  freePlanSpinner?: boolean
+  planButtonSpinner?: 'free' | 'pro' | null
   planBillingPeriod?: 'monthly' | 'yearly' | undefined
   billingPeriod?: 'monthly' | 'yearly' | undefined
 }
@@ -27,7 +27,7 @@ export default function PricingView({
   promoDescription, 
   showGoBack = true, 
   onLogout,
-  freePlanSpinner, 
+  planButtonSpinner,
   planBillingPeriod
 }
 : PricingViewProps
@@ -145,7 +145,7 @@ export default function PricingView({
               hasPromoCode={hasPromoCode}
               promoDescription={promoDescription}
               showGoBack={showGoBack}
-              freePlanSpinner={freePlanSpinner}
+              planButtonSpinner={planButtonSpinner}
               billingPeriod={billingPeriod}
             />
           }
@@ -157,6 +157,7 @@ export default function PricingView({
             onPlanSelect={(plan) => onPlanSelect(plan, billingPeriod)}
             hasPromoCode={hasPromoCode}
             promoDescription={promoDescription}
+            planButtonSpinner={planButtonSpinner}
             billingPeriod={billingPeriod}
           />
           <PricingCard

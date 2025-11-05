@@ -62,10 +62,18 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
   const stripeMetadata = subscription.metadata || {};
   const isScheduledDowngrade = stripeMetadata.scheduled_downgrade_to_free === 'true';
 
+  if (existingMetadata.scheduled_change_from_yearly_to_monthly) {
+    console.log("Existing metadata has scheduled_change_from_yearly_to_monthly")
+    if (!subscription.cancel_at_period_end) {
+      console.log("Deleteing scheduled_change_from_yearly_to_monthly")
+      delete existingMetadata.scheduled_change_from_yearly_to_monthly
+    }
+  }
+
   // Build new metadata by merging existing with updates
   const newMetadata: any = {
     ...existingMetadata, // Preserve existing fields
-    tier: tier.name,
+    tier: tier?.name,
     promo_code: promo,
     current_period: {
       start: subscription.items.data[0].current_period_start,

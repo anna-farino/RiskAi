@@ -26,7 +26,8 @@ type Props = {
   confirmTitle?: string,
   twMaxWidthClass?: `max-w-${twNumber}` | `max-w-${twSize}`,
   twGapClass?: `gap-${twNumber}`,
-  forceMount?: true | undefined
+  forceMount?: true | undefined,
+  cancelAction?: ()=>void
 }
 export function CustomAlertDialog({
   children,
@@ -39,8 +40,11 @@ export function CustomAlertDialog({
   confirmTitle="Confirm",
   twMaxWidthClass="max-w-96",
   twGapClass="gap-4",
-  forceMount
-}: Props) {
+  forceMount,
+  cancelAction
+}
+: Props
+) {
 
   function handleAction(e: React.MouseEvent) {
     action(e)
@@ -66,7 +70,7 @@ export function CustomAlertDialog({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>
+            <AlertDialogCancel onClick={cancelAction}>
               {cancelTitle}
             </AlertDialogCancel>
             <AlertDialogAction
