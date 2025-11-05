@@ -7,15 +7,30 @@ import { subsUser } from '@shared/db/schema/subscriptions';
 import { eq } from 'drizzle-orm';
 import { planPrice } from './get-plan-prices';
 
+type DowngradeType = 
+  'pro_to_free' |
+  'pro_yearly_to_pro_monthly' 
+
 export default async function handleDowngradeSubscription(
   req: FullRequest,
   res: Response
 ) {
-  try {
-    const { email, id: userId } = req.user;
+  const { email, id: userId } = req.user;
+  const { downgradeType } = req.body as { downgradeType: DowngradeType }
 
-    console.log('[DOWNGRADE] 🚀 Starting downgrade for:', email);
-    console.log('[DOWNGRADE] 🚀 User ID:', userId);
+  let logLabel: string = "SUBSCRIPTION"; 
+  switch (downgradeType) {
+    case 'pro_to_free':
+      logLabel = "DOWNGRADE"
+      break
+    case 'pro_yearly_to_pro_monthly':
+      logLabel = "CHANGE"
+      break
+  }
+
+  try {
+    console.log(`[${logLabel}] 🚀 Starting downgrade for:`, email);
+    console.log(`[${logLabel}] 🚀 User ID:`, userId);
 
     // Find customer
     const customerResult = await stripe.customers.search({
@@ -38,7 +53,6 @@ export default async function handleDowngradeSubscription(
     if (subscriptions.data.length === 0) {
       return res.status(404).json({ error: 'No active subscription found' });
     }
-
     const subscription = subscriptions.data[0];
 
     // Verify it's a pro subscription
@@ -52,17 +66,27 @@ export default async function handleDowngradeSubscription(
       });
     }
 
-    console.log('[DOWNGRADE] 📋 Scheduling downgrade at period end:', subscription.id);
-    console.log('[DOWNGRADE] 📋 Current subscription state:');
-    console.log('[DOWNGRADE]    - Status:', subscription.status);
-    console.log('[DOWNGRADE]    - Current period end:', subscription.items.data[0]?.current_period_end ? new Date(subscription.items.data[0].current_period_end * 1000).toISOString() : 'UNDEFINED');
-    console.log('[DOWNGRADE]    - Current price ID:', subscription.items.data[0]?.price.id || 'NONE');
-    console.log('[DOWNGRADE]    - Cancel at period end (before):', subscription.cancel_at_period_end);
-    console.log('[DOWNGRADE]    - Items in subscription:', subscription.items.data.length);
-    console.log('[DOWNGRADE] 📋 About to call Stripe API with:');
-    console.log('[DOWNGRADE]    - cancel_at_period_end: true');
-    console.log('[DOWNGRADE]    - metadata.scheduled_downgrade_to_free: "true"');
-    console.log('[DOWNGRADE]    - metadata.userId:', userId);
+    console.log(`[${logLabel}] 📋 Scheduling downgrade at period end:`, subscription.id);
+    console.log(`[${logLabel}] 📋 Current subscription state:`);
+    console.log(`[${logLabel}]    - Status:`, subscription.status);
+    console.log(`[${logLabel}]    - Current period end:`, subscription.items.data[0]?.current_period_end ? new Date(subscription.items.data[0].current_period_end * 1000).toISOString() : 'UNDEFINED');
+    console.log(`[${logLabel}]    - Current price ID:`, subscription.items.data[0]?.price.id || 'NONE');
+    console.log(`[${logLabel}]    - Cancel at period end (before):`, subscription.cancel_at_period_end);
+    console.log(`[${logLabel}]    - Items in subscription:`, subscription.items.data.length);
+    console.log(`[${logLabel}] 📋 About to call Stripe API with:`);
+    console.log(`[${logLabel}]    - cancel_at_period_end: true`);
+
+    let metadataScheduled: string;
+    switch (downgradeType) {
+      case 'pro_to_free':
+        metadataScheduled = 'scheduled_downgrade_to_free'
+        break
+      case 'pro_yearly_to_pro_monthly':
+        metadataScheduled = 'scheduled_change_from_yearly_to_monthly'
+        break
+    }
+    console.log(`[${logLabel}]    - metadata.${metadataScheduled}: "true"`);
+    console.log(`[${logLabel}]    - metadata.userId:`, userId);
 
     // Schedule downgrade: cancel Pro at period end, then auto-create Free
     const updatedSubscription = await stripe.subscriptions.update(
@@ -71,7 +95,7 @@ export default async function handleDowngradeSubscription(
         cancel_at_period_end: true,
         metadata: {
           ...subscription.metadata,
-          scheduled_downgrade_to_free: 'true',
+          [metadataScheduled]: 'true',
           userId: userId,
         },
       }
@@ -79,8 +103,8 @@ export default async function handleDowngradeSubscription(
 
     // Verify Stripe actually accepted the change
     if (!updatedSubscription.cancel_at_period_end) {
-      console.error('[DOWNGRADE] ❌ Stripe did not set cancel_at_period_end to true');
-      console.error('[DOWNGRADE] ❌ Response:', JSON.stringify(updatedSubscription, null, 2));
+      console.error(`[${logLabel}] ❌ Stripe did not set cancel_at_period_end to true`);
+      console.error(`[${logLabel}] ❌ Response:`, JSON.stringify(updatedSubscription, null, 2));
       return res.status(500).json({
         error: 'Failed to schedule downgrade',
         details: 'Stripe did not accept the cancellation. This may be due to billing period restrictions or account limitations. Please contact support.'
@@ -88,24 +112,23 @@ export default async function handleDowngradeSubscription(
     }
 
     if (!updatedSubscription.cancel_at) {
-      console.error('[DOWNGRADE] ❌ Stripe did not set a cancel_at timestamp');
-      console.error('[DOWNGRADE] ❌ Response:', JSON.stringify(updatedSubscription, null, 2));
+      console.error(`[${logLabel}] ❌ Stripe did not set a cancel_at timestamp`);
+      console.error(`[${logLabel}] ❌ Response:`, JSON.stringify(updatedSubscription, null, 2));
       return res.status(500).json({
         error: 'Failed to schedule downgrade',
         details: 'Stripe did not set a cancellation date. Your subscription may not support scheduled cancellation. Please contact support.'
       });
     }
 
-    console.log('[DOWNGRADE] ✅ Stripe API response received:');
-    console.log('[DOWNGRADE]    - cancel_at_period_end:', updatedSubscription.cancel_at_period_end);
-    console.log('[DOWNGRADE]    - cancel_at:', updatedSubscription.cancel_at ? new Date(updatedSubscription.cancel_at * 1000).toISOString() : 'NULL');
-    console.log('[DOWNGRADE]    - current_period_end:', updatedSubscription.items.data[0]?.current_period_end ? new Date(updatedSubscription.items.data[0].current_period_end * 1000).toISOString() : 'UNDEFINED');
-    console.log('[DOWNGRADE]    - status:', updatedSubscription.status);
-    console.log('[DOWNGRADE]    - items count:', updatedSubscription.items.data.length);
-    console.log('[DOWNGRADE]    - First item price ID:', updatedSubscription.items.data[0]?.price.id || 'NONE');
-    console.log('[DOWNGRADE]    - Metadata:', JSON.stringify(updatedSubscription.metadata, null, 2));
+    console.log(`[${logLabel}] ✅ Stripe API response received:`);
+    console.log(`[${logLabel}]    - cancel_at_period_end:`, updatedSubscription.cancel_at_period_end);
+    console.log(`[${logLabel}]    - cancel_at:`, updatedSubscription.cancel_at ? new Date(updatedSubscription.cancel_at * 1000).toISOString() : 'NULL');
+    console.log(`[${logLabel}]    - current_period_end:`, updatedSubscription.items.data[0]?.current_period_end ? new Date(updatedSubscription.items.data[0].current_period_end * 1000).toISOString() : 'UNDEFINED');
+    console.log(`[${logLabel}]    - status:`, updatedSubscription.status);
+    console.log(`[${logLabel}]    - items count:`, updatedSubscription.items.data.length);
+    console.log(`[${logLabel}]    - First item price ID:`, updatedSubscription.items.data[0]?.price.id || 'NONE');
+    console.log(`[${logLabel}]    - Metadata:`, JSON.stringify(updatedSubscription.metadata, null, 2));
 
-    // Update database: mark scheduled downgrade and clear promo code
     const currentSub = await db
       .select()
       .from(subsUser)
@@ -116,7 +139,7 @@ export default async function handleDowngradeSubscription(
       const currentMetadata = (currentSub[0].metadata || {}) as any;
 
       // Add scheduled downgrade info
-      currentMetadata.scheduled_downgrade_to_free = true;
+      currentMetadata[metadataScheduled] = true;
       currentMetadata.downgrade_at = updatedSubscription.cancel_at;
 
       // Remove promo code from metadata
@@ -132,13 +155,13 @@ export default async function handleDowngradeSubscription(
         })
         .where(eq(subsUser.userId, userId));
 
-      console.log('[DOWNGRADE] 💾 Database metadata updated:');
-      console.log('[DOWNGRADE]    - scheduled_downgrade_to_free:', currentMetadata.scheduled_downgrade_to_free);
-      console.log('[DOWNGRADE]    - downgrade_at:', currentMetadata.downgrade_at ? new Date(currentMetadata.downgrade_at * 1000).toISOString() : 'UNDEFINED');
-      console.log('[DOWNGRADE]    - promo_code cleared:', !currentMetadata.promo_code);
+      console.log(`[${logLabel}] 💾 Database metadata updated:`);
+      console.log(`[${logLabel}]    -  ${metadataScheduled}:`, currentMetadata[metadataScheduled]);
+      console.log(`[${logLabel}]    - downgrade_at:`, currentMetadata.downgrade_at ? new Date(currentMetadata.downgrade_at * 1000).toISOString() : 'UNDEFINED');
+      console.log(`[${logLabel}]    - promo_code cleared:`, !currentMetadata.promo_code);
     }
 
-    console.log('[DOWNGRADE] ✅ Scheduled downgrade to Free at period end:', subscription.id);
+    console.log(`[${logLabel}] ✅ Scheduled downgrade to Free at period end:`, subscription.id);
 
     // Log the operation for tracking
     await logStripeOperation({
@@ -146,21 +169,38 @@ export default async function handleDowngradeSubscription(
       userId,
       stripeCustomerId: customer.id,
       stripeSubscriptionId: subscription.id,
-      requestPayload: { fromTier: 'pro', toTier: 'free' }
+      requestPayload: { downgradeType }
     });
 
-    console.log('[DOWNGRADE] 📤 Sending response to frontend:');
-    console.log('[DOWNGRADE]    - success: true');
-    console.log('[DOWNGRADE]    - subscription.id:', updatedSubscription.id);
-    console.log('[DOWNGRADE]    - subscription.status:', updatedSubscription.status);
-    console.log('[DOWNGRADE]    - subscription.cancel_at_period_end:', updatedSubscription.cancel_at_period_end);
-    console.log('[DOWNGRADE]    - subscription.cancel_at:', updatedSubscription.cancel_at ? new Date(updatedSubscription.cancel_at * 1000).toISOString() : 'NULL');
-    console.log('[DOWNGRADE]    - subscription.current_period_end:', updatedSubscription.items.data[0]?.current_period_end ? new Date(updatedSubscription.items.data[0].current_period_end * 1000).toISOString() : 'UNDEFINED');
+    console.log(`[${logLabel}] 📤 Sending response to frontend:`);
+    console.log(`[${logLabel}]    - success: true`);
+    console.log(`[${logLabel}]    - subscription.id:`, updatedSubscription.id);
+    console.log(`[${logLabel}]    - subscription.status:`, updatedSubscription.status);
+    console.log(`[${logLabel}]    - subscription.cancel_at_period_end:`, updatedSubscription.cancel_at_period_end);
+    console.log(`[${logLabel}]    - subscription.cancel_at:`, updatedSubscription.cancel_at ? new Date(updatedSubscription.cancel_at * 1000).toISOString() : 'NULL');
+    console.log(`[${logLabel}]    - subscription.current_period_end:`, updatedSubscription.items.data[0]?.current_period_end ? new Date(updatedSubscription.items.data[0].current_period_end * 1000).toISOString() : 'UNDEFINED');
+
+    let newSubscription: { plan: string, billingPeriod: string | null }
+    switch (downgradeType) {
+      case 'pro_to_free':
+        newSubscription = {
+          plan: 'free',
+          billingPeriod: null
+        }
+        break
+      case 'pro_yearly_to_pro_monthly': {
+        newSubscription = {
+          plan: 'pro',
+          billingPeriod: 'monthly'
+        }
+      }
+    }
 
     res.json({
       success: true,
       subscription: {
         id: updatedSubscription.id,
+        new_subscription: newSubscription,
         status: updatedSubscription.status,
         cancel_at_period_end: updatedSubscription.cancel_at_period_end,
         cancel_at: updatedSubscription.cancel_at,
@@ -169,11 +209,11 @@ export default async function handleDowngradeSubscription(
     });
 
   } catch (error) {
-    console.error('[DOWNGRADE] ❌ Error occurred:');
-    console.error('[DOWNGRADE] ❌ Error type:', error instanceof Error ? error.constructor.name : typeof error);
-    console.error('[DOWNGRADE] ❌ Error message:', error instanceof Error ? error.message : String(error));
+    console.error(`[${logLabel}] ❌ Error occurred:`);
+    console.error(`[${logLabel}] ❌ Error type:`, error instanceof Error ? error.constructor.name : typeof error);
+    console.error(`[${logLabel}] ❌ Error message:`, error instanceof Error ? error.message : String(error));
     if (error instanceof Error && error.stack) {
-      console.error('[DOWNGRADE] ❌ Stack trace:', error.stack);
+      console.error(`[${logLabel}] ❌ Stack trace:`, error.stack);
     }
     res.status(500).json({
       error: 'Failed to downgrade subscription',

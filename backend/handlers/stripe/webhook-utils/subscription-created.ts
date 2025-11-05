@@ -73,6 +73,7 @@ export async function handleSubscriptionCreated(subscription: Stripe.Subscriptio
       console.error("[WEBHOOK] no subscription tier found")
     }
     const tier = tierRes[0]
+    console.log("[WEBHOOK] Tier found: ", tier)
 
     const subsUserRes = await db
       .insert(subsUser)

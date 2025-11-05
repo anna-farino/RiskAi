@@ -13,6 +13,9 @@ export type UserWithPerm = User
     cancel_at_period_end?: boolean,
     promo_code?: boolean,
     tier?: string,
+    downgrade_at?: number,
+    scheduled_change_from_yearly_to_monthly?: boolean,
+    scheduled_downgrade_to_free?: boolean,
     current_period?: {
       end: number,
       start: number

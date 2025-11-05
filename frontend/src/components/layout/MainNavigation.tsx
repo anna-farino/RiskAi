@@ -108,7 +108,7 @@ export const MainNavigation = ({ className }: { className?: string }) => {
   const userData = useAuth();
   if (viteEnv==='development' || viteEnv==='staging') {
     console.log("From Main Navigation. UserData: ", userData.data)
-    console.log("VITE_STRIPE_PK: ", (import.meta as any).env.VITE_STRIPE_PK)
+    //console.log("VITE_STRIPE_PK: ", (import.meta as any).env.VITE_STRIPE_PK)
   }
 
   const isActive = (path: string) => {
