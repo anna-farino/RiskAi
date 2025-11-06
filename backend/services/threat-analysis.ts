@@ -9,6 +9,9 @@ import {
   articleThreatActors
 } from '../../shared/db/schema/threat-tracker/entity-associations';
 import { eq, and, inArray } from 'drizzle-orm';
+import { ThreatFactExtractor } from './threat-analysis/fact-extractor';
+import { FactScoringRules } from './threat-analysis/fact-scoring-rules';
+import { ThreatFactExtraction } from './threat-analysis/fact-extraction-schema';
 
 // Types for extracted entities matching EntityManager types
 interface ExtractedEntities {
@@ -59,26 +62,18 @@ interface ExtractedEntities {
 interface SeverityAnalysis {
   severityScore: number;
   threatLevel: 'low' | 'medium' | 'high' | 'critical';
-  metadata: {
-    severity_components: {
-      cvss_severity: number;
-      exploitability: number;
-      impact: number;
-      hardware_impact: number;
-      attack_vector: number;
-      threat_actor_use: number;
-      patch_status: number;
-      detection_difficulty: number;
-      recency: number;
-      system_criticality: number;
-    };
-    calculation_version: string;
-    calculated_at: Date;
-    partial_data_flags?: string[];
-  };
+  metadata: any;
+  extractedFacts: ThreatFactExtraction | null;
 }
 
 export class ThreatAnalyzer {
+  private factExtractor: ThreatFactExtractor;
+  private factScorer: FactScoringRules;
+  
+  constructor() {
+    this.factExtractor = new ThreatFactExtractor();
+    this.factScorer = new FactScoringRules();
+  }
   
   /**
    * Calculate severity score based ONLY on threat characteristics
@@ -88,59 +83,189 @@ export class ThreatAnalyzer {
     article: typeof globalArticles.$inferSelect,
     entities: ExtractedEntities
   ): Promise<SeverityAnalysis> {
+    // Step 1: Extract facts using AI
+    let extractedFacts: ThreatFactExtraction | null = null;
+    let extractionError: string | null = null;
     
-    // Score each component (0-10) based on rubric
-    const scores = {
-      cvss_severity: await this.scoreCVSSSeverity(entities.cves),
-      exploitability: await this.scoreExploitability(article, entities),
-      impact: await this.scoreImpact(article, entities),
-      hardware_impact: await this.scoreHardwareImpact(entities.hardware),
-      attack_vector: await this.scoreAttackVector(article.attackVectors || []),
-      threat_actor_use: await this.scoreThreatActorUse(entities.threatActors),
-      patch_status: await this.scorePatchStatus(article, entities),
-      detection_difficulty: await this.scoreDetectionDifficulty(article),
-      recency: this.scoreRecency(article.publishDate),
-      system_criticality: await this.scoreSystemCriticality(entities)
-    };
-    
-    // Apply rubric formula for severity
-    const severityScore = (
-      (0.25 * scores.cvss_severity) +
-      (0.20 * scores.exploitability) +
-      (0.20 * scores.impact) +
-      (0.10 * scores.hardware_impact) +
-      (0.10 * scores.attack_vector) +
-      (0.10 * scores.threat_actor_use) +
-      (0.05 * scores.patch_status) +
-      (0.05 * scores.detection_difficulty) +
-      (0.05 * scores.recency) +
-      (0.10 * scores.system_criticality)
-    ) / 1.20; // Normalize by total weight
-    
-    // Convert to 0-100 scale
-    const normalizedScore = Math.min(100, severityScore * 10);
-    
-    // Determine threat level based on severity alone
-    let threatLevel: 'low' | 'medium' | 'high' | 'critical';
-    if (normalizedScore >= 90) threatLevel = 'critical';
-    else if (normalizedScore >= 70) threatLevel = 'high';
-    else if (normalizedScore >= 40) threatLevel = 'medium';
-    else threatLevel = 'low';
-    
-    // Check if escalation is needed despite missing data
-    if (this.shouldEscalatePartialData(article, entities) && threatLevel === 'low') {
-      threatLevel = 'medium';
+    try {
+      extractedFacts = await this.factExtractor.extractFacts(article, entities);
+    } catch (error) {
+      extractionError = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[ThreatAnalyzer] Fact extraction failed:', extractionError);
+      // Continue with null facts - will use baseline scores
     }
     
-    return {
-      severityScore: normalizedScore,
-      threatLevel,
-      metadata: {
-        severity_components: scores,
-        calculation_version: '2.0',
-        calculated_at: new Date()
-      }
+    // Step 2: Calculate component scores using fact-based scoring
+    let componentScores: any = {};
+    
+    if (extractedFacts) {
+      // Use fact-based scoring for semantic components
+      const exploitResult = this.factScorer.scoreExploitability(extractedFacts);
+      const impactResult = this.factScorer.scoreImpact(extractedFacts);
+      const patchResult = this.factScorer.scorePatchStatus(extractedFacts);
+      const detectionResult = this.factScorer.scoreDetectionDifficulty(extractedFacts);
+      
+      componentScores = {
+        // Fact-based components (50% weight)
+        exploitability: {
+          score: exploitResult.score,
+          reasoning: exploitResult.reasoning,
+          evidence: exploitResult.evidence,
+          method: 'fact-based'
+        },
+        impact: {
+          score: impactResult.score,
+          reasoning: impactResult.reasoning,
+          evidence: impactResult.evidence,
+          method: 'fact-based'
+        },
+        patch_status: {
+          score: patchResult.score,
+          reasoning: patchResult.reasoning,
+          evidence: patchResult.evidence,
+          method: 'fact-based'
+        },
+        detection_difficulty: {
+          score: detectionResult.score,
+          reasoning: detectionResult.reasoning,
+          evidence: detectionResult.evidence,
+          method: 'fact-based'
+        },
+        
+        // Existing entity-based components (unchanged)
+        cvss_severity: await this.scoreCVSSSeverity(entities.cves),
+        hardware_impact: await this.scoreHardwareImpact(entities.hardware),
+        attack_vector: await this.scoreAttackVector(article.attackVectors || []),
+        threat_actor_use: await this.scoreThreatActorUse(entities.threatActors),
+        recency: this.scoreRecency(article.publishDate),
+        system_criticality: await this.scoreSystemCriticality(entities)
+      };
+    } else {
+      // Fact extraction failed - use baseline scores for semantic components
+      componentScores = {
+        exploitability: {
+          score: 3, // Baseline - assume moderate exploitability
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        impact: {
+          score: 3, // Baseline - assume moderate impact
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        patch_status: {
+          score: 5, // Baseline - neutral patch status
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        detection_difficulty: {
+          score: 5, // Baseline - moderate detection difficulty
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        
+        // Entity-based components still work normally
+        cvss_severity: await this.scoreCVSSSeverity(entities.cves),
+        hardware_impact: await this.scoreHardwareImpact(entities.hardware),
+        attack_vector: await this.scoreAttackVector(article.attackVectors || []),
+        threat_actor_use: await this.scoreThreatActorUse(entities.threatActors),
+        recency: this.scoreRecency(article.publishDate),
+        system_criticality: await this.scoreSystemCriticality(entities)
+      };
+    }
+    
+    // Step 3: Apply rubric weights
+    const weights = {
+      cvss_severity: 0.25,
+      exploitability: 0.20,
+      impact: 0.20,
+      hardware_impact: 0.10,
+      attack_vector: 0.10,
+      threat_actor_use: 0.10,
+      patch_status: 0.05,
+      detection_difficulty: 0.05,
+      recency: 0.05,
+      system_criticality: 0.05
     };
+    
+    let baseScore = 0;
+    for (const [component, weight] of Object.entries(weights)) {
+      const score = componentScores[component]?.score || 0;
+      baseScore += score * weight;
+    }
+    
+    // Step 4: Apply confidence penalty
+    const confidenceFlags = this.assessConfidence(entities, extractedFacts);
+    let finalScore = baseScore;
+    
+    if (confidenceFlags.length >= 3) {
+      finalScore *= 0.70;
+    } else if (confidenceFlags.length >= 2) {
+      finalScore *= 0.85;
+    }
+    
+    // Step 5: Determine threat level
+    let threatLevel: 'low' | 'medium' | 'high' | 'critical';
+    if (finalScore >= 90) threatLevel = 'critical';
+    else if (finalScore >= 70) threatLevel = 'high';
+    else if (finalScore >= 40) threatLevel = 'medium';
+    else threatLevel = 'low';
+    
+    // Step 6: Build metadata
+    const metadata = {
+      components: componentScores,
+      base_score: baseScore,
+      confidence_flags: confidenceFlags,
+      confidence_penalty: finalScore < baseScore ? (baseScore - finalScore) / baseScore : 0,
+      scoring_method: extractedFacts ? 'fact-based' : 'baseline',
+      fact_extraction_metadata: extractedFacts?.metadata || null,
+      extraction_error: extractionError,
+      version: '2.0'
+    };
+    
+    return {
+      severityScore: Math.round(finalScore * 100) / 100,
+      threatLevel,
+      metadata,
+      extractedFacts
+    };
+  }
+  
+  // Enhanced confidence assessment
+  private assessConfidence(
+    entities: ExtractedEntities, 
+    facts: ThreatFactExtraction | null
+  ): string[] {
+    const flags: string[] = [];
+    
+    // Entity-based confidence
+    if (!entities.cves || entities.cves.length === 0) {
+      flags.push('no_cves');
+    }
+    if (!entities.threatActors || entities.threatActors.length === 0) {
+      flags.push('no_threat_actors');
+    }
+    if (!entities.hardware || entities.hardware.length === 0) {
+      flags.push('no_hardware');
+    }
+    
+    // Fact-based confidence
+    if (facts) {
+      if (facts.metadata.overall_confidence < 0.5) {
+        flags.push('low_fact_confidence');
+      }
+      if (facts.metadata.warnings.length > 0) {
+        flags.push('fact_extraction_warnings');
+      }
+    } else {
+      flags.push('no_facts_extracted');
+    }
+    
+    return flags;
   }
   
   /**
@@ -180,108 +305,6 @@ export class ThreatAnalyzer {
     }
     
     return Math.min(maxScore, 10);
-  }
-  
-  /**
-   * Score exploitability based on article content and entities
-   */
-  private async scoreExploitability(
-    article: typeof globalArticles.$inferSelect,
-    entities: ExtractedEntities
-  ): Promise<number> {
-    const contentLower = (article.content || '').toLowerCase();
-    const titleLower = (article.title || '').toLowerCase();
-    
-    let score = 0;
-    
-    // Check for exploit indicators
-    const exploitKeywords = {
-      'poc available': 3,
-      'proof of concept': 3,
-      'exploit code': 4,
-      'public exploit': 5,
-      'actively exploited': 8,
-      'in-the-wild': 7,
-      'zero-day': 9,
-      '0-day': 9,
-      'weaponized': 8,
-      'exploit kit': 7,
-      'mass exploitation': 9
-    };
-    
-    for (const [keyword, weight] of Object.entries(exploitKeywords)) {
-      if (contentLower.includes(keyword) || titleLower.includes(keyword)) {
-        score = Math.max(score, weight);
-      }
-    }
-    
-    // Check for patch availability (reduces exploitability if patched)
-    if (contentLower.includes('patch available') || contentLower.includes('patched')) {
-      score = Math.max(0, score - 2);
-    }
-    
-    // Increase score if multiple CVEs (indicates broader attack surface)
-    if (entities.cves && entities.cves.length > 1) {
-      score = Math.min(score + 1, 10);
-    }
-    
-    return Math.min(score, 10);
-  }
-  
-  /**
-   * Score impact based on affected systems and potential damage
-   */
-  private async scoreImpact(
-    article: typeof globalArticles.$inferSelect,
-    entities: ExtractedEntities
-  ): Promise<number> {
-    const contentLower = (article.content || '').toLowerCase();
-    let score = 3; // Base score
-    
-    // Impact keywords and their weights
-    const impactKeywords = {
-      'remote code execution': 9,
-      'rce': 9,
-      'privilege escalation': 8,
-      'root access': 9,
-      'admin access': 8,
-      'data breach': 8,
-      'data exfiltration': 8,
-      'ransomware': 9,
-      'denial of service': 6,
-      'dos': 6,
-      'ddos': 6,
-      'critical infrastructure': 10,
-      'supply chain': 9,
-      'backdoor': 9,
-      'persistence': 7,
-      'lateral movement': 7
-    };
-    
-    for (const [keyword, weight] of Object.entries(impactKeywords)) {
-      if (contentLower.includes(keyword)) {
-        score = Math.max(score, weight);
-      }
-    }
-    
-    // Check affected companies for criticality
-    const affectedCompanies = entities.companies?.filter(c => 
-      c.type === 'affected' || c.type === 'client'
-    ) || [];
-    
-    if (affectedCompanies.length > 5) {
-      score = Math.min(score + 2, 10); // Many affected companies
-    } else if (affectedCompanies.length > 0) {
-      score = Math.min(score + 1, 10); // Some affected companies
-    }
-    
-    // Apply partial data handling for software
-    if (entities.software) {
-      const softwareImpact = await this.scoreSoftwareImpact(entities.software);
-      score = Math.max(score, softwareImpact);
-    }
-    
-    return Math.min(score, 10);
   }
   
   /**
@@ -410,70 +433,6 @@ export class ThreatAnalyzer {
     return Math.min(maxScore, 10);
   }
   
-  /**
-   * Score patch status
-   */
-  private async scorePatchStatus(
-    article: typeof globalArticles.$inferSelect,
-    entities: ExtractedEntities
-  ): Promise<number> {
-    const contentLower = (article.content || '').toLowerCase();
-    
-    // Start with worst case (no patch)
-    let score = 8;
-    
-    if (contentLower.includes('patch available') || 
-        contentLower.includes('update available') ||
-        contentLower.includes('fixed in version')) {
-      score = 4; // Patch exists
-    }
-    
-    if (contentLower.includes('no patch') || 
-        contentLower.includes('no fix') ||
-        contentLower.includes('unpatched')) {
-      score = 9; // Confirmed no patch
-    }
-    
-    if (contentLower.includes('workaround available') ||
-        contentLower.includes('mitigation')) {
-      score = Math.min(score - 1, 9); // Mitigation reduces urgency slightly
-    }
-    
-    return Math.min(score, 10);
-  }
-  
-  /**
-   * Score detection difficulty
-   */
-  private async scoreDetectionDifficulty(article: typeof globalArticles.$inferSelect): Promise<number> {
-    const contentLower = (article.content || '').toLowerCase();
-    
-    let score = 5; // Default medium difficulty
-    
-    const detectionKeywords = {
-      'difficult to detect': 8,
-      'hard to detect': 8,
-      'evades detection': 9,
-      'stealthy': 7,
-      'fileless': 8,
-      'memory-based': 7,
-      'living off the land': 8,
-      'legitimate tools': 7,
-      'easily detected': 2,
-      'signatures available': 3,
-      'ioc available': 3,
-      'indicators of compromise': 3
-    };
-    
-    for (const [keyword, weight] of Object.entries(detectionKeywords)) {
-      if (contentLower.includes(keyword)) {
-        score = weight;
-        break;
-      }
-    }
-    
-    return Math.min(score, 10);
-  }
   
   /**
    * Score based on recency of the threat
