@@ -209,6 +209,7 @@ async function scrapeGlobalSource(
         let threatMetadata = null;
         let threatLevel = null;
         let extractedEntities = null;
+        let extractedFacts = null;
         let entitiesExtracted = false;
         
         if (isCybersecurity) {
@@ -237,8 +238,9 @@ async function scrapeGlobalSource(
             threatSeverityScore = severityResult.severityScore;
             threatLevel = severityResult.threatLevel;
             threatMetadata = severityResult.metadata;
+            extractedFacts = severityResult.extractedFacts;
             
-            log(`[Global Scraping] Threat severity score: ${threatSeverityScore} (${threatLevel})`, "scraper");
+            log(`[Global Scraping] Threat severity: ${threatSeverityScore} (${threatLevel}) [${threatMetadata.scoring_method}]`, "scraper");
           } catch (error) {
             log(`[Global Scraping] Entity extraction failed: ${error.message}`, "scraper");
             // Don't fail the whole article if entity extraction fails
@@ -271,6 +273,7 @@ async function scrapeGlobalSource(
             threatSeverityScore: threatSeverityScore ? threatSeverityScore.toString() : null, // Add threat severity score
             threatMetadata: threatMetadata || null, // Add threat metadata
             threatLevel: threatLevel || null, // Add threat level
+            extractedFacts: extractedFacts || null, // Add extracted facts from fact-based scoring
             entitiesExtracted: entitiesExtracted, // Mark if entities were extracted
           })
           .returning();
