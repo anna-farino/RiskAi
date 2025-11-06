@@ -1,0 +1,3 @@
+id,name,display_name,description,price,yearly_price,max_users,metadata,is_active,created_at,updated_at,stripe_price_id,billingPeriod,tier_level
+5640d35e-d947-4cd2-8d16-9373d2c9e7f6,pro_test,Pro [Test],,1,,9999,,t,2025-11-05 17:15:19.918212,2025-11-05 17:15:19.918212,price_1SQ9lR4uGyk26FKnp7jvNxzZ,monthly,1
+06d68f67-c851-4882-a461-2dbdeee63d7e,pro_test_y,Pro [Test],,0,2,9999,,t,2025-11-05 17:15:19.918212,2025-11-05 17:15:19.918212,price_1SQ9m04uGyk26FKnZrG1c06A,yearly,1

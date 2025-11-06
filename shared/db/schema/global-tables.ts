@@ -43,6 +43,9 @@ export const globalArticles = pgTable('global_articles', {
   lastAnalyzedAt: timestamp('last_analyzed_at'),
   analysisVersion: text('analysis_version'), // Track AI model version used
 
+  extractedFacts: jsonb('extracted_facts'), // NEW: Stores ThreatFactExtraction object
+  factsExtractionVersion: text('facts_extraction_version'), // NEW: Track schema version
+
   // Legacy fields for compatibility
   detectedKeywords: jsonb('detected_keywords') // Maintained but populated differently
 }, (table) => {

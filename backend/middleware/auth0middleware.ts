@@ -22,6 +22,8 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
   const email_verified = req.auth?.payload['user/email_verified'] || req.auth?.payload['email_verified']
   const organizationId = req.auth?.payload['user/organization_id'] || req.auth?.payload['organization_id'] || '' 
   const sub = req.auth?.payload.sub
+  
+  const domain = email.split('@')[1];
   //const payload = req.auth
   //req.log("payload", payload)
   //req.log("userAuth0", userAuth0)
@@ -76,6 +78,22 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
           .set({ organizationId: organizationId as string})
           .where(eq(users.id,user.id))
       }
+      const subInfoRes = await db
+        .select()
+        .from(subFreeUsers)
+        .where(or(
+          eq(subFreeUsers.pattern,email),
+          eq(subFreeUsers.pattern,domain),
+        ));
+        
+      const subFree = subInfoRes.length > 0
+
+      if (subFree) {
+        await db
+          .update(users)
+          .set({ subFree: true })
+          .where(eq(users.id,user.id))
+      }
 
       userToReturn = user
 
@@ -90,9 +108,7 @@ export async function auth0middleware(req: CustomRequest, res: Response, next: N
       .where(eq(users.email, email))
       .limit(1);
 
-    if (!userFromEmail) {
-      
-      const domain = email.split('@')[1];
+    if (!userFromEmail) {      
 
       if (restrictAccess) {
         const allowedUserRes = await db

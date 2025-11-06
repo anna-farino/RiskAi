@@ -45,9 +45,32 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
     start: new Date(subscription.start_date * 1000).toISOString(),
   };
 
-  const promo = subscription.discounts.length > 0
+  // Check for promo codes on both subscription and invoice level
+  // - Repeating coupons appear in subscription.discounts
+  // - "Once" duration coupons only appear in invoice.discounts
+  let promo = subscription.discounts.length > 0
+  console.log(`[WEBHOOK] Subscription has ${subscription.discounts.length} discount(s)`);
 
-  console.log('[WEBHOOK] Promo code detected on subscription? ', promo);
+  if (!promo && subscription.latest_invoice) {
+    console.log(`[WEBHOOK] Checking latest invoice for discounts...`);
+    const { stripe } = await import('backend/utils/stripe-config');
+
+    // Retrieve the latest invoice to check for "once" duration coupons
+    const invoiceId = typeof subscription.latest_invoice === 'string'
+      ? subscription.latest_invoice
+      : subscription.latest_invoice.id;
+
+    const invoice = await stripe.invoices.retrieve(invoiceId, {
+      expand: ['discounts']
+    });
+
+    if (invoice.discounts && invoice.discounts.length > 0) {
+      promo = true;
+      console.log(`[WEBHOOK] Found ${invoice.discounts.length} discount(s) on invoice ${invoiceId}`);
+    }
+  }
+
+  console.log('[WEBHOOK] Final promo code status: ', promo);
 
   // Get existing subscription to preserve metadata
   const existingSub = await db
@@ -62,10 +85,18 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
   const stripeMetadata = subscription.metadata || {};
   const isScheduledDowngrade = stripeMetadata.scheduled_downgrade_to_free === 'true';
 
+  if (existingMetadata.scheduled_change_from_yearly_to_monthly) {
+    console.log("Existing metadata has scheduled_change_from_yearly_to_monthly")
+    if (!subscription.cancel_at_period_end) {
+      console.log("Deleteing scheduled_change_from_yearly_to_monthly")
+      delete existingMetadata.scheduled_change_from_yearly_to_monthly
+    }
+  }
+
   // Build new metadata by merging existing with updates
   const newMetadata: any = {
     ...existingMetadata, // Preserve existing fields
-    tier: tier.name,
+    tier: tier?.name,
     promo_code: promo,
     current_period: {
       start: subscription.items.data[0].current_period_start,

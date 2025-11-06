@@ -9,6 +9,13 @@ export default async function handleUpgradeSubscription(req: FullRequest, res: R
     const { email } = req.user;
     const { paymentMethodId, promotionCodeId, billingPeriod = 'monthly' } = req.body;
 
+    console.log('[UPGRADE] Request received:', {
+      email,
+      hasPaymentMethod: !!paymentMethodId,
+      promotionCodeId,
+      billingPeriod
+    });
+
     if (!paymentMethodId) {
       return res.status(400).json({ error: 'Payment method required' });
     }
@@ -97,8 +104,17 @@ export default async function handleUpgradeSubscription(req: FullRequest, res: R
     // Add promotion code if provided
     if (promotionCodeId) {
       updateParams.discounts = [{ promotion_code: promotionCodeId }];
-      console.log('[UPGRADE] Applying promotion code:', promotionCodeId);
+      console.log('[UPGRADE] ✅ Applying promotion code:', promotionCodeId);
+    } else {
+      console.log('[UPGRADE] ⚠️ No promotion code provided');
     }
+
+    console.log('[UPGRADE] Updating subscription with params:', {
+      subscriptionId: subscription.id,
+      newPrice: priceId,
+      hasDiscounts: !!updateParams.discounts,
+      discounts: updateParams.discounts
+    });
 
     const updatedSubscription = await stripe.subscriptions.update(
       subscription.id,
@@ -106,6 +122,26 @@ export default async function handleUpgradeSubscription(req: FullRequest, res: R
     );
 
     console.log('[UPGRADE] ✅ Upgraded to Pro:', subscription.id);
+    console.log('[UPGRADE] Subscription discounts count:', updatedSubscription.discounts?.length || 0);
+
+    // Verify promo code was applied by checking the invoice
+    if (promotionCodeId) {
+      const invoiceId = typeof updatedSubscription.latest_invoice === 'string'
+        ? updatedSubscription.latest_invoice
+        : updatedSubscription.latest_invoice?.id;
+
+      if (invoiceId) {
+        const invoice = await stripe.invoices.retrieve(invoiceId);
+        console.log('[UPGRADE] Invoice discounts count:', invoice.discounts?.length || 0);
+        console.log('[UPGRADE] Invoice total after discount:', invoice.total);
+
+        if (!updatedSubscription.discounts?.length && !invoice.discounts?.length) {
+          console.error('[UPGRADE] ❌ WARNING: Promo code was sent but NOT applied to subscription or invoice!');
+        } else {
+          console.log('[UPGRADE] ✅ Promo code successfully applied');
+        }
+      }
+    }
 
     // Log the operation for tracking
     await logStripeOperation({

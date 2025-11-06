@@ -12,7 +12,6 @@ import ProSubscriptionForm from '@/components/ProSubscriptionForm';
 interface OnboardingGuardProps {
   children: ReactNode;
 }
-
 export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const { data: userData, refetch: refetchUser } = useAuth();
   const fetchWithAuth = useFetch();
@@ -27,9 +26,20 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   const [showPlanChangeSpinner, setShowPlanChangeSpinner] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [freePlanSpinner, setFreePlanSpinner] = useState(false)
+  const [dontShowPrices, setDontShowPrices] = useState<boolean>(() => {
+    try {
+      const stored = localStorage.getItem('dontShowInitPrices');
+      if (!stored || !userData?.id) return false;
+      const parsed = JSON.parse(stored);
+      // Handle legacy 'false' value or ensure we have an object
+      return typeof parsed === 'object' && parsed !== null ? (parsed[userData.id] || false) : false;
+    } catch {
+      return false;
+    }
+  })
 
   // Check if user needs onboarding
-  const needsOnboarding = userData && !userData.onBoarded && !userData.subFree;
+  const needsOnboarding = userData && !userData.onBoarded;
 
   // Mutation to complete onboarding
   const completeOnboardingMutation = useMutation({
@@ -151,8 +161,31 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   }
 
   // If user doesn't need onboarding, render children
-  if (!needsOnboarding) {
+  if (!needsOnboarding || dontShowPrices) {
     return <>{children}</>;
+  }
+
+  function skipInitialPrices() {
+    if (userData) {
+      const dontShowPricesString = localStorage.getItem('dontShowInitPrices')
+      if (dontShowPricesString) {
+        const existingData = JSON.parse(dontShowPricesString)
+        // Create new object instead of mutating (Safari compatibility)
+        const updatedData = {
+          ...existingData,
+          [userData.id]: true
+        }
+        localStorage.setItem(
+          'dontShowInitPrices',
+          JSON.stringify(updatedData)
+        )
+      } else {
+        localStorage.setItem(
+          'dontShowInitPrices',
+          JSON.stringify({ [userData.id]: true }))
+      }
+      setDontShowPrices(true)
+    }
   }
 
   // Show onboarding pricing view (no go back button, with logout)
@@ -162,8 +195,8 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
         freePlanSpinner={freePlanSpinner}
         currentPlan="none"
         onPlanSelect={handlePlanSelect}
-        onGoBack={() => {}} // No-op function since showGoBack will be false
-        showGoBack={false}
+        onGoBack={skipInitialPrices}
+        showGoBack={userData.subFree}
         hasPromoCode={false}
         onLogout={logout}
       />

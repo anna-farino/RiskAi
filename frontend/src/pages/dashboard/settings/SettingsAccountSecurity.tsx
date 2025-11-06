@@ -20,11 +20,13 @@ import {
 import { Shield, Trash2, Clock, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useLogout } from "@/hooks/use-logout";
 
 export function SettingsAccountSecurity() {
   const userData = useAuth();
   const fetchWithAuth = useFetch();
   const navigate = useNavigate();
+  const { logout } = useLogout()
   const { toast } = useToast();
 
   const [resetOpen, setResetOpen] = useState(false);
@@ -101,13 +103,15 @@ export function SettingsAccountSecurity() {
     onSuccess(data) {
       if (data.immediate) {
         // Free user - redirect to login
+        console.log("[Account deletion: successful] about to being redirected...")
         toast({
           title: "Account Deleted",
           description: data.message,
           variant: "default",
         })
         setTimeout(() => {
-          navigate('/login')
+          console.log("redirection...")
+          logout('silent')
         }, 1000)
       } else {
         // Paid user - scheduled deletion
@@ -152,6 +156,7 @@ export function SettingsAccountSecurity() {
       })
       setUndoOpen(false)
       userData.refetch()
+      navigate('/login')
     },
     onError(error) {
       toast({

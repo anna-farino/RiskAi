@@ -33,7 +33,7 @@ interface PricingCardProps {
   hasPromoCode?: boolean;
   promoDescription?: string;
   showGoBack?: boolean;
-  freePlanSpinner?: boolean;
+  planButtonSpinner?: 'free' | 'pro' | null
   billingPeriod: 'monthly' | 'yearly';
 }
 
@@ -46,8 +46,7 @@ export function PricingCard({
   onPlanSelect,
   hasPromoCode,
   promoDescription,
-  showGoBack,
-  freePlanSpinner,
+  planButtonSpinner,
   billingPeriod
 }
 : PricingCardProps
@@ -134,7 +133,7 @@ export function PricingCard({
           ${canSelect && !isCurrent ? 'bg-risq-purple hover:opacity-90' : ''}
         `}
       >
-        {freePlanSpinner
+        {planButtonSpinner === planKey
           ? <Spinner/>
           : isCurrent
             ? 'Current Plan'

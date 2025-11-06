@@ -13,9 +13,11 @@ import ProSubscriptionForm from "@/components/ProSubscriptionForm";
 import { Elements } from "@stripe/react-stripe-js";
 import { stripe } from "@/utils/stripe";
 import PricingView from "@/pages/dashboard/pricing-view";
-import Auth0ProviderWithNavigate from "@/auth0-provider-with-navigate";
 import { toast } from "@/hooks/use-toast";
-import { desc } from "drizzle-orm";
+
+type DowngradeType = 
+  'pro_to_free' |
+  'pro_yearly_to_pro_monthly' 
 
 export function SettingsSubscription() {
   const userData = useAuth();
@@ -32,9 +34,10 @@ export function SettingsSubscription() {
   const [isLoadingPayment, setIsLoadingPayment] = useState(false);
   const [showDowngradeDialog, setShowDowngradeDialog] = useState(false);
   const [showPlanChangeSpinner, setShowPlanChangeSpinner] = useState(false);
-  const [freePlanSpinner, setFreePlanSpinner] = useState(false);
   const [billingPeriod, setBillingPeriod] = useState<'monthly' | 'yearly'>('monthly');
   const [isTogglingNoSubMode, setIsTogglingNoSubMode] = useState(false);
+  const [downgradeType, setDowngradeType] = useState<null | DowngradeType>(null);
+  const [planButtonSpinner, setPlanButtonSpinner] = useState<'free' | 'pro' | null>(null);
 
   // Called when user clicks "Subscribe to Pro" (new users) OR "Upgrade" (free users)
   async function initiateProSubscription(isChange: boolean, billingPeriod: 'monthly' | 'yearly') {
@@ -114,10 +117,11 @@ export function SettingsSubscription() {
       })
       throw new Error(description)
     }
+
+    //setPlanButtonSpinner(plan)
+
     if (userData.data.tierLevel > planTierLevel(plan)) {
-      
       try {
-        setFreePlanSpinner(true)
         const res = await fetchWithAuth('/api/subscriptions/check-can-downgrade', {
           method: 'POST',
           headers: {
@@ -142,23 +146,39 @@ export function SettingsSubscription() {
           description: error instanceof Error ? error.message : "An error occurred"
         })
       } finally {
-        setFreePlanSpinner(false)
+        setPlanButtonSpinner(null)
       }
     }
 
     // Store the billing period selection
     setBillingPeriod(selectedBillingPeriod);
-    console.log("plan", plan)
 
-    if (plan === 'free' && userData.data?.subscription.includes('pro')) {
-      // Pro → Free: Show confirmation dialog
+    const fromProToFree = plan === 'free' && userData.data?.subscription.includes('pro')
+    const fromProYearlyToProMonthly = 
+      plan === 'pro' && 
+      billingPeriod === 'monthly' && 
+      userData.data?.subscriptionBillingPeriod === 'yearly'
+
+    console.log("fromProYearlyToProMonthly: ", fromProYearlyToProMonthly)
+    console.log("plan", plan)
+    console.log("billingPeriod", billingPeriod)
+    console.log("subs billingPeriod", userData.data.subscriptionBillingPeriod )
+
+    if (fromProToFree) {
+      setDowngradeType('pro_to_free')
       setShowDowngradeDialog(true);
+
+    } else if (fromProYearlyToProMonthly) {
+      setDowngradeType('pro_yearly_to_pro_monthly')
+      setShowDowngradeDialog(true);
+
     } else if (plan === 'free') {
       // No plan → Free: Direct creation (spinner handled in mutation.onSuccess)
-      setFreePlanSpinner(true)
+      setPlanButtonSpinner('free')
       await subscribeMutation.mutateAsync();
     } else if (plan === 'pro') {
       // Upgrade to Pro
+      setPlanButtonSpinner('pro')
       const isChange = userData.data?.subscription != null && (userData.data?.subscription !== 'none' || false);
 
       // Keep pricing view open, show payment modal on top
@@ -182,7 +202,7 @@ export function SettingsSubscription() {
       setShowPlanChangeSpinner(true);
       setTimeout(() => {
         setShowPlanChangeSpinner(false);
-        setFreePlanSpinner(false)
+        setPlanButtonSpinner(null)
         setShowPricingView(false);
         userData.refetch();
       }, 3000);
@@ -193,12 +213,16 @@ export function SettingsSubscription() {
   })
 
   const downgradeMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (dType: DowngradeType | null) => {
+      if (!dType) {
+        throw new Error("No downgrade type provided")
+      }
       const response = await fetchWithAuth('/api/subscriptions/downgrade-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ downgradeType })
       })
       if (!response.ok) {
         const errorData = await response.json()
@@ -217,13 +241,13 @@ export function SettingsSubscription() {
       setTimeout(() => {
         setShowPlanChangeSpinner(false);
         setShowPricingView(false);
-        setFreePlanSpinner(false)
+        setPlanButtonSpinner(null)
         userData.refetch();
       }, 3000);
     },
     onError: (error) => {
       console.error(error)
-      setFreePlanSpinner(false)
+      setPlanButtonSpinner(null)
       toast({
         title: "Error",
         description: error instanceof Error ? error.message : "Failed to schedule downgrade",
@@ -233,7 +257,7 @@ export function SettingsSubscription() {
   })
 
   const cancelScheduledDowngradeMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (downgradeType: DowngradeType) => {
       const response = await fetchWithAuth('/api/subscriptions/cancel-scheduled-downgrade', {
         method: 'POST',
         headers: {
@@ -243,11 +267,18 @@ export function SettingsSubscription() {
       if (!response.ok) throw new Error("Failed to cancel scheduled downgrade")
       return response.json()
     },
-    onSuccess: () => {
-      toast({
-        title: "Downgrade Cancelled",
-        description: "Your Pro subscription will continue to auto-renew.",
-      })
+    onSuccess: (_, variables) => {
+      if (variables==='pro_to_free') {
+        toast({
+          title: "Downgrade Cancelled",
+          description: "Your Pro subscription will continue to auto-renew.",
+        })
+      } else if (variables==='pro_yearly_to_pro_monthly') {
+        toast({
+          title: "Change Cancelled",
+          description: "Your Pro subscription will continue to auto-renew yearly.",
+        })
+      }
       userData.refetch();
     },
     onError: (error) => {
@@ -299,6 +330,17 @@ export function SettingsSubscription() {
       await toggleNoSubModeMutation.mutateAsync(checked)
     } finally {
       setIsTogglingNoSubMode(false)
+    }
+  }
+
+  const downgradeDialogCopy: Record<DowngradeType, { title: string, description: string }> = {
+    'pro_to_free': {
+      title: "Schedule Downgrade to Free Plan?",
+      description: "You'll keep full Pro access until the end of your current billing period, then automatically downgrade to Free. You can cancel this anytime before then. Your data will be preserved."
+    },
+    'pro_yearly_to_pro_monthly': {
+      title: "Schedule Change to Monthly Pro Plan?",
+      description: "You'll keep full access to your Yearly Pro Plan until the end of your current billing period, then automatically switch to the Montly Pro Plan. You can cancel this change anytime before then."
     }
   }
 
@@ -356,10 +398,15 @@ export function SettingsSubscription() {
                     ? <h1>Account Ends </h1>
                     : userData.data.scheduledDowngrade?.willDowngrade
                       ? <h1>End of Pro Plan</h1>
-                      : <h1>Next Payment </h1>
+                      : userData.data.subMetadata?.scheduled_change_from_yearly_to_monthly
+                        ? <h1>Switch to Montly Plan</h1>
+                        : <h1>Next Payment </h1>
                   }
                   <h1>{
-                    (userData.data.hasPromoCode && userData.data.subscriptionBillingPeriod === 'monthly')
+                    (userData.data.hasPromoCode && 
+                     userData.data.subscriptionBillingPeriod === 'monthly' &&
+                     userData.data.subscription != 'pro_test'
+                    )
                     ? new Date(new Date(userData.data.subMetadata!.current_period!.start * 1000).setMonth(
                         new Date(userData.data.subMetadata!.current_period!.start * 1000).getMonth() + 3
                       ))
@@ -369,11 +416,11 @@ export function SettingsSubscription() {
                         day: 'numeric'
                       })
                     : new Date(userData.data.subscriptionEnd * 1000)
-                      .toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })
+                        .toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })
                   }</h1>
                 </div>
               }
@@ -403,35 +450,52 @@ export function SettingsSubscription() {
               }
 
               {/* Scheduled Downgrade Warning */}
-              {userData.data?.scheduledDowngrade?.willDowngrade && (
-                <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-md">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-orange-400">
-                        Scheduled Downgrade to Free
-                      </p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Your Pro plan will downgrade on{' '}
-                        {new Date(userData.data.scheduledDowngrade.downgradeAt * 1000)
-                          .toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: 'long',
-                            day: 'numeric'
-                          })}
-                        . You'll keep Pro access until then.
-                      </p>
+              {(userData.data?.scheduledDowngrade?.willDowngrade ||
+                userData.data?.subMetadata?.scheduled_change_from_yearly_to_monthly) 
+                && (
+                  <div className="mt-4 p-3 bg-orange-500/10 border border-orange-500/30 rounded-md">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-orange-400">
+                          {userData.data?.scheduledDowngrade?.willDowngrade
+                            ? <span>Downgrade to Free</span>
+                            : <span>Change to Monthly</span>
+                          }
+                        </p>
+                        {userData.data?.scheduledDowngrade?.willDowngrade
+                          ? <p className="text-xs text-slate-400 mt-1">
+                              Your Pro plan will downgrade on{' '}
+                            {new Date(userData.data.scheduledDowngrade?.downgradeAt || 1 * 1000)
+                              .toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            . You'll keep Pro access until then.
+                            </p>
+                          : <p className="text-xs text-slate-400 mt-1">
+                              Your plan will become a monthly plan on{' '}
+                            {new Date((userData.data.subMetadata?.downgrade_at || 1) * 1000)
+                              .toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })}
+                            .
+                            </p>
+                        }
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => cancelScheduledDowngradeMutation.mutate(downgradeType!)}
+                        disabled={cancelScheduledDowngradeMutation.isPending}
+                        className="shrink-0"
+                      >
+                        {cancelScheduledDowngradeMutation.isPending ? "Cancelling..." : "Cancel Downgrade"}
+                      </Button>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => cancelScheduledDowngradeMutation.mutate()}
-                      disabled={cancelScheduledDowngradeMutation.isPending}
-                      className="shrink-0"
-                    >
-                      {cancelScheduledDowngradeMutation.isPending ? "Cancelling..." : "Cancel Downgrade"}
-                    </Button>
                   </div>
-                </div>
               )}
 
               {
@@ -459,7 +523,7 @@ export function SettingsSubscription() {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    setFreePlanSpinner(false)
+                    setPlanButtonSpinner(null)
                     setShowPricingView(true)
                   }}
                 >
@@ -514,18 +578,22 @@ export function SettingsSubscription() {
           hasPromoCode={userData.data?.hasPromoCode}
           promoDescription={userData.data?.promoInfo?.description}
           showGoBack={true}
-          freePlanSpinner={freePlanSpinner}
+          planButtonSpinner={planButtonSpinner}
         />
       )}
 
       {/* Downgrade confirmation dialog */}
       {showDowngradeDialog && (
         <CustomAlertDialog
-          title="Schedule Downgrade to Free Plan?"
-          description="You'll keep full Pro access until the end of your current billing period, then automatically downgrade to Free. You can cancel this anytime before then. Your data will be preserved."
+          cancelAction={() => setPlanButtonSpinner(null)}
+          title={downgradeDialogCopy[downgradeType || 'pro_to_free'].title}
+          description={downgradeDialogCopy[downgradeType || 'pro_to_free'].description}
           action={()=>{
-            setFreePlanSpinner(true)
-            downgradeMutation.mutate()
+            const plan = downgradeType === 'pro_to_free' 
+              ? 'free'
+              : 'pro'
+            setPlanButtonSpinner(plan)
+            downgradeMutation.mutate(downgradeType || null)
           }}
           open={showDowngradeDialog}
           setOpen={setShowDowngradeDialog}

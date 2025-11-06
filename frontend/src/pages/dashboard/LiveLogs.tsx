@@ -80,7 +80,8 @@ export default function LiveLogs() {
         const response = await fetchWithAuth(`/api/live-logs-management/check-permission`, {
           method: 'POST',
           credentials: 'include',
-          body: JSON.stringify({ email: user.email })
+          body: JSON.stringify({ email: user.email }),
+          headers: { "Content-Type": "application/json" }
         });
 
         if (!isMounted) return; // Don't update state if unmounted
