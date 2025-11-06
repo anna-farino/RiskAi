@@ -1226,30 +1226,25 @@ export class ThreatAnalyzer {
     severityScore: number;
     threatLevel: 'low' | 'medium' | 'high' | 'critical';
     metadata: any;
-    extractedFacts?: ThreatFactExtraction; // NEW
+    extractedFacts: ThreatFactExtraction | null;
   }> {
-    // Step 1: Extract facts using AI (NEW)
+    // Step 1: Extract facts using AI
     let extractedFacts: ThreatFactExtraction | null = null;
-    let useFactBasedScoring = true;
+    let extractionError: string | null = null;
     
     try {
       extractedFacts = await this.factExtractor.extractFacts(article, entities);
-      
-      // Check if extraction was successful
-      if (extractedFacts.metadata.overall_confidence < 0.3) {
-        console.warn('[ThreatAnalyzer] Low confidence fact extraction, falling back to keywords');
-        useFactBasedScoring = false;
-      }
     } catch (error) {
-      console.error('[ThreatAnalyzer] Fact extraction failed, falling back to keywords:', error);
-      useFactBasedScoring = false;
+      extractionError = error instanceof Error ? error.message : 'Unknown error';
+      console.error('[ThreatAnalyzer] Fact extraction failed:', extractionError);
+      // Continue with null facts - will use baseline scores
     }
     
-    // Step 2: Calculate component scores
+    // Step 2: Calculate component scores using fact-based scoring
     let componentScores: any = {};
     
-    if (useFactBasedScoring && extractedFacts) {
-      // NEW: Use fact-based scoring for semantic components
+    if (extractedFacts) {
+      // Use fact-based scoring for semantic components
       const exploitResult = this.factScorer.scoreExploitability(extractedFacts);
       const impactResult = this.factScorer.scoreImpact(extractedFacts);
       const patchResult = this.factScorer.scorePatchStatus(extractedFacts);
@@ -1291,12 +1286,34 @@ export class ThreatAnalyzer {
         system_criticality: await this.scoreSystemCriticality(entities)
       };
     } else {
-      // FALLBACK: Use existing keyword-based scoring
+      // Fact extraction failed - use baseline scores for semantic components
       componentScores = {
-        exploitability: await this.scoreExploitability(article, entities),
-        impact: await this.scoreImpact(article, entities),
-        patch_status: await this.scorePatchStatus(article),
-        detection_difficulty: await this.scoreDetectionDifficulty(article),
+        exploitability: {
+          score: 3, // Baseline - assume moderate exploitability
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        impact: {
+          score: 3, // Baseline - assume moderate impact
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        patch_status: {
+          score: 5, // Baseline - neutral patch status
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        detection_difficulty: {
+          score: 5, // Baseline - moderate detection difficulty
+          reasoning: ['Baseline score - fact extraction failed'],
+          evidence: extractionError || 'No facts extracted',
+          method: 'baseline'
+        },
+        
+        // Entity-based components still work normally
         cvss_severity: await this.scoreCVSSSeverity(entities.cves),
         hardware_impact: await this.scoreHardwareImpact(entities.hardware),
         attack_vector: await this.scoreAttackVector(article.attackVectors || []),
@@ -1343,33 +1360,34 @@ export class ThreatAnalyzer {
     else if (finalScore >= 40) threatLevel = 'medium';
     else threatLevel = 'low';
     
-    // Step 6: Build metadata (ENHANCED)
+    // Step 6: Build metadata
     const metadata = {
       components: componentScores,
       base_score: baseScore,
       confidence_flags: confidenceFlags,
       confidence_penalty: finalScore < baseScore ? (baseScore - finalScore) / baseScore : 0,
-      scoring_method: useFactBasedScoring ? 'fact-based' : 'keyword-based',
+      scoring_method: extractedFacts ? 'fact-based' : 'baseline',
       fact_extraction_metadata: extractedFacts?.metadata || null,
-      version: '2.0' // Increment version
+      extraction_error: extractionError,
+      version: '2.0'
     };
     
     return {
       severityScore: Math.round(finalScore * 100) / 100,
       threatLevel,
       metadata,
-      extractedFacts: extractedFacts || undefined
+      extractedFacts
     };
   }
   
-  // NEW: Enhanced confidence assessment
+  // Enhanced confidence assessment
   private assessConfidence(
     entities: any, 
     facts: ThreatFactExtraction | null
   ): string[] {
     const flags: string[] = [];
     
-    // Entity-based confidence (existing)
+    // Entity-based confidence
     if (!entities.cves || entities.cves.length === 0) {
       flags.push('no_cves');
     }
@@ -1380,7 +1398,7 @@ export class ThreatAnalyzer {
       flags.push('no_hardware');
     }
     
-    // Fact-based confidence (new)
+    // Fact-based confidence
     if (facts) {
       if (facts.metadata.overall_confidence < 0.5) {
         flags.push('low_fact_confidence');
@@ -1395,7 +1413,10 @@ export class ThreatAnalyzer {
     return flags;
   }
   
-  // Keep existing methods as fallbacks...
+  // NOTE: Old keyword-based scoring methods (scoreExploitability, scoreImpact, etc.)
+  // have been REMOVED. Fact-based scoring is now the only method.
+  // The existing entity-based methods (scoreCVSSSeverity, scoreHardwareImpact, etc.)
+  // remain unchanged as they use objective data, not semantic analysis.
 }
 ```
 
@@ -1513,17 +1534,18 @@ describe('Fact-Based Scoring Integration', () => {
 });
 ```
 
-### 5.3 A/B Testing
+### 5.3 Scoring Validation
 
-Create: `backend/scripts/ab-test-scoring.ts`
+Create: `backend/scripts/validate-scoring.ts`
 
 ```typescript
 /**
- * A/B test: Compare old keyword-based vs new fact-based scoring
+ * Validate fact-based scoring accuracy
+ * Compare against security expert judgments
  */
 
-async function runABTest() {
-  // Get 100 recent articles
+async function validateScoring() {
+  // Get sample of diverse articles
   const articles = await db
     .select()
     .from(globalArticles)
@@ -1532,47 +1554,79 @@ async function runABTest() {
     .orderBy(desc(globalArticles.scrapedAt));
   
   const results = {
-    fact_based: { critical: 0, high: 0, medium: 0, low: 0 },
-    keyword_based: { critical: 0, high: 0, medium: 0, low: 0 },
-    differences: []
+    distribution: { critical: 0, high: 0, medium: 0, low: 0 },
+    baseline_used: 0,
+    fact_based_used: 0,
+    low_confidence: [],
+    high_scores: [],
+    extraction_failures: []
   };
   
   for (const article of articles) {
     // Get entities
     const entities = await getArticleEntities(article.id);
     
-    // Calculate with fact-based (new)
-    const factBased = await calculateWithFactExtraction(article, entities);
+    // Calculate with fact-based scoring
+    const analyzer = new ThreatAnalyzer();
+    const result = await analyzer.calculateSeverityScore(article, entities);
     
-    // Calculate with keywords (old)
-    const keywordBased = await calculateWithKeywords(article, entities);
+    // Track distribution
+    results.distribution[result.threatLevel]++;
     
-    // Compare
-    results.fact_based[factBased.threatLevel]++;
-    results.keyword_based[keywordBased.threatLevel]++;
-    
-    if (factBased.threatLevel !== keywordBased.threatLevel) {
-      results.differences.push({
-        article_id: article.id,
+    // Track scoring method used
+    if (result.metadata.scoring_method === 'fact-based') {
+      results.fact_based_used++;
+    } else {
+      results.baseline_used++;
+      results.extraction_failures.push({
+        id: article.id,
         title: article.title,
-        fact_based: factBased.threatLevel,
-        keyword_based: keywordBased.threatLevel,
-        score_diff: factBased.severityScore - keywordBased.severityScore
+        error: result.metadata.extraction_error
+      });
+    }
+    
+    // Flag low confidence scores
+    if (result.metadata.confidence_flags.length > 2) {
+      results.low_confidence.push({
+        id: article.id,
+        title: article.title,
+        score: result.severityScore,
+        flags: result.metadata.confidence_flags
+      });
+    }
+    
+    // Track critical/high threat articles for manual review
+    if (result.threatLevel === 'critical' || result.threatLevel === 'high') {
+      results.high_scores.push({
+        id: article.id,
+        title: article.title,
+        level: result.threatLevel,
+        score: result.severityScore,
+        evidence: result.extractedFacts?.exploitation.evidence || 'N/A'
       });
     }
   }
   
-  console.log('\n=== A/B Test Results ===');
-  console.log('Fact-Based Distribution:', results.fact_based);
-  console.log('Keyword-Based Distribution:', results.keyword_based);
-  console.log(`\nDifferences: ${results.differences.length}/100 articles`);
-  console.log('\nTop 10 Largest Differences:');
-  results.differences
-    .sort((a, b) => Math.abs(b.score_diff) - Math.abs(a.score_diff))
-    .slice(0, 10)
-    .forEach(d => {
-      console.log(`${d.title}: ${d.keyword_based} → ${d.fact_based} (Δ${d.score_diff.toFixed(2)})`);
+  console.log('\n=== Scoring Validation Results ===');
+  console.log('Threat Level Distribution:', results.distribution);
+  console.log(`\nFact-Based Scoring: ${results.fact_based_used}/100 (${(results.fact_based_used/100*100).toFixed(1)}%)`);
+  console.log(`Baseline Fallback: ${results.baseline_used}/100 (${(results.baseline_used/100*100).toFixed(1)}%)`);
+  console.log(`\nLow Confidence Scores: ${results.low_confidence.length}`);
+  console.log(`\nExtraction Failures: ${results.extraction_failures.length}`);
+  
+  if (results.extraction_failures.length > 0) {
+    console.log('\nSample Extraction Failures:');
+    results.extraction_failures.slice(0, 5).forEach(f => {
+      console.log(`- ${f.title}: ${f.error}`);
     });
+  }
+  
+  console.log(`\n\nHigh/Critical Threats for Manual Review: ${results.high_scores.length}`);
+  results.high_scores.slice(0, 10).forEach(s => {
+    console.log(`\n[${s.level.toUpperCase()}] ${s.title}`);
+    console.log(`Score: ${s.score}`);
+    console.log(`Evidence: ${s.evidence.substring(0, 150)}...`);
+  });
 }
 ```
 
@@ -1613,27 +1667,42 @@ ON global_articles USING GIN (extracted_facts);
 ```typescript
 // Feature flag for gradual rollout
 const FACT_EXTRACTION_ENABLED = process.env.FACT_EXTRACTION_ENABLED === 'true';
-const FACT_EXTRACTION_PERCENTAGE = parseInt(process.env.FACT_EXTRACTION_PERCENTAGE || '10');
-
-async function shouldUseFactExtraction(): Promise<boolean> {
-  if (!FACT_EXTRACTION_ENABLED) return false;
-  return Math.random() * 100 < FACT_EXTRACTION_PERCENTAGE;
-}
 
 // In global-scraper.ts
-if (isCybersecurity && await shouldUseFactExtraction()) {
-  // Use new fact-based scoring
-} else {
-  // Use old keyword-based scoring
+if (isCybersecurity) {
+  if (!FACT_EXTRACTION_ENABLED) {
+    console.log('[Global Scraping] Fact extraction disabled, skipping threat scoring');
+    // Store article without threat scores during transition period
+    threatSeverityScore = null;
+    threatLevel = null;
+  } else {
+    // Use fact-based scoring (production)
+    const threatAnalyzer = new ThreatAnalyzer();
+    const severityResult = await threatAnalyzer.calculateSeverityScore(article, entities);
+    threatSeverityScore = severityResult.severityScore;
+    threatLevel = severityResult.threatLevel;
+  }
 }
 ```
 
 **Rollout Schedule:**
-- Week 1: 10% of articles
-- Week 2: 25% of articles
-- Week 3: 50% of articles
-- Week 4: 75% of articles
-- Week 5: 100% of articles (if no issues)
+- **Day 1:** Deploy code with `FACT_EXTRACTION_ENABLED=false`
+  - Verify deployment successful, no errors
+  - Monitor baseline metrics
+  
+- **Day 2:** Enable for 10 test articles
+  - Set `FACT_EXTRACTION_ENABLED=true`
+  - Manually review results
+  - Check API costs
+  
+- **Day 3-4:** Monitor and validate
+  - Review extraction quality
+  - Check confidence scores
+  - Validate threat levels with security team
+  
+- **Day 5:** Full rollout if validation passes
+  - Enable for all articles
+  - Continue monitoring for 1 week
 
 ### 6.3 Monitoring & Metrics
 
@@ -1675,9 +1744,10 @@ export class ScoringMonitor {
 1. **Fact extraction success rate** (target: >95%)
 2. **Average extraction latency** (target: <2s)
 3. **Overall confidence distribution** (target: avg >0.7)
-4. **Scoring method distribution** (fact-based vs fallback)
-5. **Threat level distribution** (compare to baseline)
+4. **Scoring method distribution** (fact-based vs baseline)
+5. **Threat level distribution** (critical/high/medium/low percentages)
 6. **API costs** (target: <$100/month for 10k articles)
+7. **Baseline fallback rate** (target: <5%)
 
 ### 6.4 Alerts & Error Handling
 
@@ -1729,7 +1799,7 @@ if (criticalThreatPercentage > 0.15) {
 **Plus:**
 - Improved accuracy (estimated 15-20% reduction in false negatives)
 - Transparent scoring with evidence trails
-- Graceful fallback to keywords
+- Graceful degradation to baseline scores on extraction failures
 
 ---
 
@@ -1741,12 +1811,18 @@ if (criticalThreatPercentage > 0.15) {
 - Extraction success rate <80%
 - High API error rates
 - Timeout issues
+- Many articles using baseline scores
 
 **Action:**
-1. Reduce `FACT_EXTRACTION_PERCENTAGE` to 0%
-2. System automatically falls back to keyword-based scoring
-3. No data loss (keywords still work)
-4. Investigate and fix extraction issues
+1. Set `FACT_EXTRACTION_ENABLED=false`
+2. Articles will be stored without threat scores temporarily
+3. Investigate and fix extraction issues
+4. Re-process articles once fixed
+
+**Impact:**
+- Articles scraped during downtime won't have threat scores
+- Can be backfilled later using reprocessing script
+- Frontend gracefully handles missing threat scores
 
 ### Scenario 2: Poor Scoring Accuracy
 
@@ -1754,37 +1830,58 @@ if (criticalThreatPercentage > 0.15) {
 - Too many false positives/negatives
 - Security team feedback is negative
 - Scores don't match expert judgment
+- Baseline fallback rate >20%
 
 **Action:**
-1. Disable fact-based scoring via feature flag
-2. Continue extracting facts (for analysis) but don't use for scoring
-3. Review and tune scoring rules
-4. Re-calibrate with expert-validated dataset
-5. Re-enable after validation
+1. Keep extraction enabled but adjust scoring rules
+2. Review `FactScoringRules` point assignments
+3. Lower confidence thresholds if too aggressive
+4. Adjust baseline scores if needed
+5. Re-tune with expert-validated dataset
+6. Update version number and re-process articles
+
+**No need to disable** - can tune rules while live
 
 ### Scenario 3: Cost Overruns
 
 **Symptoms:**
 - OpenAI costs >$150/month
 - Budget exceeded
+- API rate limits hit
 
 **Action:**
-1. Reduce article volume processed
-2. Implement more aggressive caching
-3. Consider switching to cheaper model (gpt-3.5-turbo)
-4. Fall back to keyword-based for low-priority articles
+1. Check for runaway extraction loops
+2. Verify caching is working (entities already extracted once)
+3. Consider switching extraction model to `gpt-3.5-turbo`
+4. Temporarily reduce article volume if needed
+5. Add more aggressive rate limiting
 
-### Rollback Commands
+### Scenario 4: Complete System Failure
 
+**Symptoms:**
+- All extractions failing
+- OpenAI API down
+- Critical production issue
+
+**Action:**
 ```bash
 # Disable fact extraction immediately
 export FACT_EXTRACTION_ENABLED=false
 
-# Reduce to 0% rollout
-export FACT_EXTRACTION_PERCENTAGE=0
-
 # Restart services
 npm run restart-workers
+
+# Articles will be stored without threat scores
+# No data loss - can backfill later
+```
+
+**Recovery:**
+```bash
+# Once issue resolved, re-enable
+export FACT_EXTRACTION_ENABLED=true
+
+# Backfill articles without scores
+npm run backfill-threat-scores --since="2024-01-01"
 ```
 
 ---
@@ -1795,17 +1892,18 @@ npm run restart-workers
 
 **Phase 1-3:** Code complete, unit tests passing  
 **Phase 4:** Integration tests passing, no regressions  
-**Phase 5:** A/B test shows improvement, SME validation positive  
-**Phase 6:** 100% rollout with <5% error rate  
+**Phase 5:** Validation with security experts positive, accuracy improved  
+**Phase 6:** Full production rollout with <5% baseline fallback rate  
 
 ### Overall Success Metrics (after 1 month)
 
-✅ **Accuracy:** 15%+ reduction in false negatives  
-✅ **Coverage:** >90% of articles use fact-based scoring  
+✅ **Accuracy:** 15%+ reduction in false negatives vs current system  
+✅ **Coverage:** >95% of articles use fact-based scoring (not baseline)  
 ✅ **Confidence:** Average extraction confidence >0.7  
 ✅ **Performance:** <2s extraction latency (p95)  
 ✅ **Cost:** <$100/month for 10k articles  
 ✅ **Reliability:** <5% extraction failure rate  
+✅ **Evidence Quality:** >90% of high/critical threats have supporting evidence quotes  
 
 ---
 
@@ -1817,7 +1915,7 @@ npm run restart-workers
 | 2. Implement Extraction | 5-7 days | ThreatFactExtractor, unit tests |
 | 3. Build Mapping | 3-4 days | FactScoringRules, calibration tool |
 | 4. Integration | 4-6 days | Enhanced ThreatAnalyzer, scraper updates |
-| 5. Testing | 7-10 days | Unit, integration, A/B tests, manual review |
+| 5. Testing | 7-10 days | Unit, integration, validation tests, expert review |
 | 6. Deployment | 3-5 days | Migration, gradual rollout, monitoring |
 | **Total** | **25-37 days** | **~5-7 weeks** |
 
