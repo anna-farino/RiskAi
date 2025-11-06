@@ -98,7 +98,68 @@ export class ThreatAnalyzer {
     // Step 2: Calculate component scores using fact-based scoring
     let componentScores: any = {};
     
-    if (extractedFacts) {
+    // Detect if fact extraction actually failed
+    // Primary check: extraction_successful flag (most reliable)
+    // Fallback checks: null facts, zero confidence, or all evidence invalid/filler
+    
+    // Detect filler/invalid evidence using multiple strategies
+    const hasValidEvidence = (evidence: string) => {
+      if (!evidence || evidence.trim().length < 10) return false;
+      
+      const evidenceLower = evidence.toLowerCase().trim();
+      
+      // Strategy 1: Direct substring patterns (simple cases)
+      const simpleFillerPatterns = [
+        'no evidence', 'not mentioned', 'not stated',
+        'unavailable', 'not available', 'not found', 'not specified',
+        'not clear', 'unclear', 'unknown', 'not applicable', 'n/a',
+        'article does not', 'not discussed', 'not described'
+      ];
+      if (simpleFillerPatterns.some(pattern => evidenceLower.includes(pattern))) {
+        return false;
+      }
+      
+      // Strategy 2: Regex patterns for compound filler phrases
+      const regexFillerPatterns = [
+        /^no .* (details|information|data|evidence|mention)/i,
+        /^(details|information|data|evidence) .* (not|un)available/i,
+        /^article .* (does not|doesn't|did not|didn't)/i,
+        /^(not|no) .* provided/i,
+        /^insufficient .* (details|information|data|evidence)/i
+      ];
+      if (regexFillerPatterns.some(pattern => pattern.test(evidenceLower))) {
+        return false;
+      }
+      
+      // Strategy 3: Word-based detection (both "no" and "details" present)
+      const negativeWords = ['no', 'not', 'none', 'unavailable', 'unknown', 'unclear'];
+      const infoWords = ['details', 'information', 'data', 'evidence', 'mention', 'provided'];
+      const words = evidenceLower.split(/\s+/);
+      const hasNegative = negativeWords.some(neg => words.includes(neg));
+      const hasInfo = infoWords.some(info => words.includes(info));
+      if (hasNegative && hasInfo && words.length < 8) {
+        return false; // Short phrase with negative + info word = likely filler
+      }
+      
+      // Strategy 4: Alphanumeric density (filler text is often sparse)
+      const alphanumCount = (evidence.match(/[a-zA-Z0-9]/g) || []).length;
+      const density = alphanumCount / evidence.length;
+      if (density < 0.5) return false; // Less than 50% actual content
+      
+      return true;
+    };
+    
+    const factExtractionFailed = !extractedFacts || 
+                                  !extractedFacts?.metadata?.extraction_successful ||
+                                  extractedFacts?.metadata?.overall_confidence === 0 ||
+                                  (
+                                    !hasValidEvidence(extractedFacts?.exploitation?.evidence || '') &&
+                                    !hasValidEvidence(extractedFacts?.impact?.evidence || '') &&
+                                    !hasValidEvidence(extractedFacts?.patch_status?.evidence || '') &&
+                                    !hasValidEvidence(extractedFacts?.detection?.evidence || '')
+                                  );
+    
+    if (extractedFacts && !factExtractionFailed) {
       // Use fact-based scoring for semantic components
       const exploitResult = this.factScorer.scoreExploitability(extractedFacts);
       const impactResult = this.factScorer.scoreImpact(extractedFacts);
@@ -221,7 +282,7 @@ export class ThreatAnalyzer {
       base_score: baseScore,
       confidence_flags: confidenceFlags,
       confidence_penalty: finalScore < baseScore ? (baseScore - finalScore) / baseScore : 0,
-      scoring_method: extractedFacts ? 'fact-based' : 'baseline',
+      scoring_method: (extractedFacts && !factExtractionFailed) ? 'fact-based' : 'baseline',
       fact_extraction_metadata: extractedFacts?.metadata || null,
       extraction_error: extractionError,
       version: '2.0'

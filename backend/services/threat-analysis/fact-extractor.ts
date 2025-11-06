@@ -48,7 +48,8 @@ export class ThreatFactExtractor {
         article_length: article.content.length,
         extraction_duration_ms: Date.now() - startTime,
         overall_confidence: this.calculateOverallConfidence(facts),
-        warnings: []
+        warnings: [],
+        extraction_successful: true
       };
       
       // Validate extraction
@@ -318,7 +319,8 @@ Return structured JSON matching the ThreatFactExtraction schema.
         article_length: 0,
         extraction_duration_ms: duration,
         overall_confidence: 0,
-        warnings: [`Extraction failed: ${errorMessage}`]
+        warnings: [`Extraction failed: ${errorMessage}`],
+        extraction_successful: false
       }
     };
   }

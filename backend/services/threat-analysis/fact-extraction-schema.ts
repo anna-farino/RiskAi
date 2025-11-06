@@ -103,6 +103,7 @@ export interface ExtractionMetadata {
   extraction_duration_ms: number;
   overall_confidence: number; // 0-1
   warnings: string[]; // Any issues during extraction
+  extraction_successful: boolean; // Explicit flag for baseline fallback detection
 }
 
 /**
