@@ -45,9 +45,32 @@ export async function handleSubscriptionUpdated(subscription: Stripe.Subscriptio
     start: new Date(subscription.start_date * 1000).toISOString(),
   };
 
-  const promo = subscription.discounts.length > 0
+  // Check for promo codes on both subscription and invoice level
+  // - Repeating coupons appear in subscription.discounts
+  // - "Once" duration coupons only appear in invoice.discounts
+  let promo = subscription.discounts.length > 0
+  console.log(`[WEBHOOK] Subscription has ${subscription.discounts.length} discount(s)`);
 
-  console.log('[WEBHOOK] Promo code detected on subscription? ', promo);
+  if (!promo && subscription.latest_invoice) {
+    console.log(`[WEBHOOK] Checking latest invoice for discounts...`);
+    const { stripe } = await import('backend/utils/stripe-config');
+
+    // Retrieve the latest invoice to check for "once" duration coupons
+    const invoiceId = typeof subscription.latest_invoice === 'string'
+      ? subscription.latest_invoice
+      : subscription.latest_invoice.id;
+
+    const invoice = await stripe.invoices.retrieve(invoiceId, {
+      expand: ['discounts']
+    });
+
+    if (invoice.discounts && invoice.discounts.length > 0) {
+      promo = true;
+      console.log(`[WEBHOOK] Found ${invoice.discounts.length} discount(s) on invoice ${invoiceId}`);
+    }
+  }
+
+  console.log('[WEBHOOK] Final promo code status: ', promo);
 
   // Get existing subscription to preserve metadata
   const existingSub = await db

@@ -403,7 +403,10 @@ export function SettingsSubscription() {
                         : <h1>Next Payment </h1>
                   }
                   <h1>{
-                    (userData.data.hasPromoCode && userData.data.subscriptionBillingPeriod === 'monthly')
+                    (userData.data.hasPromoCode && 
+                     userData.data.subscriptionBillingPeriod === 'monthly' &&
+                     userData.data.subscription != 'pro_test'
+                    )
                     ? new Date(new Date(userData.data.subMetadata!.current_period!.start * 1000).setMonth(
                         new Date(userData.data.subMetadata!.current_period!.start * 1000).getMonth() + 3
                       ))
@@ -413,11 +416,11 @@ export function SettingsSubscription() {
                         day: 'numeric'
                       })
                     : new Date(userData.data.subscriptionEnd * 1000)
-                      .toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })
+                        .toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        })
                   }</h1>
                 </div>
               }
