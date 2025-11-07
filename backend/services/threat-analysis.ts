@@ -255,9 +255,14 @@ export class ThreatAnalyzer {
     
     let baseScore = 0;
     for (const [component, weight] of Object.entries(weights)) {
-      const score = componentScores[component]?.score || 0;
+      const value = componentScores[component];
+      // Handle both object {score: 10} and number 10
+      const score = (typeof value === 'number') ? value : (value?.score || 0);
       baseScore += score * weight;
     }
+    
+    // Convert from 0-10 scale to 0-100 scale
+    baseScore *= 10;
     
     // Step 4: Apply confidence penalty
     const confidenceFlags = this.assessConfidence(entities, extractedFacts);
@@ -278,7 +283,14 @@ export class ThreatAnalyzer {
     
     // Step 6: Build metadata
     const metadata = {
-      components: componentScores,
+      components: Object.fromEntries(
+        Object.entries(componentScores).map(([name, data]) => [
+          name, 
+          typeof data === 'number' 
+            ? { score: data, weight: (weights[name] || 0) * 100 }
+            : { ...(data as object), weight: (weights[name] || 0) * 100 }
+        ])
+      ),
       base_score: baseScore,
       confidence_flags: confidenceFlags,
       confidence_penalty: finalScore < baseScore ? (baseScore - finalScore) / baseScore : 0,

@@ -165,7 +165,7 @@ Return structured JSON matching the ThreatFactExtraction schema.
               evidence: { type: "string" },
               confidence: { type: "number", minimum: 0, maximum: 1 }
             },
-            required: ["evidence", "confidence"],
+            required: ["is_actively_exploited", "is_zero_day", "has_public_exploit_code", "requires_authentication", "requires_user_interaction", "attack_complexity", "attack_vector", "privileges_required", "evidence", "confidence"],
             additionalProperties: false
           },
           impact: {
@@ -197,7 +197,7 @@ Return structured JSON matching the ThreatFactExtraction schema.
               evidence: { type: "string" },
               confidence: { type: "number", minimum: 0, maximum: 1 }
             },
-            required: ["evidence", "confidence"],
+            required: ["allows_remote_code_execution", "allows_privilege_escalation", "allows_data_exfiltration", "allows_denial_of_service", "allows_authentication_bypass", "confidentiality_impact", "integrity_impact", "availability_impact", "scope", "affects_critical_systems", "affects_personal_data", "evidence", "confidence"],
             additionalProperties: false
           },
           patch_status: {
@@ -220,7 +220,7 @@ Return structured JSON matching the ThreatFactExtraction schema.
               evidence: { type: "string" },
               confidence: { type: "number", minimum: 0, maximum: 1 }
             },
-            required: ["evidence", "confidence"],
+            required: ["patch_available", "patch_deployed_widely", "workaround_available", "vendor_acknowledged", "vendor_response_speed", "patch_deployment_difficulty", "days_since_disclosure", "days_since_patch", "evidence", "confidence"],
             additionalProperties: false
           },
           detection: {
@@ -241,7 +241,7 @@ Return structured JSON matching the ThreatFactExtraction schema.
               evidence: { type: "string" },
               confidence: { type: "number", minimum: 0, maximum: 1 }
             },
-            required: ["evidence", "confidence"],
+            required: ["has_public_iocs", "has_detection_signatures", "uses_evasion_techniques", "detected_by_standard_tools", "stealth_level", "detection_maturity", "evidence", "confidence"],
             additionalProperties: false
           }
         },
