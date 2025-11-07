@@ -281,24 +281,36 @@ export class ThreatAnalyzer {
       baseScore = 30; // Moderate baseline if calculation fails
     }
     
-    // Step 4: Apply confidence penalty
+    // Step 4: Apply confidence penalty (revised tiers)
     const confidenceFlags = this.assessConfidence(entities, extractedFacts);
     let finalScore = baseScore;
     
-    if (confidenceFlags.length >= 3) {
-      finalScore *= 0.70;
-    } else if (confidenceFlags.length >= 2) {
-      finalScore *= 0.85;
+    // New penalty tiers: 0 flags = 0%, 1 flag = 10%, 2+ flags = 25%
+    if (confidenceFlags.length >= 2) {
+      finalScore *= 0.75; // 25% penalty
+    } else if (confidenceFlags.length >= 1) {
+      finalScore *= 0.90; // 10% penalty
     }
     
-    // Step 5: Determine threat level
+    // Step 5: Add bonuses for high-value threat intelligence (additive rewards)
+    if (entities.cves && entities.cves.length > 0) {
+      finalScore *= 1.10; // +10% bonus for CVE identification
+    }
+    if (entities.threatActors && entities.threatActors.length > 0) {
+      finalScore *= 1.10; // +10% bonus for threat actor attribution
+    }
+    
+    // Cap at 100
+    finalScore = Math.min(100, finalScore);
+    
+    // Step 6: Determine threat level (revised thresholds)
     let threatLevel: 'low' | 'medium' | 'high' | 'critical';
-    if (finalScore >= 90) threatLevel = 'critical';
-    else if (finalScore >= 70) threatLevel = 'high';
-    else if (finalScore >= 40) threatLevel = 'medium';
+    if (finalScore >= 85) threatLevel = 'critical';
+    else if (finalScore >= 60) threatLevel = 'high';
+    else if (finalScore >= 30) threatLevel = 'medium';
     else threatLevel = 'low';
     
-    // Step 6: Build metadata
+    // Step 7: Build metadata
     const metadata = {
       components: Object.fromEntries(
         Object.entries(componentScores).map(([name, data]) => [
@@ -310,11 +322,15 @@ export class ThreatAnalyzer {
       ),
       base_score: baseScore,
       confidence_flags: confidenceFlags,
-      confidence_penalty: finalScore < baseScore ? (baseScore - finalScore) / baseScore : 0,
+      confidence_penalty: confidenceFlags.length >= 2 ? 0.25 : (confidenceFlags.length >= 1 ? 0.10 : 0),
+      bonuses: {
+        cve_bonus: (entities.cves && entities.cves.length > 0) ? 0.10 : 0,
+        threat_actor_bonus: (entities.threatActors && entities.threatActors.length > 0) ? 0.10 : 0
+      },
       scoring_method: (extractedFacts && !factExtractionFailed) ? 'fact-based' : 'baseline',
       fact_extraction_metadata: extractedFacts?.metadata || null,
       extraction_error: extractionError,
-      version: '2.0'
+      version: '2.1' // Updated version for revised confidence system
     };
     
     return {
@@ -325,37 +341,58 @@ export class ThreatAnalyzer {
     };
   }
   
-  // Enhanced confidence assessment
+  // Enhanced confidence assessment (revised 2.1)
   private assessConfidence(
     entities: ExtractedEntities, 
     facts: ThreatFactExtraction | null
   ): string[] {
     const flags: string[] = [];
     
-    // Entity-based confidence
-    if (!entities.cves || entities.cves.length === 0) {
-      flags.push('no_cves');
-    }
-    if (!entities.threatActors || entities.threatActors.length === 0) {
-      flags.push('no_threat_actors');
-    }
-    if (!entities.hardware || entities.hardware.length === 0) {
-      flags.push('no_hardware');
+    // Check 1: Low fact extraction confidence
+    if (facts && facts.metadata.overall_confidence < 0.5) {
+      flags.push('low_fact_confidence');
     }
     
-    // Fact-based confidence
-    if (facts) {
-      if (facts.metadata.overall_confidence < 0.5) {
-        flags.push('low_fact_confidence');
-      }
-      if (facts.metadata.warnings.length > 0) {
-        flags.push('fact_extraction_warnings');
-      }
-    } else {
-      flags.push('no_facts_extracted');
+    // Check 2: No specific targets mentioned
+    // Article must mention at least ONE of: software, hardware, attack vectors, or companies
+    // to be considered specific (not generic threat discussion)
+    if (!this.hasSpecificTargets(entities)) {
+      flags.push('no_specific_targets');
     }
     
     return flags;
+  }
+  
+  /**
+   * Check if article mentions specific targets (software, hardware, attack vectors, or companies)
+   * Returns true if article has at least one specific target
+   */
+  private hasSpecificTargets(entities: ExtractedEntities): boolean {
+    // Priority 1: Software entities (highest confidence for specific threats)
+    if (entities.software && entities.software.length > 0) {
+      return true;
+    }
+    
+    // Priority 1: Hardware entities (highest confidence for specific threats)
+    if (entities.hardware && entities.hardware.length > 0) {
+      return true;
+    }
+    
+    // Priority 2: Attack vectors specified
+    if (entities.attackVectors && entities.attackVectors.length > 0) {
+      return true;
+    }
+    
+    // Priority 3: Companies mentioned (lower confidence but still specific)
+    // Only count if at least 2 companies OR 1 company with high confidence
+    if (entities.companies && entities.companies.length > 0) {
+      const highConfidenceCompanies = entities.companies.filter(c => c.confidence >= 0.7);
+      if (entities.companies.length >= 2 || highConfidenceCompanies.length >= 1) {
+        return true;
+      }
+    }
+    
+    return false; // Generic article - no specific targets
   }
   
   /**
