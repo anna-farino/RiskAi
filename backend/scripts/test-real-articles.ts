@@ -137,14 +137,8 @@ async function runTests() {
       const entities = await getArticleEntities(article.id);
       
       // Re-run threat analysis with updated validation
-      const analysis = await analyzer.analyzeThreat(
-        {
-          title: article.title,
-          content: article.content,
-          url: article.url,
-          publishDate: article.publishDate,
-          attackVectors: []
-        },
+      const analysis = await analyzer.calculateSeverityScore(
+        article as any,
         entities
       );
       

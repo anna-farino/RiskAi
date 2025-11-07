@@ -261,12 +261,25 @@ export class ThreatAnalyzer {
     for (const [component, weight] of Object.entries(weights)) {
       const value = componentScores[component];
       // Handle both object {score: 10} and number 10
-      const score = (typeof value === 'number') ? value : (value?.score || 0);
+      let score = (typeof value === 'number') ? value : (value?.score || 0);
+      
+      // SAFETY: Ensure score is a finite number (prevent NaN propagation)
+      if (!Number.isFinite(score)) {
+        console.warn(`[ThreatAnalyzer] Component ${component} has invalid score: ${score}, defaulting to 0`);
+        score = 0;
+      }
+      
       baseScore += score * weight;
     }
     
     // Convert from 0-10 scale to 0-100 scale
     baseScore *= 10;
+    
+    // Final safety check: Ensure baseScore is finite
+    if (!Number.isFinite(baseScore)) {
+      console.error('[ThreatAnalyzer] Base score calculation resulted in NaN, using baseline 30');
+      baseScore = 30; // Moderate baseline if calculation fails
+    }
     
     // Step 4: Apply confidence penalty
     const confidenceFlags = this.assessConfidence(entities, extractedFacts);
@@ -376,8 +389,9 @@ export class ThreatAnalyzer {
         else if (baseScore >= 4.0) score = Math.max(score, 6);
       }
       
-      // Apply confidence weight
-      score *= cve.confidence;
+      // Apply confidence weight (SAFETY: default undefined to 0.6)
+      const safeConfidence = Number.isFinite(cve.confidence) ? cve.confidence : 0.6;
+      score *= safeConfidence;
       maxScore = Math.max(maxScore, score);
     }
     
@@ -631,6 +645,8 @@ export class ThreatAnalyzer {
   /**
    * Handles scoring when only partial entity information is available
    * Applies confidence-adjusted multipliers based on specificity level
+   * 
+   * FIXED (Nov 2025): Default undefined confidence to 0.6 to prevent NaN propagation
    */
   private applyPartialDataMultiplier(
     baseScore: number,
@@ -644,10 +660,15 @@ export class ThreatAnalyzer {
       'generic': 0.40     // Broad mention → 40% weight
     }[specificity];
     
-    // Confidence threshold: Low confidence entities contribute less
-    const confidenceMultiplier = confidence >= 0.6 ? confidence : confidence * 0.5;
+    // SAFETY: Default undefined/NaN confidence to 0.6 (moderate confidence)
+    const safeConfidence = Number.isFinite(confidence) ? confidence : 0.6;
     
-    return baseScore * specificityMultiplier * confidenceMultiplier;
+    // Confidence threshold: Low confidence entities contribute less
+    const confidenceMultiplier = safeConfidence >= 0.6 ? safeConfidence : safeConfidence * 0.5;
+    
+    // Clamp result to [0, 10] to prevent score overflow
+    const result = baseScore * specificityMultiplier * confidenceMultiplier;
+    return Math.max(0, Math.min(10, result));
   }
   
   /**
