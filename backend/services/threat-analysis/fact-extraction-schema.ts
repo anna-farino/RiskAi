@@ -108,6 +108,12 @@ export interface ExtractionMetadata {
 
 /**
  * Validation helpers
+ * 
+ * RELAXED THRESHOLDS (Nov 2025):
+ * - Accept partial fact extractions (1 fact minimum instead of 3)
+ * - Lower evidence length requirement (5 chars instead of 10)
+ * - Require confidence in at least ONE category (not both)
+ * - Treat validation as warnings, not hard failures
  */
 export function validateFactExtraction(facts: ThreatFactExtraction): {
   isValid: boolean;
@@ -115,30 +121,33 @@ export function validateFactExtraction(facts: ThreatFactExtraction): {
 } {
   const errors: string[] = [];
   
-  // Check that at least some facts were extracted
-  const hasExploitationFacts = Object.values(facts.exploitation)
-    .filter(v => v !== null && v !== undefined && v !== '').length > 2;
-  const hasImpactFacts = Object.values(facts.impact)
-    .filter(v => v !== null && v !== undefined && v !== '').length > 2;
+  // Check that at least SOME facts were extracted (lowered from 2 to 1)
+  const exploitationFactCount = Object.values(facts.exploitation)
+    .filter(v => v !== null && v !== undefined && v !== '').length;
+  const impactFactCount = Object.values(facts.impact)
+    .filter(v => v !== null && v !== undefined && v !== '').length;
+  
+  const hasExploitationFacts = exploitationFactCount >= 1;
+  const hasImpactFacts = impactFactCount >= 1;
     
   if (!hasExploitationFacts && !hasImpactFacts) {
-    errors.push('Insufficient facts extracted - need at least 2 exploitation or impact facts');
+    errors.push('Insufficient facts extracted - need at least 1 exploitation or impact fact');
   }
   
-  // Check confidence thresholds
-  if (facts.exploitation.confidence < 0.3) {
-    errors.push('Exploitation facts confidence too low');
-  }
-  if (facts.impact.confidence < 0.3) {
-    errors.push('Impact facts confidence too low');
+  // Check confidence thresholds (require at least ONE category to have good confidence)
+  const hasGoodConfidence = facts.exploitation.confidence >= 0.3 || facts.impact.confidence >= 0.3;
+  
+  if (!hasGoodConfidence) {
+    errors.push('Both exploitation and impact confidence too low (need at least one >= 0.3)');
   }
   
-  // Check evidence exists
-  if (!facts.exploitation.evidence || facts.exploitation.evidence.length < 10) {
-    errors.push('Missing exploitation evidence');
-  }
-  if (!facts.impact.evidence || facts.impact.evidence.length < 10) {
-    errors.push('Missing impact evidence');
+  // Check evidence exists (lowered from 10 to 5 characters)
+  const hasValidEvidence = 
+    (facts.exploitation.evidence && facts.exploitation.evidence.length >= 5) ||
+    (facts.impact.evidence && facts.impact.evidence.length >= 5);
+    
+  if (!hasValidEvidence) {
+    errors.push('Missing valid evidence (need at least 5 characters in one category)');
   }
   
   return {

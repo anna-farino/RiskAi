@@ -103,8 +103,9 @@ export class ThreatAnalyzer {
     // Fallback checks: null facts, zero confidence, or all evidence invalid/filler
     
     // Detect filler/invalid evidence using multiple strategies
+    // RELAXED: Changed from 10 to 5 characters minimum
     const hasValidEvidence = (evidence: string) => {
-      if (!evidence || evidence.trim().length < 10) return false;
+      if (!evidence || evidence.trim().length < 5) return false;
       
       const evidenceLower = evidence.toLowerCase().trim();
       
@@ -149,8 +150,11 @@ export class ThreatAnalyzer {
       return true;
     };
     
+    // UPDATED LOGIC (Nov 2025): Only consider extraction failed if it truly failed
+    // Validation warnings (from validateFactExtraction) no longer trigger baseline fallback
+    // Instead, we use fact-based scoring with partial data and apply confidence penalties
     const factExtractionFailed = !extractedFacts || 
-                                  !extractedFacts?.metadata?.extraction_successful ||
+                                  extractedFacts?.metadata?.extraction_successful === false ||
                                   extractedFacts?.metadata?.overall_confidence === 0 ||
                                   (
                                     !hasValidEvidence(extractedFacts?.exploitation?.evidence || '') &&
