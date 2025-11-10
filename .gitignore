@@ -18,3 +18,4 @@ test/
 db-copy/
 prompts/
 
+.github/workflows/app-risqai-backend-prod-AutoDeployTrigger-*.yml
