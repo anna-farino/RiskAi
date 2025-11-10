@@ -19,3 +19,5 @@ db-copy/
 prompts/
 
 .github/workflows/app-risqai-backend-prod-AutoDeployTrigger-*.yml
+.github/workflows/app-risqai-backend-prod-AutoDeployTrigger-*.yml
+.github/workflows/azure-static-web-apps-icy-plant-0e669a70f.yml
