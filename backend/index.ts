@@ -42,6 +42,13 @@ app.post('/webhooks/stripe',
 );
 app.use(express.json());
 app.use(cookieParser());
+app.get('/', (req, res) => {
+ res.status(200).json({
+   status: 'ok',
+   message: 'Server is running',
+   timestamp: new Date().toISOString()
+ });
+});
 app.use('/api', router);
 
 if (isDevelopment) {
