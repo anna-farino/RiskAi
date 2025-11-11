@@ -15,10 +15,12 @@ import { handleStripeWebhook } from './handlers/stripe/webhook';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const port = Number(process.env.PORT) || 5000;
-
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname  = path.dirname(__filename);
+const staticPath = path.join(__dirname, '../frontend/dist');
+
+
+const port = Number(process.env.PORT) || 5000;
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -47,6 +49,9 @@ app.post('/webhooks/stripe',
 );
 app.use(express.json());
 app.use(cookieParser());
+app.get('/', (req, res) => {
+  res.send('Hello World!');
+})
 app.use('/api', router);
 
 if (isDevelopment) {
@@ -57,15 +62,12 @@ if (isDevelopment) {
     proxyTimeout: 0,
   }));
 } else {
-   // Production: serve built frontend
-  const frontendBuildPath = path.join(__dirname, '../frontend/build');
-  
-  app.use(express.static(frontendBuildPath));
-  
-  // SPA fallback - serve index.html for all non-API routes
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(frontendBuildPath, 'index.html'));
-  });
+   app.use(express.static(staticPath));
+ 
+   // Serve index.html for all non-API routes (SPA routing)
+   app.get('*', (req, res) => {
+     res.sendFile(path.join(staticPath, 'index.html'));
+   });
 }
 
 // Initialize live logs system (staging only)
