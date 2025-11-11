@@ -8,8 +8,9 @@ export type CspOptions = Parameters<typeof contentSecurityPolicy>[0];
 const isDev = process.env.NODE_ENV !== 'production';
 
 // ✅ Minimal: parametrize Auth0 tenant, defaulting to your current dev tenant
-const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN ?? 'dev-t5wd7j8putzpb6ev.us.auth0.com';
-const AUTH0_ORIGIN = `https://${AUTH0_DOMAIN}`;
+const RAW_AUTH0 = process.env.AUTH0_DOMAIN ?? 'dev-t5wd7j8putzpb6ev.us.auth0.com';
+// accept either "dev-....us.auth0.com" or "https://dev-....us.auth0.com"
+const AUTH0_ORIGIN = RAW_AUTH0.startsWith('http') ? RAW_AUTH0 : `https://${RAW_AUTH0}`;
 
 export function setNonce(
   req: Request,

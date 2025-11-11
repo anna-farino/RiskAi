@@ -38,10 +38,10 @@ const app = express();
 const httpServer = createServer(app);
 
 app.set('trust-proxy', 1);
+app.use(setNonce)
 app.use(helmet(helmetConfig));
 app.use(callId);
 app.use(logTime);
-app.use(setNonce)
 app.use(cors(corsOptions));
 app.post('/webhooks/stripe',
  express.raw({ type: 'application/json' }),
