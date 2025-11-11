@@ -17,7 +17,7 @@ import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
-const staticPath = path.join(__dirname, '../frontend/dist');
+const staticPath = path.join(__dirname, '../frontend/build');
 
 
 const port = Number(process.env.PORT) || 5000;
