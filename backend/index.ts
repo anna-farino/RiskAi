@@ -51,6 +51,16 @@ if (isDevelopment) {
     ws: true,
     proxyTimeout: 0,
   }));
+} else {
+   const path = require('path');
+   const staticPath = path.join(__dirname, '../frontend/dist');
+ 
+   app.use(express.static(staticPath));
+ 
+   // Serve index.html for all non-API routes (SPA routing)
+   app.get('*', (req, res) => {
+     res.sendFile(path.join(staticPath, 'index.html'));
+   });
 }
 
 // Initialize live logs system (staging only)
