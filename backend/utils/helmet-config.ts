@@ -7,6 +7,10 @@ export type CspOptions = Parameters<typeof contentSecurityPolicy>[0];
 
 const isDev = process.env.NODE_ENV !== 'production';
 
+// ✅ Minimal: parametrize Auth0 tenant, defaulting to your current dev tenant
+const AUTH0_DOMAIN = process.env.AUTH0_DOMAIN ?? 'dev-t5wd7j8putzpb6ev.us.auth0.com';
+const AUTH0_ORIGIN = `https://${AUTH0_DOMAIN}`;
+
 export function setNonce(
   req: Request,
   res: Response & { locals: { cspNonce?: string } },
@@ -34,11 +38,15 @@ export const cspOptions: CspOptions = {
     ],
     fontSrc: ["'self'", "https://fonts.gstatic.com"],
     imgSrc: ["'self'", "data:"],
-    connectSrc: ["'self'", isDev ? "ws://localhost:5174" : null].filter(Boolean) as string[],
+    // ✅ Minimal: allow Auth0 for token/jwks/authorize calls (+ dev HMR ws)
+    connectSrc: ["'self'", AUTH0_ORIGIN, ...(isDev ? ["ws://localhost:5174"] : [])],
+    // ✅ Minimal: allow hidden iframe to Auth0 for silent auth/checkSession
+    frameSrc: ["'self'", AUTH0_ORIGIN],
     objectSrc: ["'none'"],
     frameAncestors: ["'none'"],
     baseUri: ["'self'"],
-    formAction: ["'self'"],
+    // ✅ Minimal: allow posting to Auth0 (e.g., logout or form flows)
+    formAction: ["'self'", AUTH0_ORIGIN],
     upgradeInsecureRequests: []
   }
 };
