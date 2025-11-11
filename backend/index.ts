@@ -49,9 +49,6 @@ app.post('/webhooks/stripe',
 );
 app.use(express.json());
 app.use(cookieParser());
-app.get('/', (req, res) => {
-  res.send('Hello World!');
-})
 app.use('/api', router);
 
 if (isDevelopment) {
