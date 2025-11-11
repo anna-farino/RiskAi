@@ -12,8 +12,13 @@ import { helmetConfig, setNonce } from './utils/helmet-config';
 import { initializeSocketIO } from './admin/services/socket-server';
 import { initializeLogInterception } from './admin/services/log-interceptor';
 import { handleStripeWebhook } from './handlers/stripe/webhook';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const port = Number(process.env.PORT) || 5000;
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -52,15 +57,15 @@ if (isDevelopment) {
     proxyTimeout: 0,
   }));
 } else {
-   const path = require('path');
-   const staticPath = path.join(__dirname, '../frontend/dist');
- 
-   app.use(express.static(staticPath));
- 
-   // Serve index.html for all non-API routes (SPA routing)
-   app.get('*', (req, res) => {
-     res.sendFile(path.join(staticPath, 'index.html'));
-   });
+   // Production: serve built frontend
+  const frontendBuildPath = path.join(__dirname, '../frontend/build');
+  
+  app.use(express.static(frontendBuildPath));
+  
+  // SPA fallback - serve index.html for all non-API routes
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(frontendBuildPath, 'index.html'));
+  });
 }
 
 // Initialize live logs system (staging only)
