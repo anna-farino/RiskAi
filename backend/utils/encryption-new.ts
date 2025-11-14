@@ -345,6 +345,8 @@ export async function envelopeDecryptAndRotate(
     return row[fieldName] as string || "";
   }
 
+  console.log(`[ENCRYPTION] Not in dev environment. NODE_ENV: ${process.env.NODE_ENV}`)
+
   const row = await withUserContext(userId, (contextDb) => 
     contextDb.select().from(table).where(eq(table.id, rowId)).then(rows => rows[0])
   );
