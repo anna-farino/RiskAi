@@ -99,30 +99,32 @@ export function RisqHeader() {
                   </span>
                   <ChevronDown className="h-4 w-4 ml-1" />
                 </button>
-                <div className="absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-black border border-[#BF00FF]/20 shadow-lg invisible group-hover:visible transition-all opacity-0 group-hover:opacity-100 py-1">
-                  <Link
-                    to="/dashboard/settings"
-                    className="block px-4 py-2 text-sm text-white hover:bg-[#BF00FF]/10"
-                  >
-                    Settings
-                  </Link>
-                  {userData?.role === 'admin' && (
+                  <div className="absolute right-0 z-10 mt-1 w-48 origin-top-right rounded-md bg-black border border-[#BF00FF]/20 shadow-lg invisible group-hover:visible transition-all opacity-0 group-hover:opacity-100 py-1">
+                  {userData.email != 'guest@risqai.co' &&
                     <Link
-                      to="/dashboard/admin"
-                      className="flex items-center px-4 py-2 text-sm text-[#FF69FF] hover:bg-[#FF69FF]/10"
+                      to="/dashboard/settings"
+                      className="block px-4 py-2 text-sm text-white hover:bg-[#BF00FF]/10"
                     >
-                      <Shield className="h-4 w-4 mr-2" />
-                      Admin
+                      Settings
                     </Link>
-                  )}
-                  <button
-                    onClick={logout}
-                    className="flex w-full items-center px-4 py-2 text-sm text-[#00FFFF] hover:bg-[#00FFFF]/10"
-                  >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Logout
-                  </button>
-                </div>
+                  }
+                    {userData?.role === 'admin' && (
+                      <Link
+                        to="/dashboard/admin"
+                        className="flex items-center px-4 py-2 text-sm text-[#FF69FF] hover:bg-[#FF69FF]/10"
+                      >
+                        <Shield className="h-4 w-4 mr-2" />
+                        Admin
+                      </Link>
+                    )}
+                    <button
+                      onClick={logout}
+                      className="flex w-full items-center px-4 py-2 text-sm text-[#00FFFF] hover:bg-[#00FFFF]/10"
+                    >
+                      <LogOut className="h-4 w-4 mr-2" />
+                      Logout
+                    </button>
+                  </div>
               </div>
             ) : isAuthenticated ? (
               // Fallback logout button when userData fails to load but Auth0 thinks user is authenticated
