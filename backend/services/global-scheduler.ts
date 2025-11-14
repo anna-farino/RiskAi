@@ -504,6 +504,12 @@ async function executeUnifiedGlobalScrape(): Promise<void> {
     return;
   }
 
+  // Check if global scraping is disabled via environment variable
+  if (process.env.GLOBAL_SCRAPING_ENABLED === 'false') {
+    log(`[GLOBAL SCHEDULER] Global scraping is disabled via GLOBAL_SCRAPING_ENABLED environment variable`, "scheduler");
+    return;
+  }
+
   isRunning = true;
   const startTime = Date.now();
   const currentTime = new Date();
