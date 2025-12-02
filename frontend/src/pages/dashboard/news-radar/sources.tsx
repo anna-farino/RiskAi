@@ -107,10 +107,10 @@ export default function Sources() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/news-tracker/sources/available"] });
-      toast({
-        title: "Source updated",
-        description: "Source status has been updated successfully.",
-      });
+      //toast({
+      //  title: "Source updated",
+      //  description: "Source status has been updated successfully.",
+      //});
     },
   });
 

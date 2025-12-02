@@ -55,3 +55,8 @@ channel = "stable-24_05"
 [agent]
 integrations = ["javascript_stripe:1.0.0"]
 
+[deployment]
+build = ["sh", "-c", "cd backend && npm run build && cd ../frontend && npm run build"]
+run = ["sh", "-c", "cd backend && npm start && cd ../frontend && vite start"]
+deploymentTarget = "cloudrun"
+

@@ -161,7 +161,7 @@ export function OnboardingGuard({ children }: OnboardingGuardProps) {
   }
 
   // If user doesn't need onboarding, render children
-  if (!needsOnboarding || dontShowPrices) {
+  if (!needsOnboarding || dontShowPrices || true) {
     return <>{children}</>;
   }
 

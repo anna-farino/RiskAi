@@ -58,13 +58,15 @@ export default function UserBadgeAndDropDown({ userData }: Props) {
               </DropdownMenuItem>
             </Link>
           }
-          <Link to='/dashboard/settings'
-            className={cn("flex flex-row cursor-pointer w-full h-full")}
-          >
-            <DropdownMenuItem className="flex flex-row w-full cursor-pointer">
-              Settings
-            </DropdownMenuItem>
-          </Link>
+          {userData?.email !== 'guest@risqai.co' &&
+            <Link to='/dashboard/settings'
+              className={cn("flex flex-row cursor-pointer w-full h-full")}
+            >
+              <DropdownMenuItem className="flex flex-row w-full cursor-pointer">
+                Settings
+              </DropdownMenuItem>
+            </Link>
+          }
 
           {false && <Link to='/dashboard/secrets'
             className={cn("flex flex-row cursor-pointer w-full h-full")}

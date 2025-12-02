@@ -101,10 +101,10 @@ export default function ThreatSources() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/threat-tracker/sources/available"] });
-      toast({
-        title: "Source updated",
-        description: "Source status has been updated successfully.",
-      });
+      //toast({
+      //  title: "Source updated",
+      //  description: "Source status has been updated successfully.",
+      //});
     },
   });
 

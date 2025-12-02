@@ -353,13 +353,15 @@ export const MainNavigation = ({ className }: { className?: string }) => {
           Technology Stack
         </NavItem>
 
-        <NavItem
-          href="/dashboard/settings"
-          icon={<Settings size={18} className="text-gray-300" />}
-          active={isActive('/dashboard/settings')}
-        >
-          Settings
-        </NavItem>
+        {!userData.data?.email.includes('guest@risqai.co') && 
+          <NavItem
+            href="/dashboard/settings"
+            icon={<Settings size={18} className="text-gray-300" />}
+            active={isActive('/dashboard/settings')}
+          >
+            Settings
+          </NavItem>
+        }
 
         {/* Live Logs - Available when user has permission */}
         {liveLogsPermission.available && liveLogsPermission.hasPermission && (
@@ -641,13 +643,16 @@ export const MobileNavigation = () => {
                     </CollapsibleContent>
                   </Collapsible>
                 </div>
-                <NavItem
-                  href="/dashboard/settings"
-                  icon={<Settings size={18} className="text-gray-300" />}
-                  active={location.pathname.startsWith('/dashboard/settings')}
-                >
-                  Settings
-                </NavItem>
+              
+                {!userData?.email.includes('guest@risqai.co') && 
+                  <NavItem
+                    href="/dashboard/settings"
+                    icon={<Settings size={18} className="text-gray-300" />}
+                    active={location.pathname.startsWith('/dashboard/settings')}
+                  >
+                    Settings
+                  </NavItem>
+                }
 
                 {/* Live Logs - Available when user has permission */}
                 {liveLogsPermission.available && liveLogsPermission.hasPermission && (

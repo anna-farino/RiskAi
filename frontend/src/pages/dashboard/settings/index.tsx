@@ -6,6 +6,10 @@ import { SettingsSubscription } from "./SettingsSubscription";
 export default function Settings() {
   const userData = useAuth();
 
+  if (userData.data?.email.includes('guest@risqai.co')) {
+    return <h1> Settings not available to guest user</h1>
+  }
+
   return (
     <div className="flex flex-col gap-4 mb-[120px]">
       <SettingsHeader twoFactorEnabled={userData.data?.twoFactorEnabled} />

@@ -71,7 +71,8 @@ export default function Login() {
     // Otherwise, trigger Auth0 login redirect
     await loginWithRedirect({
       authorizationParams: {
-        audience
+        audience,
+        //login_hint: 'guest@risqai.co'
       },
     });
   };
