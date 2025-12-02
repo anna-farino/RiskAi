@@ -14,6 +14,7 @@ import { initializeLogInterception } from './admin/services/log-interceptor';
 import { handleStripeWebhook } from './handlers/stripe/webhook';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
@@ -59,10 +60,18 @@ if (isDevelopment) {
     proxyTimeout: 0,
   }));
 } else {
+   // Set up rate limiter for static file and index.html serving
+   const staticRateLimiter = rateLimit({
+     windowMs: 15 * 60 * 1000, // 15 minutes
+     max: 100, // limit each IP to 100 requests per windowMs
+     standardHeaders: true,
+     legacyHeaders: false,
+   });
+   app.use(staticRateLimiter);
    app.use(express.static(staticPath));
  
    // Serve index.html for all non-API routes (SPA routing)
-   app.get('*', (req, res) => {
+   app.get('*', staticRateLimiter, (req, res) => {
      res.sendFile(path.join(staticPath, 'index.html'));
    });
 }
